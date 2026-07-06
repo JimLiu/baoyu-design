@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/jimliu-baoyu-design-badge.png)](https://mseep.ai/app/jimliu-baoyu-design)
+
 # baoyu-design
 
 **Run Claude Design on your own local agent — Cursor, Claude Code, Claude Desktop, or any file‑capable coding agent.**
