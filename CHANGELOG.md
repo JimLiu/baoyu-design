@@ -4,6 +4,20 @@ English | [中文](./CHANGELOG.zh.md)
 
 All notable changes to `baoyu-design` are tracked in this file.
 
+## 1.2.0 - 2026-07-25
+
+### Features
+- Synchronize 13 project-type routes and the July 25 Claude Design system-prompt snapshot, covering slides, mobile apps, wireframes, documents, animation, UI mockups, résumés, 3D objects, research, HTML email, color/type systems, diagrams, and fliers.
+- Add specialized workflows for 3D objects, data science and visualization, design feedback, experiments, HTML email, maps, social media campaigns, trifold brochures, watercolor illustration, web research, landing pages, and additional export formats.
+- Add starter components for timeline animation, charts and data overlays, document and file views, 3D scenes, browser/device shells, and major social platforms.
+
+### Changed
+- Merge upstream improvements into `deck-stage`, `image-slot`, design guidance, and project routing while preserving local native PowerPoint animations, tweak suggestions, design-system tooling, import flows, and video export.
+- Record reproducible upstream-sync provenance and manifests, with tests that verify every project type and protect local feature overlays.
+
+### Documentation
+- Expand the English and Chinese capability overview for the new workflows and starter components.
+
 ## 1.1.1 - 2026-06-22
 
 ### Changed
