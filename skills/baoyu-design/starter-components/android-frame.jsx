@@ -154,7 +154,9 @@ function AndroidDevice({
   title, large = false, keyboard = false,
 }) {
   return (
-    <div style={{
+    // data-om-starter: inert presence marker — Claude Design's starter-usage
+    // probe reads it; it renders nothing. Keep it on this root element.
+    <div data-om-starter="android-frame" style={{
       width, height, borderRadius: 18, overflow: 'hidden',
       background: dark ? '#1d1b20' : MD_C.surface,
       border: `8px solid ${MD_C.frameBorder}`,

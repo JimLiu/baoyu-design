@@ -3,7 +3,8 @@ name: baoyu-design
 description: >-
   Create polished design artifacts as self-contained HTML: UI mockups, interactive
   prototypes, wireframes, landing pages, dashboards, app screens, mobile apps, slide
-  decks (a.k.a. PPT / PowerPoint presentations), and visual explorations. Use whenever
+  decks (a.k.a. PPT / PowerPoint presentations), documents and résumés, animations,
+  3D objects, research reports, HTML email, diagrams, fliers, and visual explorations. Use whenever
   the user asks to design, mock up, prototype, wireframe, visualize, explore, or make a
   PPT/deck for an interface, product screen, user flow, content layout, visual artifact,
   or pitch/deck concept, even if they do not say "design". Also use to export a deck
@@ -29,6 +30,7 @@ You are an expert designer producing design artifacts as HTML on the user's beha
 - Claude Desktop-like or unknown file-capable harness → use the generic workflow in `system-prompt.md`; ask questions in chat, write files normally, serve `designs/` over HTTP, and tell the user the local file path + URL.
 
 **3. Load the right built-in skill(s).** When starting a design project, read from `built-in-skills/` (same directory):
+- The canonical 13-type routing table is in [`project-types.json`](project-types.json). Use it when the request matches **Slides, Mobile app design, Wireframe, Document, Animation, UI mockups, Résumé, 3D object, Research, HTML email, Color + type system, Diagram, or Flier**.
 - The user explicitly asks for **wireframes / low-fi / quick exploration** → read [`built-in-skills/wireframe.md`](built-in-skills/wireframe.md).
 - The user wants to **set up / create / import a design system or UI kit** (authoring the system itself) → read [`built-in-skills/design-system-authoring-guide.md`](built-in-skills/design-system-authoring-guide.md) (the full authoring flow), plus [`built-in-skills/create-design-system.md`](built-in-skills/create-design-system.md) / [`built-in-skills/design-components.md`](built-in-skills/design-components.md) as relevant. Generate the loadable artifacts with `agents/compile-design-system.mjs` and validate with the read-only checker (`agents/check-design-system.mjs`, or the `agents/design-system-checker.md` subagent) — see your harness reference for how to launch it. Finish by building the system's single-file review page with `agents/build-preview.mjs` (→ `preview.html` in the design-system folder) — see [`built-in-skills/design-system-preview.md`](built-in-skills/design-system-preview.md).
 - The user provides a **local Figma `.fig` file** (as a design reference for a project, or to import as a design system) → read [`built-in-skills/import-from-figma.md`](built-in-skills/import-from-figma.md). It drives `agents/import-figma.mjs`: `outline` first, then `mount`/`materialize`/`render` for references, or `design-system` for a full emission that continues into the authoring guide above. Decodes offline — no Figma account or MCP needed.
@@ -37,6 +39,11 @@ You are an expert designer producing design artifacts as HTML on the user's beha
 - The project should **follow / consume an existing design system** (a regular project that uses one, not authoring) → read [`built-in-skills/use-design-system.md`](built-in-skills/use-design-system.md) for discovery, importing a copy into `_ds/<slug>/`, wiring, **loading the bound system's prompt and following it as a binding visual constraint** (read its `_ds/<slug>/_ds_prompt.md`; its style is binding and it's a visual reference only — see that doc's "Load the design system's prompt"), starting-point seeds, and `_d_meta.json`.
 - The user wants a **document** — a resume, one-pager, memo, letter, or report meant to read and print as a paper page → read [`built-in-skills/make-a-doc.md`](built-in-skills/make-a-doc.md).
 - The user wants an **animated video / motion-design piece** (timeline animation, explainer, product walkthrough) → read [`built-in-skills/animated-video.md`](built-in-skills/animated-video.md). Once it looks right, the finished animation can be rendered to a real `.mp4` via [`built-in-skills/export-as-video.md`](built-in-skills/export-as-video.md).
+- The user wants a **3D object** → read [`built-in-skills/3d-object.md`](built-in-skills/3d-object.md) and start from `starter-components/three-d-stage.js`.
+- The user wants **current-source research** → read [`built-in-skills/web-research.md`](built-in-skills/web-research.md); cite live sources in the deliverable.
+- The user wants an **HTML email** → read [`built-in-skills/html-email.md`](built-in-skills/html-email.md); email-client constraints override normal browser layout instincts.
+- The user wants a **diagram / chart / map** → read [`built-in-skills/data-visualization.md`](built-in-skills/data-visualization.md), plus [`built-in-skills/maps-geography.md`](built-in-skills/maps-geography.md) for geographic work.
+- The user wants a **flier or brochure** → read [`built-in-skills/flier.md`](built-in-skills/flier.md) or [`built-in-skills/trifold-brochure.md`](built-in-skills/trifold-brochure.md), and use `starter-components/doc-page.js`.
 - **Otherwise (default)** → read both [`built-in-skills/hi-fi-design.md`](built-in-skills/hi-fi-design.md) **and** [`built-in-skills/interactive-prototype.md`](built-in-skills/interactive-prototype.md).
 - Other output types (deck, mobile app, animation, PDF/PPTX export, etc.) → read the matching file. For **PPTX export, default to the editable export** (`export-as-pptx-editable.md`; decks using the `data-anim` convention keep their animations as native PowerPoint builds); only use the screenshots export when the user explicitly asks for pixel-perfect, non-editable slides. The full list is at the bottom of `system-prompt.md`. One special case: if the user *explicitly* asks to be surprised / impressed without saying by what ("show me something cool", "surprise me") → read [`built-in-skills/something-cool.md`](built-in-skills/something-cool.md) and follow it (ask what they want first, then build). This is opt-in only — never the default.
 
@@ -48,4 +55,5 @@ You are an expert designer producing design artifacts as HTML on the user's beha
 
 ## Notes
 - `system-prompt.md` is the single source of truth for craft; `references/<harness>.md` is the single source of truth for which tool to call. This file just orchestrates the entry flow.
+- `references/upstream-system-prompt.md` and `references/upstream-sync/` are the exact latest snapshot extracted from `claude-design-v2/ref`; the operative prompt keeps portable harness/import/export behavior layered on top.
 - Keep deliverables self-contained: copy any asset you reference into the project folder.

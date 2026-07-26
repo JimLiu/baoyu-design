@@ -9,7 +9,13 @@ Follow this general design process (use the todo list to remember):
 
 Good hi-fi designs do not start from scratch — they are rooted in existing design context. Ask the user to Import their codebase, or find a suitable UI kit / design resources, or ask for screenshots of existing UI. You MUST spend time trying to acquire design context, including components. If you cannot find them, ask the user for them. In the Import menu, they can link a local codebase, provide screenshots or Figma links; they can also link another project. Mocking a full product from scratch is a LAST RESORT and will lead to poor design. If stuck, try listing design assets and ls'ing design system files — be proactive! Some designs may need multiple design systems — get them all. Use the starter components (device frames and the like) to get high-quality scaffolding for free.
 
-When presenting several options or explorations side-by-side, lay them out clearly: give the page a neutral gray background, put each option in its own labeled frame (a small heading + a white rounded card sized to its content), and group related options into sections.
+When presenting several options or explorations side-by-side, use the
+`design-canvas.jsx` starter so each option is a labeled, movable artboard on
+a neutral canvas. In the hosted product, also add
+`<meta name="design_doc_mode" content="canvas">`; in a portable harness the
+starter supplies the pan/zoom behavior. If the user must choose an option
+before work can continue, ask with the harness's structured question flow
+instead of treating the comparison canvas as an answer.
 
 When designing, asking many good questions is ESSENTIAL.
 
@@ -17,4 +23,11 @@ Give options: try to give 3+ variations across several dimensions. Mix by-the-bo
 
 CSS, HTML, JS and SVG are amazing. Users often don't know what they can do. Surprise the user.
 
-If you do not have an icon, asset or component, draw a placeholder: in hi-fi design, a placeholder is better than a bad attempt at the real thing. When a real asset (illustration, texture, hero image, icon) would clearly beat a placeholder *and* an image backend is available, generate it — see [`generate-images.md`](generate-images.md). A clean placeholder still beats a bad generated attempt, so generate only when it genuinely helps.
+If you do not have an icon, asset or component, draw a placeholder: in hi-fi
+design, a placeholder is better than a bad attempt at the real thing. When a
+real asset (illustration, texture, hero image, icon) would clearly beat a
+placeholder *and* an image backend is available, generate it — see
+[`generate-images.md`](generate-images.md). Photography is the exception:
+place an `<image-slot>` and prefill it with an attributed stock photo when
+stock search is available, so the user can still replace or recrop it. A
+clean placeholder still beats a poor generated substitute.

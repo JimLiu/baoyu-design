@@ -104,7 +104,9 @@ function ChromeWindow({
   width = 900, height = 600, children,
 }) {
   return (
-    <div style={{
+    // data-om-starter: inert presence marker — Claude Design's starter-usage
+    // probe reads it; it renders nothing. Keep it on this root element.
+    <div data-om-starter="browser-window" style={{
       width, height, borderRadius: 10, overflow: 'hidden',
       boxShadow: '0 24px 80px rgba(0,0,0,0.35), 0 0 0 1px rgba(0,0,0,0.1)',
       display: 'flex', flexDirection: 'column', background: CHROME_C.tabBg,

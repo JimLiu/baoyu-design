@@ -12,7 +12,11 @@ Export the current HTML design as a print-friendly HTML file optimized for PDF e
 
 2. **Create a print-ready HTML file**. The print file path is the source path with `-print` inserted before the extension — same directory, same basename. If the source is `slides/deck.html`, write `slides/deck-print.html`; if the source is `web/index.html`, write `web/index-print.html`. **Do NOT** use the deck title or project name as the filename, and **do NOT** write to the project root if the source is in a subdirectory — any change in directory depth breaks every relative URL (`@font-face` `src: url(...)`, `<img src>`, `<link href>`, CSS `background: url(...)`) and the print tab shows missing images and system-font fallbacks.
 
-   - Add `@media print` styles with appropriate rules:
+   - If the source already uses `<doc-page>` or `<deck-stage>`, preserve that
+     component and its print ownership. Do not add a competing `@page` rule;
+     copy the component beside the print file and let its built-in print
+     geometry produce the pages.
+   - Otherwise add `@media print` styles with appropriate rules:
      - `@page { size: landscape; margin: 0.5cm; }` for 16:9 slide-like proportions
      - Remove background colors that won't print by default (or use `-webkit-print-color-adjust: exact` to force them)
    - Use CSS page break properties:
@@ -44,7 +48,9 @@ Export the current HTML design as a print-friendly HTML file optimized for PDF e
 - Add a 500ms delay just to be safe
 - Use your judgement; there may be other things to wait for besides these depending on the page!
 
-5. **Call the `open_for_print` tool** with the project-relative path to the print-ready file.
+5. **Open the print-ready file with the selected harness's print capability**
+   (the hosted tool is `open_for_print`; other harnesses may use the browser's
+   print dialog) and save the PDF.
 
 ## Important Notes
 

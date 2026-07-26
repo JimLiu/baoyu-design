@@ -8,7 +8,7 @@ One string per slide, same order. Write conversationally — full scripts of wha
 
 Ask a few questions about tone + conversational style before writing.
 
-Because the script carries the narrative, strip text off the slides. Slides should lean on large figures, quotes, full-bleed images, diagrams, and one-line headlines — NOT paragraphs. If a slide is mostly text, you've put the script on the slide instead of in the notes.
+Because the script carries the narrative, strip text off the slides. Slides should lean on large figures, quotes, full-bleed images, diagrams, and one-line headlines — NOT paragraphs. For a full-bleed photograph, use an absolutely positioned `image-slot` and keep overlay copy `pointer-events: none` so its replacement controls stay reachable; prefill it through attributed stock search when available. If a slide is mostly text, you've put the script on the slide instead of in the notes.
 
 ### Format
 

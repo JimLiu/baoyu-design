@@ -1,0 +1,198 @@
+[
+  {
+    "kind": "design_canvas.jsx",
+    "filename": "design-canvas.jsx",
+    "description": "Pan/zoom canvas for presenting design options side-by-side — reorderable/deletable artboards, inline rename, focus-mode overlay",
+    "hidden": false,
+    "bytes": 53258
+  },
+  {
+    "kind": "ios_frame.jsx",
+    "filename": "ios-frame.jsx",
+    "description": "iPhone device frame with status bar, home indicator, keyboard",
+    "hidden": false,
+    "bytes": 16270
+  },
+  {
+    "kind": "android_frame.jsx",
+    "filename": "android-frame.jsx",
+    "description": "Android device frame with status bar, nav bar, keyboard",
+    "hidden": false,
+    "bytes": 10079
+  },
+  {
+    "kind": "macos_window.jsx",
+    "filename": "macos-window.jsx",
+    "description": "macOS window chrome with traffic lights and titlebar",
+    "hidden": false,
+    "bytes": 8574
+  },
+  {
+    "kind": "browser_window.jsx",
+    "filename": "browser-window.jsx",
+    "description": "Browser window chrome with tabs, URL bar, controls",
+    "hidden": false,
+    "bytes": 4497
+  },
+  {
+    "kind": "animations_v2.jsx",
+    "filename": "animations-v2.jsx",
+    "description": "Timeline animation engine with scene sequencing and time-stretch editing — the full Stage/Sprite/easing/scrubber/video-export engine plus SceneStage: the document declares its scene list AND its playback setting (loop vs play-N-times) as JSON string literals (in a plain inline <script> of the main file, so host-timeline edits write back into source), scenes play in authored order, duration stays in sync, and the composition reflows live when the user edits timing or playback on the host timeline. Use INSTEAD of animations.jsx (contains the whole engine). For NEW standalone animations use animations_v3.jsx instead (the Animated video skill teaches it); use this only in a project that already builds on it. Never load two engines in one document (shared window globals; last wins).",
+    "hidden": false,
+    "bytes": 60879
+  },
+  {
+    "kind": "animations_v3.jsx",
+    "filename": "animations-v3.jsx",
+    "description": "Continuous-composition animation engine — ONE element tree rendered as a pure function of one authored-time axis, so elements move, morph, and persist across section boundaries by ordinary interpolation (no per-scene components, no mounting at boundaries). The document declares its scene list AND its playback setting as JSON string literals (in a plain inline <script> of the main file, so host-timeline trim/speed edits write back into source); the engine derives the cue table from the scene list, and authored choreography references sections by name through useComposition(). Includes Shot (authored hard cuts), Captions (one visible at a time), and the full easing/scrubber/video-export plumbing. ALWAYS use this for any standalone animation (not embedded in another design) unless the user explicitly asks you not to; projects already built on animations_v2.jsx keep it. Never load two engines in one document (shared window globals; last wins).",
+    "hidden": false,
+    "bytes": 43509
+  },
+  {
+    "kind": "tweaks_panel.jsx",
+    "filename": "tweaks-panel.jsx",
+    "description": "Tweaks shell — host protocol wiring + form-control helpers",
+    "hidden": false,
+    "bytes": 25202
+  },
+  {
+    "kind": "deck_stage.js",
+    "filename": "deck-stage.js",
+    "description": "Slide deck shell: scaling, keyboard nav, thumbnail rail (click to select/jump, shift/cmd-click to multi-select, Delete key or right-click to delete the selection, drag to reorder, right-click to skip/move/duplicate), speaker notes, print-to-PDF. Programmatic nav: document.querySelector('deck-stage').goTo(n) (0-indexed).",
+    "hidden": false,
+    "bytes": 135310
+  },
+  {
+    "kind": "doc_page.js",
+    "filename": "doc-page.js",
+    "description": "Paged-document shell: one continuous sheet on screen; at print the browser paginates the flow onto the declared paper size with no date/URL chrome. Optional slot=\"header\"/slot=\"footer\" repeat on every printed page.",
+    "hidden": false,
+    "bytes": 36948
+  },
+  {
+    "kind": "image_slot.js",
+    "filename": "image-slot.js",
+    "description": "User-fillable image placeholder — drag-and-drop target that persists the dropped image. Shape/mask/size are author-controlled. By default, prefill it with a real photo: use the search_stock_photos tool and write the chosen URL into the src attribute; credit/credit-href attributes render a small attribution overlay. The user can still drop their own image over it.",
+    "hidden": false,
+    "bytes": 65113
+  },
+  {
+    "kind": "social_frames.js",
+    "filename": "social-frames.js",
+    "description": "Social-asset board wrapper — <social-frames> is a thin composition wrapper for multi-format social/ad asset boards (designed for Design Components). You author each format as a child unit (composing ios_shell.js / chrome_shell.js / post_card.js and image_slot.js); the wrapper contributes board layout, a label bar + exact-size '↓ PNG' button per frame, one 'Download all (zip)' toolbar, and the host export wiring (one page capture, per-frame crops at nominal pixel size, shells and labels hidden). Tolerates units appearing/disappearing (DC prop toggles).",
+    "hidden": false,
+    "bytes": 10052
+  },
+  {
+    "kind": "ios_shell.js",
+    "filename": "ios-shell.js",
+    "description": "iOS phone presentation shell — <ios-shell> wraps its children in an iPhone bezel with dynamic island, status bar, and home bar (all export-chrome-marked, absolutely positioned, so frames inside export clean with zero reflow). dark attribute for light-on-dark status chrome; width / screen-height to size. Vanilla web component: works in Design Components (load from <helmet>) and plain HTML.",
+    "hidden": false,
+    "bytes": 12715
+  },
+  {
+    "kind": "chrome_shell.js",
+    "filename": "chrome-shell.js",
+    "description": "Google Chrome window shell — <chrome-shell> wraps its children in a Chrome macOS window (traffic lights, tab with favicon, URL bar; all export-chrome-marked). tab / url / fav / width attributes. Vanilla web component: works in Design Components (load from <helmet>) and plain HTML.",
+    "hidden": false,
+    "bytes": 10179
+  },
+  {
+    "kind": "instagram_shell.js",
+    "filename": "instagram-shell.js",
+    "description": "Instagram-style post shell — <instagram-shell image-src username location avatar-src caption likes comments time aspect=\"square|portrait\"> renders a COMPLETE photo-feed post screen (neutral wordmark-free chrome: top bar, gradient-ring avatar header, action row, likes/caption/comments/time, tab bar) inside an iPhone automatically (composes ios_shell.js — load it and image_slot.js alongside). The photo area IS the export frame, label baked in (1080×1080 / 1080×1350); children land inside the frame for overlays. Fill attributes — never hand-build this chrome.",
+    "hidden": false,
+    "bytes": 16039
+  },
+  {
+    "kind": "instagram_story.js",
+    "filename": "instagram-story.js",
+    "description": "Instagram-style story shell — <instagram-story image-src username avatar-src time image-credit image-credit-href> renders a COMPLETE story-viewer screen (progress segments, avatar header, \"Send message\" reply bar — all export-hidden chrome) inside an iPhone automatically (composes ios_shell.js — load it and image_slot.js alongside), the story canvas letterboxed at 9:16 on black so the phone keeps the uniform board size and exports never stretch or crop. The canvas IS the export frame, label baked in (1080×1920); children land inside the frame for overlays. Fill attributes — never hand-build this chrome.",
+    "hidden": false,
+    "bytes": 14236
+  },
+  {
+    "kind": "reddit_shell.js",
+    "filename": "reddit-shell.js",
+    "description": "Reddit-style post shell — <reddit-shell community username time title upvotes comments image-src aspect=\"wide|square\"> renders a complete post-detail screen (back bar, community header with Join, bold title, media, vote/comment/share chips, tab bar) inside an iPhone automatically (composes ios_shell.js — load it and image_slot.js alongside). The image area IS the export frame, label baked in (1200×675 / 1080×1080). Fill attributes — never hand-build this chrome.",
+    "hidden": false,
+    "bytes": 13213
+  },
+  {
+    "kind": "x_shell.js",
+    "filename": "x-shell.js",
+    "description": "X-style post shell — <x-shell name handle text time views replies reposts likes image-src aspect=\"wide|square\"> renders a complete post-detail screen (back bar, author row with Follow, post text, rounded media, time·views row, reply/repost/like/bookmark/share bar, tab bar) inside an iPhone automatically (composes ios_shell.js — load it and image_slot.js alongside). The media area IS the export frame, label baked in (1200×675 / 1080×1080). Fill attributes — never hand-build this chrome.",
+    "hidden": false,
+    "bytes": 13970
+  },
+  {
+    "kind": "facebook_shell.js",
+    "filename": "facebook-shell.js",
+    "description": "Facebook-style feed shell — <facebook-shell name time text likes comments shares image-src aspect=\"wide|square\"> renders a complete feed screen (neutral Feed bar, white post card with globe-privacy author row, media, reaction blobs + counts, Like/Comment/Share bar, tab bar) inside an iPhone automatically (composes ios_shell.js — load it and image_slot.js alongside). The media area IS the export frame, label baked in (1200×630 / 1080×1080). Fill attributes — never hand-build this chrome.",
+    "hidden": false,
+    "bytes": 15574
+  },
+  {
+    "kind": "pinterest_shell.js",
+    "filename": "pinterest-shell.js",
+    "description": "Pinterest-style pin shell — <pinterest-shell image-src title username followers site image-credit image-credit-href> renders a complete mobile pin-detail screen (back bar, 2:3 pin image with Save / Visit-site / share overlays as export-hidden chrome, title, author row with Follow, tab bar) inside an iPhone automatically (composes ios_shell.js — load it and image_slot.js alongside). The pin image IS the export frame, label baked in (1000×1500). Fill attributes — never hand-build this chrome.",
+    "hidden": false,
+    "bytes": 12242
+  },
+  {
+    "kind": "linkedin_shell.js",
+    "filename": "linkedin-shell.js",
+    "description": "LinkedIn-style feed shell — <linkedin-shell name headline time text reactions comments reposts image-src image-credit image-credit-href aspect=\"wide|square\"> renders a complete mobile feed screen (search top bar, white post card with Follow, media, reaction counts, Like/Comment/Repost/Send bar, tab bar) inside an iPhone automatically (composes ios_shell.js — load it and image_slot.js alongside). The media area IS the export frame, label baked in (1200×627 / 1080×1080). Fill attributes — never hand-build this chrome.",
+    "hidden": false,
+    "bytes": 14307
+  },
+  {
+    "kind": "youtube_shell.js",
+    "filename": "youtube-shell.js",
+    "description": "YouTube-style feed shell — <youtube-shell title channel views time duration image-src image-credit image-credit-href avatar-src> renders a complete mobile home-feed screen (neutral top bar, filter chips, full-bleed 16:9 thumbnail with duration badge as export-hidden chrome, avatar/title/channel·views·time row, tab bar) inside an iPhone automatically (composes ios_shell.js — load it and image_slot.js alongside). The thumbnail IS the export frame, label baked in (1280×720). Fill attributes — never hand-build this chrome.",
+    "hidden": false,
+    "bytes": 13514
+  },
+  {
+    "kind": "tiktok_shell.js",
+    "filename": "tiktok-shell.js",
+    "description": "TikTok-style video post shell — <tiktok-shell image-src username caption sound avatar-src likes comments saves shares image-credit image-credit-href> renders a complete For-You-feed video screen (neutral wordmark-free chrome: Following/For You tabs, right-rail action stack with like/comment/save/share counts, caption + sound rows, bottom nav) inside an iPhone automatically (composes ios_shell.js — load it and image_slot.js alongside), the video canvas letterboxed at 9:16 on black so the phone keeps the uniform board size and exports never stretch or crop. The canvas IS the export frame, label baked in (1080×1920); children land inside the frame for overlays. Fill attributes — never hand-build this chrome.",
+    "hidden": false,
+    "bytes": 19197
+  },
+  {
+    "kind": "post_card.js",
+    "filename": "post-card.js",
+    "description": "Social feed post card — <post-card platform=\"x|linkedin|facebook|reddit\"> renders the platform-authentic post around your asset: author row (name/sub/avatar), post text, media area (the card's children — put your export frame here), reaction bar, facebook link-preview footer, reddit vote column. Card dressing sits outside the export frame, so assets ship clean. Vanilla web component: works in Design Components and plain HTML.",
+    "hidden": false,
+    "bytes": 9507
+  },
+  {
+    "kind": "data_overlay.js",
+    "filename": "data-overlay.js",
+    "description": "Data overlay — wraps a UI and paints agent-authored VIEWS of product data onto every element carrying the tracked attribute (default data-metric-id; id-attr overrides): colour wash + value tag into a per-view spectrum, optional delta suffix, pinned callout cards, spotlight rings, hatched measured-nothing markers, every other tracked element dimmed; the legend carries each view's basis (its denominator, in plain words). Zero built-in view types — the agent authors every view in one static data file (window.__overlays = {views:[...]}). controls='on' renders the sentence control that switches among authored views — each segment opens a menu of the authored values for its field plus a free-type box whose placeholder rotates through suggested cuts (the file's optional suggest field, e.g. {suggest:{window:['last 7 days']}}; generic fallbacks otherwise). Metric picks snap to the clicked metric's closest authored view; typed cuts no view answers post data-overlay:fetch (the component's ONE chat round-trip — the host pre-fills the chat, the user sends). Always expose this via a tweaks-panel toggle (on by default) — never mount it as an always-on wrapper.",
+    "hidden": false,
+    "bytes": 96714
+  },
+  {
+    "kind": "three_d_stage.js",
+    "filename": "three-d-stage.js",
+    "description": "Interactive 3D object viewer + exporter shell (three.js): neutral studio lighting, ground shadow, orbit controls, auto-framed camera, and a toolbar that downloads the object as OBJ+MTL or GLB. The author builds the model with named meshes/materials and hands it to stage.setObject().",
+    "hidden": false,
+    "bytes": 16375
+  },
+  {
+    "kind": "chart_stage.js",
+    "filename": "chart-stage.js",
+    "description": "Interactive chart shell for d3 visualizations — <chart-stage> owns container-driven sizing, wheel/drag/pinch zoom and pan with a reset control, a mouse+touch tooltip, labeled empty/error states, data transitions, and PNG/SVG downloads; you write only the draw function against its layer/view/t/tips contract (usage block in the copied file). Requires the pinned d3 <script> tags from that usage block.",
+    "hidden": false,
+    "bytes": 22716
+  },
+  {
+    "kind": "file_window.js",
+    "filename": "file-window.js",
+    "description": "<file-window> — a live, cropped window into a real file in this project (vanilla web component, works in plain HTML and Design Components). Attributes: file, label, width/height (the box), window-x/window-y/window-width/document-width (optional crop into the file), action-label, lazy, no-expand. Probes that the file exists before mounting (missing file renders a not-found card), reloads in place when the file is rewritten, isolates input (clicks land on the window, not the embedded page — assuming ordinary, non-adversarial project files), and offers expand-to-modal. Selection-agnostic: emits 'file-window:pick' / 'file-window:action'; the hosting page decides what a pick means. Write the shown files BEFORE mounting windows over them — except on question pages shown via ask_user_page, where a window with the `expect` attribute waits on its missing file and paints in live as the file is dc_written.",
+    "hidden": false,
+    "bytes": 37744
+  }
+]

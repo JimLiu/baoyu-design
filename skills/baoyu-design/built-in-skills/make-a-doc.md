@@ -2,16 +2,47 @@
 name: "make-a-doc"
 description: "Make a doc\nPage-style document, printable out of the box"
 ---
-When making a document (resume, one-pager, memo, letter, report), render it as a paper page on the web AND make it print perfectly with zero tweaking.
+Create a document (resume, one-pager, memo, letter, report, guide,
+paper). First decide which of two shapes the user wants — they export
+completely differently:
 
-# Screen presentation
-- Page container: max-width 816px (US Letter at 96dpi), centered (margin auto), white background, ~64–72px padding, a subtle shadow (e.g. 0 2px 12px rgba(0,0,0,0.08)), and 2–4px border-radius. The page sits on a muted neutral body background (e.g. #F0EEE6) so it reads as paper on a desk.
-- Multi-page documents: one .page container per page with a visible gap between them.
-- Document typography, not web typography: 14–16px body with a clear hierarchy, real inner margins, never edge-to-edge text. Restrained palette — documents are mostly ink on paper.
+**Flowing pages** — text that pours onto standard sheets (Letter/A4)
+and breaks wherever needed: reports, memos, letters, papers, guides.
+START by calling `copy_starter_component` with
+`kind: "doc_page.js"`, then write the whole document as normal
+flowing HTML inside `<doc-page size="letter" margin="0.75in">`.
+The component owns the sheet, the desk background, and all print
+geometry — do NOT write your own `@page` rule, body background,
+page-card divs, `break-after: page` fake sheets, or
+`break-inside: avoid` on items inside multi-column grids (a grid only
+breaks between rows, so a kept row that doesn't fit leaves a blank band).
 
-# Print (the browser's Print must produce a clean document)
-- @media print: remove the body background, the page shadow/border/radius, and any on-screen chrome (toolbars, download buttons); the page container becomes width auto, margin 0, padding 0.
-- Set @page { margin: 0.75in; } and rely on it for outer margins.
-- break-inside: avoid on sections, heading+first-paragraph groups, list items, and table rows so nothing splits awkwardly; break-after: page between .page containers.
-- print-color-adjust: exact on any element whose background carries meaning (e.g. a resume's skill tags); otherwise let backgrounds drop.
-- Links print legibly in body ink — never rely on hover styling.
+Print rules for flowing pages: multi-column text uses CSS columns
+(`column-count` + `column-gap`; `column-span: all` on a heading
+that spans; `hyphens: auto` in narrow columns — it needs `lang`
+on the html element), never side-by-side
+flex/grid columns — only real CSS columns flow and break across pages.
+Use `break-before: page` on anything that must start a new page (a
+chapter, an appendix); add custom kept-together blocks (callouts, stat
+tiles, cards) to a `break-inside: avoid` rule and keep each shorter
+than a page — the component already keeps headings with their content,
+keeps figures/code/table rows whole, and suppresses orphans and widows
+(extend `orphans: 3; widows: 3` to custom text blocks). Long tables
+get a `<thead>` so the header repeats on every page. No
+`position: fixed`/`sticky` and no viewport units in content —
+fixed elements stamp every printed page (running headers/footers go in
+the component's slots) and `100vh` mis-sizes at print.
+
+**Fixed sheet** — a design that must fill exactly one page of fixed
+dimensions: poster, infographic, social graphic, certificate. No
+starter component — build it at its true pixel size with an explicit
+px `width` (and `height` if fixed) on the top-level element; the
+export sizes the PDF page to it automatically. Do not write any
+`@page` rule for it.
+
+Styling (both shapes): body type 14–16px with generous line-height
+(1.55–1.7); clear heading hierarchy; restrained palette. Tables get a
+header row and hairline borders; figures and code blocks each carry a
+short caption. Open with the document's own h1 as the first body
+element (use any header-shaped first line of pasted content as that h1
+rather than rendering it as a separate masthead).

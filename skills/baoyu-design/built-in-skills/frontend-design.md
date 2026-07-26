@@ -19,7 +19,7 @@ Choose a clear conceptual direction and execute it with precision. Bold maximali
 - **Color & Theme**: Commit to a cohesive aesthetic. Use CSS variables for consistency. Dominant colors with sharp accents outperform timid, evenly-distributed palettes.
 - **Motion**: Use animations for effects and micro-interactions. Prioritize CSS-only solutions for HTML. Focus on high-impact moments: one well-orchestrated page load with staggered reveals creates more delight than scattered micro-interactions.
 - **Spatial Composition**: Unexpected layouts. Asymmetry. Overlap. Diagonal flow. Grid-breaking elements. Generous negative space OR controlled density.
-- **Backgrounds & Visual Details**: Create atmosphere and depth rather than defaulting to solid colors. Gradient meshes, noise textures, geometric patterns, layered transparencies, dramatic shadows, decorative borders, grain overlays; for generated textures or atmospheric imagery (when a backend is available), see [`generate-images.md`](generate-images.md).
+- **Backgrounds & Visual Details**: Create atmosphere and depth rather than defaulting to solid colors. Gradient meshes, noise textures, geometric patterns, layered transparencies, dramatic shadows, decorative borders, grain overlays. For generated textures or atmospheric imagery (when a backend is available), see [`generate-images.md`](generate-images.md); for photography, use a real attributed stock photo when the harness exposes stock search, otherwise use a replaceable image slot.
 
 Vary between light and dark themes, different fonts, different aesthetics. NEVER converge on the same choices across generations.
 

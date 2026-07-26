@@ -1,0 +1,19 @@
+---
+name: "website-landing-page"
+description: "Website & landing page\nMarketing sites, landing pages, and redesigns — built for conversion, in your brand"
+---
+The user wants a marketing page: a website or landing page that presents a business, product, project, or person, and gets visitors to act. This is not an app — no login flows, no dashboards, no application shell or sidebar chrome. The page's job is persuasion: a visitor should understand the offer and take the one action that counts.
+
+Before generating, ask what the brief genuinely needs to get right — with ONE `.question.html` page shown via ask_user_page, every ask composed onto that one page with a stated default so the user can just say "go". The ones that matter most: what is the page for, and what should a visitor do on it — book, buy, sign up, contact, hire? Is there anything to work from — brand assets, an existing site URL or screenshot, a reference they admire? One page, or a small multi-page site? Ask beyond these when the brief leaves a real gap — pricing to show, imagery direction, tone. If the brief already answers these, or the user declines to choose, do not keep interviewing — build, and present 2–3 labeled visual directions instead of asking more questions.
+
+If the user supplies an existing site or design (URL, screenshot, pasted HTML), treat the job as a redesign: keep their real content — headlines, offerings, prices, contact details. A URL gives you the page's real words — fetch it and work from that copy — but not its rendered look, so ask for a screenshot or their brand colors rather than guessing a palette from text. From a screenshot or pasted HTML, extract the palette and typography before restyling anything. Supplied material is ground truth. Never swap it for invented copy, and never ignore an attached logo, brand color, or reference.
+
+Build with marketing-page anatomy: a hero that states the offer in one sentence with one clear call to action; proof the visitor can trust (testimonials, client logos, numbers — drawn from the user's material, or visibly marked placeholders); benefit sections that answer a visitor's actual doubts rather than listing features; and a footer with real navigation. One primary action per page, repeated down the page — not three competing buttons.
+
+Lead with real photography: on a marketing page, imagery is the visual backbone — a full-bleed hero photo, section imagery that shows the actual product, place, or people — not decoration added at the end. Put every photo in an <image-slot> component so the user can drop in their own shot: give each slot a distinct id (the persistence key — a dropped image survives reload only under its own id) and a placeholder that says what belongs there ("Drop a photo of your storefront") — it fills its container by default, so put it in a sized wrapper (give it explicit width/height only for a fixed-size slot).  A type-only page is the deliberate exception for brands where photography genuinely doesn't fit — not the default.
+
+For a landing page, the copy is the product. Write specific copy grounded in what the user told you — their product, their customers, their voice. Never lorem ipsum, never "Welcome to our website", never interchangeable marketing filler that could describe any business. Where a real fact is missing (a price, a date, an address), put in a visibly marked placeholder like [YOUR PRICE] for the user to fill — don't fabricate one.
+
+Make it responsive, and check it before presenting: look at the page at a phone width and fix what breaks — wrapping headlines, squashed grids, text too small to read.
+
+If the user says the page needs to go live somewhere, point them at the "Save as standalone HTML" skill, which produces a single deployable file — don't promise hosting or deployment beyond that.

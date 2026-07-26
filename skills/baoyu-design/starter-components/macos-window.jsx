@@ -174,7 +174,9 @@ function MacWindow({
   sidebar, children,
 }) {
   return (
-    <div style={{
+    // data-om-starter: inert presence marker — Claude Design's starter-usage
+    // probe reads it; it renders nothing. Keep it on this root element.
+    <div data-om-starter="macos-window" style={{
       width, height, borderRadius: 26, overflow: 'hidden',
       background: '#fff',
       boxShadow: '0 0 0 1px rgba(0,0,0,0.23), 0 16px 48px rgba(0,0,0,0.35)',

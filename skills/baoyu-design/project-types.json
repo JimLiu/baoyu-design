@@ -1,0 +1,84 @@
+{
+  "schemaVersion": 1,
+  "source": "claude-design-v2/ref 2026-07-25",
+  "projectTypes": [
+    {
+      "id": "slides",
+      "name": "Slides",
+      "skills": ["make-a-deck"],
+      "starters": ["deck-stage.js"]
+    },
+    {
+      "id": "mobile-app-design",
+      "name": "Mobile app design",
+      "skills": ["mobile-prototype", "hi-fi-design", "interactive-prototype"],
+      "starters": ["ios-frame.jsx", "android-frame.jsx", "ios-shell.js"]
+    },
+    {
+      "id": "wireframe",
+      "name": "Wireframe",
+      "skills": ["wireframe"],
+      "starters": ["design-canvas.jsx"]
+    },
+    {
+      "id": "document",
+      "name": "Document",
+      "skills": ["make-a-doc"],
+      "starters": ["doc-page.js"]
+    },
+    {
+      "id": "animation",
+      "name": "Animation",
+      "skills": ["animated-video", "exportable-video"],
+      "starters": ["animations-v3.jsx", "tweaks-panel.jsx"]
+    },
+    {
+      "id": "ui-mockups",
+      "name": "UI mockups",
+      "skills": ["hi-fi-design", "interactive-prototype"],
+      "starters": ["design-canvas.jsx", "image-slot.js"]
+    },
+    {
+      "id": "resume",
+      "name": "Résumé",
+      "skills": ["make-a-doc"],
+      "starters": ["doc-page.js"]
+    },
+    {
+      "id": "3d-object",
+      "name": "3D object",
+      "skills": ["3d-object"],
+      "starters": ["three-d-stage.js"]
+    },
+    {
+      "id": "research",
+      "name": "Research",
+      "skills": ["web-research"],
+      "starters": ["data-overlay.js"]
+    },
+    {
+      "id": "html-email",
+      "name": "HTML email",
+      "skills": ["html-email"],
+      "starters": []
+    },
+    {
+      "id": "color-type-system",
+      "name": "Color + type system",
+      "skills": ["create-design-system"],
+      "starters": ["design-canvas.jsx"]
+    },
+    {
+      "id": "diagram",
+      "name": "Diagram",
+      "skills": ["data-visualization"],
+      "starters": ["chart-stage.js"]
+    },
+    {
+      "id": "flier",
+      "name": "Flier",
+      "skills": ["flier"],
+      "starters": ["doc-page.js"]
+    }
+  ]
+}

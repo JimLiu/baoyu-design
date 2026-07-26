@@ -1,0 +1,432 @@
+{
+  "generatedAt": "2026-07-26T01:37:56.278Z",
+  "extracted": "/tmp/claude-design-upstream-20260725.BC0gFC",
+  "target": "/Users/jimliu/GitHub/baoyu-design/skills/baoyu-design",
+  "dryRun": false,
+  "protectedSkills": [
+    "design-components.md",
+    "frontend-design.md",
+    "hi-fi-design.md",
+    "make-a-deck.md",
+    "read-pdf.md",
+    "save-as-pdf.md",
+    "save-as-standalone-html.md",
+    "speaker-notes.md"
+  ],
+  "changes": [
+    {
+      "action": "copy",
+      "source": "/tmp/claude-design-upstream-20260725.BC0gFC/built-in-skills/3d-object.md",
+      "destination": "/Users/jimliu/GitHub/baoyu-design/skills/baoyu-design/built-in-skills/3d-object.md",
+      "bytes": 4282
+    },
+    {
+      "action": "copy",
+      "source": "/tmp/claude-design-upstream-20260725.BC0gFC/built-in-skills/animated-video.md",
+      "destination": "/Users/jimliu/GitHub/baoyu-design/skills/baoyu-design/built-in-skills/animated-video.md",
+      "bytes": 10190
+    },
+    {
+      "action": "copy",
+      "source": "/tmp/claude-design-upstream-20260725.BC0gFC/built-in-skills/ask-the-user.md",
+      "destination": "/Users/jimliu/GitHub/baoyu-design/skills/baoyu-design/built-in-skills/ask-the-user.md",
+      "bytes": 17691
+    },
+    {
+      "action": "copy",
+      "source": "/tmp/claude-design-upstream-20260725.BC0gFC/built-in-skills/claude-api-in-prototypes.md",
+      "destination": "/Users/jimliu/GitHub/baoyu-design/skills/baoyu-design/built-in-skills/claude-api-in-prototypes.md",
+      "bytes": 1101
+    },
+    {
+      "action": "copy",
+      "source": "/tmp/claude-design-upstream-20260725.BC0gFC/built-in-skills/create-design-system.md",
+      "destination": "/Users/jimliu/GitHub/baoyu-design/skills/baoyu-design/built-in-skills/create-design-system.md",
+      "bytes": 19020
+    },
+    {
+      "action": "copy",
+      "source": "/tmp/claude-design-upstream-20260725.BC0gFC/built-in-skills/data-science.md",
+      "destination": "/Users/jimliu/GitHub/baoyu-design/skills/baoyu-design/built-in-skills/data-science.md",
+      "bytes": 22110
+    },
+    {
+      "action": "copy",
+      "source": "/tmp/claude-design-upstream-20260725.BC0gFC/built-in-skills/data-visualization.md",
+      "destination": "/Users/jimliu/GitHub/baoyu-design/skills/baoyu-design/built-in-skills/data-visualization.md",
+      "bytes": 9720
+    },
+    {
+      "action": "preserve-for-merge",
+      "name": "design-components.md"
+    },
+    {
+      "action": "copy",
+      "source": "/tmp/claude-design-upstream-20260725.BC0gFC/built-in-skills/design-feedback.md",
+      "destination": "/Users/jimliu/GitHub/baoyu-design/skills/baoyu-design/built-in-skills/design-feedback.md",
+      "bytes": 6255
+    },
+    {
+      "action": "copy",
+      "source": "/tmp/claude-design-upstream-20260725.BC0gFC/built-in-skills/experiment-workflow.md",
+      "destination": "/Users/jimliu/GitHub/baoyu-design/skills/baoyu-design/built-in-skills/experiment-workflow.md",
+      "bytes": 11623
+    },
+    {
+      "action": "copy",
+      "source": "/tmp/claude-design-upstream-20260725.BC0gFC/built-in-skills/export-pptx-editable.md",
+      "destination": "/Users/jimliu/GitHub/baoyu-design/skills/baoyu-design/built-in-skills/export-pptx-editable.md",
+      "bytes": 6107
+    },
+    {
+      "action": "copy",
+      "source": "/tmp/claude-design-upstream-20260725.BC0gFC/built-in-skills/export-pptx-screenshots.md",
+      "destination": "/Users/jimliu/GitHub/baoyu-design/skills/baoyu-design/built-in-skills/export-pptx-screenshots.md",
+      "bytes": 1884
+    },
+    {
+      "action": "copy",
+      "source": "/tmp/claude-design-upstream-20260725.BC0gFC/built-in-skills/exportable-video.md",
+      "destination": "/Users/jimliu/GitHub/baoyu-design/skills/baoyu-design/built-in-skills/exportable-video.md",
+      "bytes": 2360
+    },
+    {
+      "action": "copy",
+      "source": "/tmp/claude-design-upstream-20260725.BC0gFC/built-in-skills/flier.md",
+      "destination": "/Users/jimliu/GitHub/baoyu-design/skills/baoyu-design/built-in-skills/flier.md",
+      "bytes": 2113
+    },
+    {
+      "action": "preserve-for-merge",
+      "name": "frontend-design.md"
+    },
+    {
+      "action": "copy",
+      "source": "/tmp/claude-design-upstream-20260725.BC0gFC/built-in-skills/gemini-image.md",
+      "destination": "/Users/jimliu/GitHub/baoyu-design/skills/baoyu-design/built-in-skills/gemini-image.md",
+      "bytes": 604
+    },
+    {
+      "action": "copy",
+      "source": "/tmp/claude-design-upstream-20260725.BC0gFC/built-in-skills/google-slides-safe.md",
+      "destination": "/Users/jimliu/GitHub/baoyu-design/skills/baoyu-design/built-in-skills/google-slides-safe.md",
+      "bytes": 821
+    },
+    {
+      "action": "copy",
+      "source": "/tmp/claude-design-upstream-20260725.BC0gFC/built-in-skills/handoff-to-claude-code.md",
+      "destination": "/Users/jimliu/GitHub/baoyu-design/skills/baoyu-design/built-in-skills/handoff-to-claude-code.md",
+      "bytes": 4103
+    },
+    {
+      "action": "preserve-for-merge",
+      "name": "hi-fi-design.md"
+    },
+    {
+      "action": "copy",
+      "source": "/tmp/claude-design-upstream-20260725.BC0gFC/built-in-skills/html-email.md",
+      "destination": "/Users/jimliu/GitHub/baoyu-design/skills/baoyu-design/built-in-skills/html-email.md",
+      "bytes": 2606
+    },
+    {
+      "action": "copy",
+      "source": "/tmp/claude-design-upstream-20260725.BC0gFC/built-in-skills/interactive-prototype.md",
+      "destination": "/Users/jimliu/GitHub/baoyu-design/skills/baoyu-design/built-in-skills/interactive-prototype.md",
+      "bytes": 423
+    },
+    {
+      "action": "preserve-for-merge",
+      "name": "make-a-deck.md"
+    },
+    {
+      "action": "copy",
+      "source": "/tmp/claude-design-upstream-20260725.BC0gFC/built-in-skills/make-a-doc.md",
+      "destination": "/Users/jimliu/GitHub/baoyu-design/skills/baoyu-design/built-in-skills/make-a-doc.md",
+      "bytes": 2635
+    },
+    {
+      "action": "copy",
+      "source": "/tmp/claude-design-upstream-20260725.BC0gFC/built-in-skills/make-tweakable.md",
+      "destination": "/Users/jimliu/GitHub/baoyu-design/skills/baoyu-design/built-in-skills/make-tweakable.md",
+      "bytes": 369
+    },
+    {
+      "action": "copy",
+      "source": "/tmp/claude-design-upstream-20260725.BC0gFC/built-in-skills/maps-geography.md",
+      "destination": "/Users/jimliu/GitHub/baoyu-design/skills/baoyu-design/built-in-skills/maps-geography.md",
+      "bytes": 2870
+    },
+    {
+      "action": "copy",
+      "source": "/tmp/claude-design-upstream-20260725.BC0gFC/built-in-skills/mobile-prototype.md",
+      "destination": "/Users/jimliu/GitHub/baoyu-design/skills/baoyu-design/built-in-skills/mobile-prototype.md",
+      "bytes": 3382
+    },
+    {
+      "action": "copy",
+      "source": "/tmp/claude-design-upstream-20260725.BC0gFC/built-in-skills/options-stack.md",
+      "destination": "/Users/jimliu/GitHub/baoyu-design/skills/baoyu-design/built-in-skills/options-stack.md",
+      "bytes": 1170
+    },
+    {
+      "action": "preserve-for-merge",
+      "name": "read-pdf.md"
+    },
+    {
+      "action": "preserve-for-merge",
+      "name": "save-as-pdf.md"
+    },
+    {
+      "action": "preserve-for-merge",
+      "name": "save-as-standalone-html.md"
+    },
+    {
+      "action": "copy",
+      "source": "/tmp/claude-design-upstream-20260725.BC0gFC/built-in-skills/social-media-content.md",
+      "destination": "/Users/jimliu/GitHub/baoyu-design/skills/baoyu-design/built-in-skills/social-media-content.md",
+      "bytes": 10881
+    },
+    {
+      "action": "copy",
+      "source": "/tmp/claude-design-upstream-20260725.BC0gFC/built-in-skills/something-cool.md",
+      "destination": "/Users/jimliu/GitHub/baoyu-design/skills/baoyu-design/built-in-skills/something-cool.md",
+      "bytes": 999
+    },
+    {
+      "action": "copy",
+      "source": "/tmp/claude-design-upstream-20260725.BC0gFC/built-in-skills/sound-effects.md",
+      "destination": "/Users/jimliu/GitHub/baoyu-design/skills/baoyu-design/built-in-skills/sound-effects.md",
+      "bytes": 599
+    },
+    {
+      "action": "preserve-for-merge",
+      "name": "speaker-notes.md"
+    },
+    {
+      "action": "copy",
+      "source": "/tmp/claude-design-upstream-20260725.BC0gFC/built-in-skills/trifold-brochure.md",
+      "destination": "/Users/jimliu/GitHub/baoyu-design/skills/baoyu-design/built-in-skills/trifold-brochure.md",
+      "bytes": 2696
+    },
+    {
+      "action": "copy",
+      "source": "/tmp/claude-design-upstream-20260725.BC0gFC/built-in-skills/watercolor-illustration.md",
+      "destination": "/Users/jimliu/GitHub/baoyu-design/skills/baoyu-design/built-in-skills/watercolor-illustration.md",
+      "bytes": 10467
+    },
+    {
+      "action": "copy",
+      "source": "/tmp/claude-design-upstream-20260725.BC0gFC/built-in-skills/web-research.md",
+      "destination": "/Users/jimliu/GitHub/baoyu-design/skills/baoyu-design/built-in-skills/web-research.md",
+      "bytes": 2000
+    },
+    {
+      "action": "copy",
+      "source": "/tmp/claude-design-upstream-20260725.BC0gFC/built-in-skills/website-landing-page.md",
+      "destination": "/Users/jimliu/GitHub/baoyu-design/skills/baoyu-design/built-in-skills/website-landing-page.md",
+      "bytes": 3863
+    },
+    {
+      "action": "copy",
+      "source": "/tmp/claude-design-upstream-20260725.BC0gFC/built-in-skills/wireframe.md",
+      "destination": "/Users/jimliu/GitHub/baoyu-design/skills/baoyu-design/built-in-skills/wireframe.md",
+      "bytes": 847
+    },
+    {
+      "action": "copy",
+      "source": "/tmp/claude-design-upstream-20260725.BC0gFC/starter-components/android-frame.jsx",
+      "destination": "/Users/jimliu/GitHub/baoyu-design/skills/baoyu-design/starter-components/android-frame.jsx",
+      "bytes": 10079
+    },
+    {
+      "action": "copy",
+      "source": "/tmp/claude-design-upstream-20260725.BC0gFC/starter-components/animations-v2.jsx",
+      "destination": "/Users/jimliu/GitHub/baoyu-design/skills/baoyu-design/starter-components/animations-v2.jsx",
+      "bytes": 60879
+    },
+    {
+      "action": "copy",
+      "source": "/tmp/claude-design-upstream-20260725.BC0gFC/starter-components/animations-v3.jsx",
+      "destination": "/Users/jimliu/GitHub/baoyu-design/skills/baoyu-design/starter-components/animations-v3.jsx",
+      "bytes": 43509
+    },
+    {
+      "action": "copy",
+      "source": "/tmp/claude-design-upstream-20260725.BC0gFC/starter-components/browser-window.jsx",
+      "destination": "/Users/jimliu/GitHub/baoyu-design/skills/baoyu-design/starter-components/browser-window.jsx",
+      "bytes": 4497
+    },
+    {
+      "action": "copy",
+      "source": "/tmp/claude-design-upstream-20260725.BC0gFC/starter-components/chart-stage.js",
+      "destination": "/Users/jimliu/GitHub/baoyu-design/skills/baoyu-design/starter-components/chart-stage.js",
+      "bytes": 22716
+    },
+    {
+      "action": "copy",
+      "source": "/tmp/claude-design-upstream-20260725.BC0gFC/starter-components/chrome-shell.js",
+      "destination": "/Users/jimliu/GitHub/baoyu-design/skills/baoyu-design/starter-components/chrome-shell.js",
+      "bytes": 10179
+    },
+    {
+      "action": "copy",
+      "source": "/tmp/claude-design-upstream-20260725.BC0gFC/starter-components/data-overlay.js",
+      "destination": "/Users/jimliu/GitHub/baoyu-design/skills/baoyu-design/starter-components/data-overlay.js",
+      "bytes": 96714
+    },
+    {
+      "action": "preserve-for-merge",
+      "name": "deck-stage.js"
+    },
+    {
+      "action": "copy",
+      "source": "/tmp/claude-design-upstream-20260725.BC0gFC/starter-components/design-canvas.jsx",
+      "destination": "/Users/jimliu/GitHub/baoyu-design/skills/baoyu-design/starter-components/design-canvas.jsx",
+      "bytes": 53258
+    },
+    {
+      "action": "copy",
+      "source": "/tmp/claude-design-upstream-20260725.BC0gFC/starter-components/doc-page.js",
+      "destination": "/Users/jimliu/GitHub/baoyu-design/skills/baoyu-design/starter-components/doc-page.js",
+      "bytes": 36948
+    },
+    {
+      "action": "copy",
+      "source": "/tmp/claude-design-upstream-20260725.BC0gFC/starter-components/facebook-shell.js",
+      "destination": "/Users/jimliu/GitHub/baoyu-design/skills/baoyu-design/starter-components/facebook-shell.js",
+      "bytes": 15574
+    },
+    {
+      "action": "copy",
+      "source": "/tmp/claude-design-upstream-20260725.BC0gFC/starter-components/file-window.js",
+      "destination": "/Users/jimliu/GitHub/baoyu-design/skills/baoyu-design/starter-components/file-window.js",
+      "bytes": 37744
+    },
+    {
+      "action": "copy",
+      "source": "/tmp/claude-design-upstream-20260725.BC0gFC/starter-components/image-slot.js",
+      "destination": "/Users/jimliu/GitHub/baoyu-design/skills/baoyu-design/starter-components/image-slot.js",
+      "bytes": 65113
+    },
+    {
+      "action": "copy",
+      "source": "/tmp/claude-design-upstream-20260725.BC0gFC/starter-components/instagram-shell.js",
+      "destination": "/Users/jimliu/GitHub/baoyu-design/skills/baoyu-design/starter-components/instagram-shell.js",
+      "bytes": 16039
+    },
+    {
+      "action": "copy",
+      "source": "/tmp/claude-design-upstream-20260725.BC0gFC/starter-components/instagram-story.js",
+      "destination": "/Users/jimliu/GitHub/baoyu-design/skills/baoyu-design/starter-components/instagram-story.js",
+      "bytes": 14236
+    },
+    {
+      "action": "copy",
+      "source": "/tmp/claude-design-upstream-20260725.BC0gFC/starter-components/ios-frame.jsx",
+      "destination": "/Users/jimliu/GitHub/baoyu-design/skills/baoyu-design/starter-components/ios-frame.jsx",
+      "bytes": 16270
+    },
+    {
+      "action": "copy",
+      "source": "/tmp/claude-design-upstream-20260725.BC0gFC/starter-components/ios-shell.js",
+      "destination": "/Users/jimliu/GitHub/baoyu-design/skills/baoyu-design/starter-components/ios-shell.js",
+      "bytes": 12715
+    },
+    {
+      "action": "copy",
+      "source": "/tmp/claude-design-upstream-20260725.BC0gFC/starter-components/linkedin-shell.js",
+      "destination": "/Users/jimliu/GitHub/baoyu-design/skills/baoyu-design/starter-components/linkedin-shell.js",
+      "bytes": 14307
+    },
+    {
+      "action": "copy",
+      "source": "/tmp/claude-design-upstream-20260725.BC0gFC/starter-components/macos-window.jsx",
+      "destination": "/Users/jimliu/GitHub/baoyu-design/skills/baoyu-design/starter-components/macos-window.jsx",
+      "bytes": 8574
+    },
+    {
+      "action": "copy",
+      "source": "/tmp/claude-design-upstream-20260725.BC0gFC/starter-components/pinterest-shell.js",
+      "destination": "/Users/jimliu/GitHub/baoyu-design/skills/baoyu-design/starter-components/pinterest-shell.js",
+      "bytes": 12242
+    },
+    {
+      "action": "copy",
+      "source": "/tmp/claude-design-upstream-20260725.BC0gFC/starter-components/post-card.js",
+      "destination": "/Users/jimliu/GitHub/baoyu-design/skills/baoyu-design/starter-components/post-card.js",
+      "bytes": 9507
+    },
+    {
+      "action": "copy",
+      "source": "/tmp/claude-design-upstream-20260725.BC0gFC/starter-components/reddit-shell.js",
+      "destination": "/Users/jimliu/GitHub/baoyu-design/skills/baoyu-design/starter-components/reddit-shell.js",
+      "bytes": 13213
+    },
+    {
+      "action": "copy",
+      "source": "/tmp/claude-design-upstream-20260725.BC0gFC/starter-components/social-frames.js",
+      "destination": "/Users/jimliu/GitHub/baoyu-design/skills/baoyu-design/starter-components/social-frames.js",
+      "bytes": 10052
+    },
+    {
+      "action": "copy",
+      "source": "/tmp/claude-design-upstream-20260725.BC0gFC/starter-components/three-d-stage.js",
+      "destination": "/Users/jimliu/GitHub/baoyu-design/skills/baoyu-design/starter-components/three-d-stage.js",
+      "bytes": 16375
+    },
+    {
+      "action": "copy",
+      "source": "/tmp/claude-design-upstream-20260725.BC0gFC/starter-components/tiktok-shell.js",
+      "destination": "/Users/jimliu/GitHub/baoyu-design/skills/baoyu-design/starter-components/tiktok-shell.js",
+      "bytes": 19197
+    },
+    {
+      "action": "copy",
+      "source": "/tmp/claude-design-upstream-20260725.BC0gFC/starter-components/tweaks-panel.jsx",
+      "destination": "/Users/jimliu/GitHub/baoyu-design/skills/baoyu-design/starter-components/tweaks-panel.jsx",
+      "bytes": 25202
+    },
+    {
+      "action": "copy",
+      "source": "/tmp/claude-design-upstream-20260725.BC0gFC/starter-components/x-shell.js",
+      "destination": "/Users/jimliu/GitHub/baoyu-design/skills/baoyu-design/starter-components/x-shell.js",
+      "bytes": 13970
+    },
+    {
+      "action": "copy",
+      "source": "/tmp/claude-design-upstream-20260725.BC0gFC/starter-components/youtube-shell.js",
+      "destination": "/Users/jimliu/GitHub/baoyu-design/skills/baoyu-design/starter-components/youtube-shell.js",
+      "bytes": 13514
+    },
+    {
+      "action": "copy",
+      "source": "/tmp/deck-merge.KKdukS/skills/baoyu-design/starter-components/deck-stage.js",
+      "destination": "/Users/jimliu/GitHub/baoyu-design/skills/baoyu-design/starter-components/deck-stage.js",
+      "bytes": 178469
+    },
+    {
+      "action": "copy",
+      "source": "/tmp/claude-design-upstream-20260725.BC0gFC/system-prompt.md",
+      "destination": "/Users/jimliu/GitHub/baoyu-design/skills/baoyu-design/references/upstream-system-prompt.md",
+      "bytes": 30410
+    },
+    {
+      "action": "copy",
+      "source": "/tmp/claude-design-upstream-20260725.BC0gFC/built-in-skills.json",
+      "destination": "/Users/jimliu/GitHub/baoyu-design/skills/baoyu-design/references/upstream-sync/built-in-skills.json",
+      "bytes": 223701
+    },
+    {
+      "action": "copy",
+      "source": "/tmp/claude-design-upstream-20260725.BC0gFC/starter-components.json",
+      "destination": "/Users/jimliu/GitHub/baoyu-design/skills/baoyu-design/references/upstream-sync/starter-components.json",
+      "bytes": 16338
+    },
+    {
+      "action": "copy",
+      "source": "/tmp/claude-design-upstream-20260725.BC0gFC/provenance.json",
+      "destination": "/Users/jimliu/GitHub/baoyu-design/skills/baoyu-design/references/upstream-sync/provenance.json",
+      "bytes": 1251
+    }
+  ]
+}

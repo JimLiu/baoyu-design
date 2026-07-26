@@ -1,0 +1,68 @@
+{
+  "generatedAt": "2026-07-26T01:31:48.092Z",
+  "promptBundle": "/Users/jimliu/GitHub/claude-design-v2/ref/assets/claude.ai/design/assets/v1/desktop-auth-wait-Bet74e8i.js",
+  "starterBundle": "/Users/jimliu/GitHub/claude-design-v2/ref/assets/claude.ai/design/assets/v1/ds-self-check-DiB0roSI.js",
+  "promptBundleBytes": 1345860,
+  "starterBundleBytes": 1064839,
+  "skillCount": 39,
+  "starterCount": 28,
+  "slices": {
+    "skills": {
+      "statements": 68,
+      "externalBindings": [
+        "Ct",
+        "Ln",
+        "Lt",
+        "St",
+        "V",
+        "Zt",
+        "c",
+        "f",
+        "ke",
+        "s"
+      ]
+    },
+    "systemPrompt": {
+      "statements": 85,
+      "externalBindings": [
+        "At",
+        "Ct",
+        "Dt",
+        "En",
+        "Et",
+        "Gt",
+        "It",
+        "K",
+        "L",
+        "Ln",
+        "Lt",
+        "Rt",
+        "St",
+        "Tt",
+        "V",
+        "W",
+        "Wt",
+        "Xt",
+        "Yt",
+        "Zt",
+        "c",
+        "d",
+        "f",
+        "fn",
+        "ft",
+        "ke",
+        "kt",
+        "on",
+        "pn",
+        "s"
+      ]
+    },
+    "starters": {
+      "statements": 5,
+      "externalBindings": [
+        "s",
+        "t"
+      ]
+    }
+  }
+}

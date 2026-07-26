@@ -381,7 +381,7 @@ function DCViewport({ children, minScale = 0.1, maxScale = 8, style = {} }) {
       let marker = null, markerY0 = 0;
       if (k !== 1) {
         const hit = document.elementFromPoint(cx, cy);
-        marker = hit && hit.closest ? hit.closest('[data-dc-slot],[data-dc-section]') : null;
+        marker = hit && hit.closest ? hit.closest('[data-dc-slot],[data-dc-section],.dc-postit') : null;
         if (marker) markerY0 = marker.getBoundingClientRect().top;
       }
       // keep the world point under the cursor fixed
@@ -445,10 +445,10 @@ function DCViewport({ children, minScale = 0.1, maxScale = 8, style = {} }) {
     const onGestureEnd = (e) => { e.preventDefault(); isGesturing = false; };
 
     // Drag-pan: middle button anywhere, or primary button on canvas
-    // background (anything that isn't an artboard or an inline editor).
+    // background (anything that isn't an artboard, post-it, or inline editor).
     let drag = null;
     const onPointerDown = (e) => {
-      const onBg = !e.target.closest('[data-dc-slot], .dc-editable');
+      const onBg = !e.target.closest('[data-dc-slot], .dc-editable, .dc-postit');
       if (!(e.button === 1 || (e.button === 0 && onBg))) return;
       e.preventDefault();
       vp.setPointerCapture(e.pointerId);
@@ -522,8 +522,11 @@ function DCViewport({ children, minScale = 0.1, maxScale = 8, style = {} }) {
 
   const gridSvg = `url("data:image/svg+xml,%3Csvg width='120' height='120' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M120 0H0v120' fill='none' stroke='${encodeURIComponent(DC.grid)}' stroke-width='1'/%3E%3C/svg%3E")`;
   return (
+    // data-om-starter: inert presence marker — Claude Design's starter-usage
+    // probe reads it; it renders nothing. Keep it on this root element.
     <div
       ref={vpRef}
+      data-om-starter="design-canvas"
       className="design-canvas"
       style={{
         height: '100vh', width: '100vw',
@@ -1017,7 +1020,7 @@ function DCFocusOverlay({ entry, sectionMeta, sectionOrder }) {
 // ─────────────────────────────────────────────────────────────
 function DCPostIt({ children, top, left, right, bottom, rotate = -2, width = 180 }) {
   return (
-    <div style={{
+    <div className="dc-postit" style={{
       position: 'absolute', top, left, right, bottom, width,
       background: DC.postitBg, padding: '14px 16px',
       fontFamily: '"Comic Sans MS", "Marker Felt", "Segoe Print", cursive',

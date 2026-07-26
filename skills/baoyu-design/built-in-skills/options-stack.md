@@ -1,0 +1,5 @@
+---
+name: "options-stack"
+description: "Options\nLay out design options — vertical stack (DC) / pannable canvas (non-DC)"
+---
+Lay design options out on a pannable canvas. In any `.html` file, add `<meta name="design_doc_mode" content="canvas">` to `<head>` and absolutely-position each frame directly inside `<body>` (no wrapper) — the host provides pan/zoom, a gray backdrop, and `position:relative` on `<body>`, so don't add your own background, scroll container, or zoom controls. Use this built-in canvas mode instead of rolling your own pan/zoom, unless the user explicitly asks you to. Keep every frame's left/top ≥ 0. For a React page, you can alternatively call `copy_starter_component` with `kind: "design_canvas.jsx"` and put each option in a `<DCArtboard>` inside a `<DCSection>`; artboards are static design frames, not scroll regions — size each one to fit its content rather than giving inner elements `height:100%` + `overflow:auto`. If the user must pick one of the options for you to proceed, do not lay options out this way — build the candidates and ask with a file-options board (see Exploring, iterating, and asking in your instructions).
