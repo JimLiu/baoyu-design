@@ -92,12 +92,15 @@ Cursor、Codex、Claude 和 Claude Design 使用的是同一个 Reader Mac App P
 | **核心设计** | 高保真设计 · 可交互原型 · 线框图 · 前端美学方向 |
 | **幻灯片** | 制作演示文稿 · 演讲者备注 |
 | **移动与动效** | 移动端原型 · 动画视频 · 音效 |
+| **网站与营销** | 网站与落地页 · 社交媒体内容 · HTML 邮件 · 传单 · 三折页 |
+| **数据与研究** | 网页研究 · 数据科学 · 数据可视化 · 地图与地理 · 实验工作流 |
+| **文档、3D 与插画** | 制作文档 · 3D 对象 · 水彩插画 |
 | **设计系统** | 创建设计系统 · 使用设计系统 · 设计系统预览 · 设计组件（`.dc.html`）· 可调参数化 |
 | **导入设计源** | Figma `.fig`（离线解码）· GitHub 仓库 · 现成 HTML/CSS |
 | **导出与交付** | 独立 HTML · PDF · PPTX（可编辑）· PPTX（截图）· 视频（MP4）· 导出到 Figma · 导出到 Canva · 交接给 Claude Code |
 | **AI 素材与集成** | Gemini 图像生成 · 在原型中调用 Claude · 读取 PDF |
 
-**起步组件**（位于 [`starter-components/`](skills/baoyu-design/starter-components/)）让 Agent 不必从零手搓基础件：iOS / Android / macOS / 浏览器外壳、可平移缩放的设计画布、幻灯片舞台、时间轴动画引擎、参数调节面板，以及可填充的图片占位槽。
+**起步组件**（位于 [`starter-components/`](skills/baoyu-design/starter-components/)）让 Agent 不必从零手搓基础件：设备、浏览器和社交媒体外壳；可平移缩放的设计画布；幻灯片、动画、图表、文档、文件和 3D 舞台；参数调节面板；以及可填充的图片占位槽。
 
 ---
 
@@ -114,7 +117,7 @@ skills/baoyu-design/
 │   ├── cursor.md         # Cursor 的工具映射
 │   └── codex.md          # Codex Agent 的工具映射
 ├── built-in-skills/      # 专项子技能（幻灯片、移动端、导入、导出……）
-└── starter-components/   # 设备外壳、幻灯片舞台、画布、动画引擎……
+└── starter-components/   # 设备/社交外壳、幻灯片、图表、文档、3D、动画……
 ```
 
 当你提出设计需求时，Agent 会读取 `SKILL.md`，从 `system-prompt.md` 加载核心方法论，判断自己运行在 Cursor、Claude Code、Codex Agent，还是一个通用的可读写文件 harness；如果有匹配的参考文档，就读取对应文档，然后只按需载入这次任务用得到的子技能。这种拆分让「工艺规则」与具体 Agent 无关，而每个环境各自去解析自己的工具来完成「提问」「预览」「截图」「校验」。

@@ -91,12 +91,15 @@ The skill drives a full design process — clarifying questions → gathering de
 | **Core design** | Hi‑fi design · Interactive prototype · Wireframe · Frontend aesthetic direction |
 | **Decks** | Make a deck · Speaker notes |
 | **Mobile & motion** | Mobile prototype · Animated video · Sound effects |
+| **Web & campaigns** | Website & landing page · Social media content · HTML email · Flier · Trifold brochure |
+| **Data & research** | Web research · Data science · Data visualization · Maps & geography · Experiment workflow |
+| **Documents, 3D & illustration** | Make a doc · 3D object · Watercolor illustration |
 | **Design systems** | Create design system · Use design system · Design system preview · Design Components (`.dc.html`) · Make tweakable |
 | **Import sources** | Figma `.fig` (offline decode) · GitHub repo · Existing HTML/CSS |
 | **Export & handoff** | Standalone HTML · PDF · PPTX (editable) · PPTX (screenshots) · Video (MP4) · Send to Figma · Send to Canva · Handoff to Claude Code |
 | **AI assets & integration** | Gemini image generation · Call Claude from prototypes · Read PDF |
 
-**Starter components** (in [`starter-components/`](skills/baoyu-design/starter-components/)) save the agent from hand‑rolling the basics: iOS / Android / macOS / browser frames, a pan‑zoom design canvas, a slide‑deck stage, a timeline animation engine, a tweaks panel, and a fillable image slot.
+**Starter components** (in [`starter-components/`](skills/baoyu-design/starter-components/)) save the agent from hand‑rolling the basics: device, browser, and social-media shells; a pan‑zoom design canvas; slide, animation, chart, document, file, and 3D stages; a tweaks panel; and a fillable image slot.
 
 ---
 
@@ -113,7 +116,7 @@ skills/baoyu-design/
 │   ├── cursor.md         # Tool map for Cursor
 │   └── codex.md          # Tool map for Codex Agent
 ├── built-in-skills/      # Specialized prompts (decks, mobile, import, export, …)
-└── starter-components/   # Device frames, deck stage, canvas, animation engine, …
+└── starter-components/   # Device/social shells, deck, chart, document, 3D, animation, …
 ```
 
 When you ask for a design, the agent reads `SKILL.md`, loads the core methodology from `system-prompt.md`, detects whether it's running in Cursor, Claude Code, Codex Agent, or a generic file‑capable harness, and reads the matching reference doc when one exists. It then pulls in only the built‑in skill(s) the task needs. The split keeps craft rules harness‑independent while each environment resolves its own tools for *asking questions*, *previewing*, *screenshotting*, and *verifying*.
