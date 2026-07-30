@@ -93,7 +93,7 @@ function cssAssetTargets(cssRel) {
     u = u.replace(/[?#].*$/, ''); // strip ?v=… / #iefix
     if (!u) continue;
     const relToDs = path.posix.normalize(path.posix.join(dir, u));
-    if (relToDs.startsWith('..')) continue; // outside the DS folder — skip
+    if (relToDs.startsWith('..') || path.posix.isAbsolute(relToDs)) continue; // outside the DS folder — skip
     out.push(relToDs);
   }
   return out;
