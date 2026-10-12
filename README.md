@@ -286,6 +286,15 @@ Finally, a validation pass compares captures against the input — djb2‑hashin
 
 ---
 
+## Before/after example
+
+The same plain ops dashboard, before and after `baoyu-design` (hi-fi design + interactive prototype: an assumptions and reasoning block up front, an oklch warm-neutral system with one accent, three layout variations, and an in-page Tweaks panel).
+
+- Before: https://skill-fixture-before.theroost.dev?vr_gallery=1
+- After (baoyu-design): https://baoyu-design-after.theroost.dev?vr_gallery=1
+
+Illustrative, community-contributed example; not an official demo or benchmark.
+
 ## Example prompts
 
 - *"Design 3 hi‑fi variations of a pricing page using the brand in this screenshot."*
