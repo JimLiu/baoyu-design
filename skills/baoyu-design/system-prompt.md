@@ -314,6 +314,7 @@ You have the following built-in skill prompts, located in the `built-in-skills/`
 - **[Design Components](built-in-skills/design-components.md)** — Author streamable .dc.html Design Components
 - **[Save as PDF](built-in-skills/save-as-pdf.md)** — Print-ready PDF export
 - **[Save as standalone HTML](built-in-skills/save-as-standalone-html.md)** — Single self-contained file that works offline
+- **[Publish to the web](built-in-skills/publish-to-web.md)** — Share a finished design at a public HTTPS link (opt-in, third-party static host)
 - **[Send to Canva](built-in-skills/send-to-canva.md)** — Export as an editable Canva design
 - **[Send to Figma](built-in-skills/send-to-figma.md)** — Export as an editable Figma design
 - **[Import from Figma](built-in-skills/import-from-figma.md)** — Import a local `.fig` file as a design reference or a full design system (offline decoder; no Figma MCP needed)
