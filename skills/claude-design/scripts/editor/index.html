@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en" class="cds-root" data-density="comfortable" data-thumb-defer>
+<head>
+<meta charset="utf-8">
+<!--
+  BaoCut 设计稿编辑器页面（docs/design/canvas §3、§5），照原 Design 类型的页面改来。Runtime 在 /design/<grant>/ 下提供，宿主由 src/main.ts 装上。
+  与原页面不同的地方：
+  - 原页面开头的内联脚本向父窗口要功能开关（__appifact_flags）并装健康上报（__appifact_health）。这里只装固定取值的
+    __appifact_flags（下一个 script），不装健康上报。
+  - appifact-capabilities 去掉 room（单用户）、sample（不提供快速编辑要的模型调用）与 flags（开关固定）。运行时只读其中的
+    db（有它时缩略图等绘制完，同 data-thumb-defer）与 downloads（导出交给宿主保存；宿主没有时退回浏览器下载）。
+  - 不带 README 注释与 meta（写给托管平台上的 Claude 看的，BaoCut 的说明在 skill design 里）与 mega-build-stamp；
+    不从 /_runtime/ 预载、声明 Anthropic Sans（不内置品牌字体，见 packages/design-runtime/README.md）。
+  dc-runtime-file、fast-edit-worker-file 与原页面相同，指向 build.mjs 产出的画板运行时与快速编辑 Worker（相对页面地址）。
+  dc-babel-file 是加的：画板 x-import 了 JSX 时运行时才加载 Babel，原版从 CDN 取，BaoCut 的 CSP 不放行 CDN，改从这里取。
+-->
+<script>
+// 固定的功能开关，取值就是运行时各处读开关时给的默认值（docs/design/canvas §3），不向宿主要：
+//   design_fast_edit                  false                快速编辑关（BaoCut 不提供 sample）
+//   design_fast_edit_sample           {modelTier:"quick"}
+//   design_cross_canvas_paste_confirm true                 从别的设计稿粘贴画板前，先问用户是否信任其中的代码
+//   design_artboards_at_address       false
+//   appifact_extra_export_formats     false
+//   appifact_creation_sequence        false
+(function(){var values={design_fast_edit:false,design_fast_edit_sample:{modelTier:"quick"},design_cross_canvas_paste_confirm:true,design_artboards_at_address:false,appifact_extra_export_formats:false,appifact_creation_sequence:false};function kind(v){return v===null?"null":Array.isArray(v)?"array":typeof v}function copy(v){return JSON.parse(JSON.stringify(v))}globalThis.__appifact_flags={version:"appifact-flags:v1",ready:function(){return Promise.resolve(true)},get:function(key,fallback){if(!Object.prototype.hasOwnProperty.call(values,key)||kind(values[key])!==kind(fallback))return fallback;return copy(values[key])},all:function(){return copy(values)}};})();
+</script>
+<title>Design</title>
+<meta name="appifact-capabilities" content="{&quot;downloads&quot;:{},&quot;artifact&quot;:{},&quot;comments&quot;:{&quot;composer_only&quot;:true,&quot;customAnchors&quot;:true},&quot;db&quot;:{&quot;rules&quot;:[{&quot;path&quot;:&quot;&quot;,&quot;write&quot;:&quot;admin&quot;}]},&quot;assets&quot;:{},&quot;user&quot;:{&quot;scopes&quot;:[&quot;profile&quot;]}}">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="dc-runtime-file" content="artifact-type/dc-runtime.js">
+<meta name="fast-edit-worker-file" content="artifact-type/fast-edit-worker.js">
+<meta name="dc-babel-file" content="artifact-type/babel.min.js">
+<script>try{if(!document.documentElement.getAttribute("data-theme"))document.documentElement.setAttribute("data-theme",matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light")}catch(e){}</script>
+<script id="appifact-mode">(function(){var h=document.documentElement;function s(){var t=h.getAttribute('data-theme');if(t==='light'||t==='dark'){h.setAttribute('data-mode',t)}else{h.removeAttribute('data-mode')}}s();if(typeof MutationObserver==='function'){new MutationObserver(s).observe(h,{attributes:true,attributeFilter:['data-theme']})}})();</script>
+  <script type="module" crossorigin src="./assets/index-Bfh3V2lE.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-BsVLmftX.css">
+</head>
+<body>
+<div id="root"><p data-placeholder style="margin:24px;font:13px system-ui,sans-serif;color:#888">Loading…</p></div>
+</body>
+</html>

@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en" class="cds-root" data-density="comfortable" data-thumb-defer>
+<head>
+<meta charset="utf-8">
+<!--
+  BaoCut 设计系统编辑器页面（docs/design/canvas §10.2），照原 Design System 类型的页面改来。Runtime 在 /design-system/<grant>/ 下提供，
+  宿主由 src/main.ts 装上。与原页面不同的地方：
+  - 原页面开头的内联脚本向父窗口要功能开关（__appifact_flags）并装健康上报（__appifact_health）。这里只装固定取值的
+    __appifact_flags（下一个 script），不装健康上报。
+  - appifact-capabilities 去掉 room（单用户）；其余照原样，运行时只读其中的 db（判断存储方式）与 downloads（是否声明了下载）。
+  - 不带 README 注释与 meta（写给托管平台上的 Claude 看的，BaoCut 的说明在 skill design-system 里）。
+  - 样式与脚本由 Vite 从 src/main.ts 打进 assets/，不再是 artifact-type/app.css、artifact-type/app.js；artifact-type/ 下只有
+    预览的 run.html（原样）与预览用的 React UMD（vendor/）。
+-->
+<script>
+// 固定的功能开关，取原版的值，不向宿主要（docs/design/canvas §10.2）：
+//   design_system_clean_up_button  true  迁移没做完的系统顶上给「Finish the migration」（editor/migration-banners.tsx）
+(function(){var values={design_system_clean_up_button:true};function kind(v){return v===null?"null":Array.isArray(v)?"array":typeof v}function copy(v){return JSON.parse(JSON.stringify(v))}globalThis.__appifact_flags={version:"appifact-flags:v1",ready:function(){return Promise.resolve(true)},get:function(key,fallback){if(!Object.prototype.hasOwnProperty.call(values,key)||kind(values[key])!==kind(fallback))return fallback;return copy(values[key])},all:function(){return copy(values)}};})();
+</script>
+<title>Design System</title>
+<meta name="appifact-capabilities" content="{&quot;artifact&quot;:{},&quot;downloads&quot;:{},&quot;user&quot;:{&quot;scopes&quot;:[&quot;profile&quot;]},&quot;assets&quot;:{},&quot;comments&quot;:{&quot;composer_only&quot;:true,&quot;customAnchors&quot;:true},&quot;db&quot;:{&quot;rules&quot;:[{&quot;path&quot;:&quot;&quot;,&quot;write&quot;:&quot;admin&quot;}]}}">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script id="appifact-mode">(function(){var h=document.documentElement;function s(){var t=h.getAttribute('data-theme');if(t==='light'||t==='dark'){h.setAttribute('data-mode',t)}else{h.removeAttribute('data-mode')}}s();if(typeof MutationObserver==='function'){new MutationObserver(s).observe(h,{attributes:true,attributeFilter:['data-theme']})}})();</script>
+  <script type="module" crossorigin src="./assets/index-BjevoxAx.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-D-vhHP3y.css">
+</head>
+<body>
+<div id="root"></div>
+</body>
+</html>

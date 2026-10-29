@@ -1,0 +1,18 @@
+{
+  "originalSkill": {
+    "file": "originals/dashboard-type/SKILL.md",
+    "sha256": "485217d82aee619e4da2ff52a46625e1c68fa56dc11dec3a034f4e317b630ba6"
+  },
+  "references": {
+    "design-defaults.md": "60985fbf9ac23bfbb6c5dd99e85eed0b9334fb220e1105d4837acb46daaad39f",
+    "exporting.md": "5e815d915fd14d1b50615c814146ea3a8c7e20ec5d28289b227e99f8ac6198e6",
+    "features.md": "b0a0932557ffb0f9201aefa5c57d1958cd0d17ce093d9c342d9f08e409d92b47"
+  },
+  "dist": {
+    "index": "ca3adccf94429e84c9a2941cbd46e80ab5010d64cbb879bdd7794108bde2ed70",
+    "assets": {
+      "index-CNbhOv0A.css": "014a1f30e58114e8740466db77c3fc1fbd174320cd8e193c575b9321da9c7c42",
+      "index-DxjUSSTG.js": "7112d5ef4e3b5628dcd3aec9a88a54cdcbe1018d511fe66cf1928d12730be130"
+    }
+  }
+}

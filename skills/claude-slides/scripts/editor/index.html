@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en" class="cds-root" data-density="comfortable" data-thumb-defer>
+<head>
+<meta charset="utf-8">
+<!--
+  BaoCut 幻灯片编辑器页面（docs/design/slides §3、§5）。Runtime 在 /slides/<grant>/ 下提供，宿主由 src/main.ts 装上。
+  appifact-capabilities 是运行时读的能力声明：有 db 才按 deck 文件模式启动（boot/bootstrap.ts），有 downloads 才开导出；
+  不声明 room（单用户）与 mcp（不接 Google Drive）。appifact-mode 是运行时的明暗模式引导脚本，导出单页 HTML 时原样带上。
+-->
+<meta name="appifact-capabilities" content="{&quot;downloads&quot;:{},&quot;artifact&quot;:{},&quot;comments&quot;:{&quot;composer_only&quot;:true,&quot;customAnchors&quot;:true},&quot;db&quot;:{&quot;rules&quot;:[{&quot;path&quot;:&quot;&quot;,&quot;write&quot;:&quot;admin&quot;},{&quot;path&quot;:&quot;notes&quot;,&quot;read&quot;:&quot;admin&quot;,&quot;write&quot;:&quot;admin&quot;}]},&quot;assets&quot;:{},&quot;user&quot;:{&quot;scopes&quot;:[&quot;profile&quot;]}}">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script id="appifact-mode">(function(){var h=document.documentElement;function s(){var t=h.getAttribute('data-theme');if(t==='light'||t==='dark'){h.setAttribute('data-mode',t)}else{h.removeAttribute('data-mode')}}s();if(typeof MutationObserver==='function'){new MutationObserver(s).observe(h,{attributes:true,attributeFilter:['data-theme']})}})();</script>
+<title>Slides</title>
+  <script type="module" crossorigin src="./assets/index-DS0DS7fb.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-gmufp1nC.css">
+</head>
+<body>
+<div id="root"></div>
+</body>
+</html>
