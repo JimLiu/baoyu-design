@@ -16,7 +16,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { buildModel } from './lib/ds-core.mjs';
+import { buildModel, isInsideRoot } from './lib/ds-core.mjs';
 import { metaPathFor, readMeta, bootstrapMeta, writeMeta } from './lib/asset-store.mjs';
 import { renderDsPrompt, extractPromptExcerpt, sampleComponentNames } from './lib/ds-prompt.mjs';
 
@@ -62,7 +62,16 @@ const destRoot = path.join(projectDir, '_ds', dsSlug);
 // --- copy helpers -------------------------------------------------------------
 const toPosix = (p) => p.split(path.sep).join('/');
 
+// The DS is untrusted input: every path it names is checked with isInsideRoot
+// before it is read or copied, so `../` specs and symlinks pointing out of the
+// DS folder can't pull in outside files or write outside <destRoot>.
+function readDsText(relPath) {
+  if (!isInsideRoot(dsDir, relPath)) return null;
+  try { return fs.readFileSync(path.join(dsDir, relPath), 'utf8'); } catch { return null; }
+}
+
 function copyFileRel(relPath) {
+  if (!isInsideRoot(dsDir, relPath) || !isInsideRoot(destRoot, relPath)) return false;
   const from = path.join(dsDir, relPath);
   const to = path.join(destRoot, relPath);
   if (!fs.existsSync(from) || !fs.statSync(from).isFile()) return false;
@@ -81,8 +90,8 @@ function copyOnce(relPath) {
 // relative to that CSS file's own directory and returned relative to dsDir.
 const URL_RE = /url\(\s*["']?([^"')]+)["']?\s*\)/g;
 function cssAssetTargets(cssRel) {
-  let css;
-  try { css = fs.readFileSync(path.join(dsDir, cssRel), 'utf8'); } catch { return []; }
+  const css = readDsText(cssRel);
+  if (css === null) return [];
   const dir = path.posix.dirname(cssRel);
   const out = [];
   let m;
@@ -100,6 +109,7 @@ function cssAssetTargets(cssRel) {
 }
 
 function copyDirRel(relDir) {
+  if (!isInsideRoot(dsDir, relDir)) return 0;
   const fromDir = path.join(dsDir, relDir);
   if (!fs.existsSync(fromDir) || !fs.statSync(fromDir).isDirectory()) return 0;
   let n = 0;
@@ -134,18 +144,12 @@ const assetDirCount = copied.size - beforeAssets;
 
 // --- design-system display name -----------------------------------------------
 function firstH1(mdRel) {
-  try {
-    const m = /^#\s+(.+?)\s*$/m.exec(fs.readFileSync(path.join(dsDir, mdRel), 'utf8'));
-    if (m) return m[1].trim();
-  } catch { /* none */ }
-  return null;
+  const m = /^#\s+(.+?)\s*$/m.exec(readDsText(mdRel) || '');
+  return m ? m[1].trim() : null;
 }
 function skillName(skillRel) {
-  try {
-    const m = /^name:\s*(.+?)\s*$/m.exec(fs.readFileSync(path.join(dsDir, skillRel), 'utf8'));
-    if (m) return m[1].trim().replace(/^["']|["']$/g, '');
-  } catch { /* none */ }
-  return null;
+  const m = /^name:\s*(.+?)\s*$/m.exec(readDsText(skillRel) || '');
+  return m ? m[1].trim().replace(/^["']|["']$/g, '') : null;
 }
 const titleCase = (s) => s.replace(/[-_]+/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 const dsName = firstH1('README.md') || skillName('SKILL.md') || titleCase(dsSlug);
@@ -187,13 +191,12 @@ for (const c of model.components) {
   const relPrompt = promptPathFor(c.sourcePath);
   if (seenPrompts.has(relPrompt)) continue; // several exports can share one source file
   seenPrompts.add(relPrompt);
-  let text;
-  try { text = fs.readFileSync(path.join(dsDir, relPrompt), 'utf8'); } catch { continue; }
+  const text = readDsText(relPrompt);
+  if (text === null) continue;
   const excerpt = extractPromptExcerpt(text);
   if (excerpt) componentPrompts.push({ relPath: relPrompt, excerpt });
 }
-let readmeContent = '';
-try { readmeContent = fs.readFileSync(path.join(dsDir, 'README.md'), 'utf8'); } catch { /* none */ }
+const readmeContent = readDsText('README.md') || '';
 const promptMd = renderDsPrompt({
   name: dsName,
   slug: dsSlug,

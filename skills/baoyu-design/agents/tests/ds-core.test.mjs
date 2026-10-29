@@ -1,10 +1,12 @@
 // Unit tests for agents/lib/ds-core.mjs — the read-only design-system parser.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import path from 'node:path';
 
 import {
   buildModel,
+  isInsideRoot,
   parseDtsInterfaces,
   pascalCase,
   collectExports,
@@ -270,4 +272,79 @@ test('buildModel ignores generated artifacts and skip-dirs', (t) => {
   const names = model.components.map((c) => c.name);
   assert.ok(!names.includes('Evil') && !names.includes('Vendored'));
   assert.ok(model.allSources.every((s) => !s.path.startsWith('node_modules/')));
+});
+
+// --- path containment (issue #16) ----------------------------------------------------
+
+// symlinks need extra privileges on some platforms (Windows); skip there
+function symlinkOrSkip(t, target, linkPath) {
+  try { fs.symlinkSync(target, linkPath); return true; }
+  catch { t.skip('symlinks unavailable'); return false; }
+}
+
+test('isInsideRoot rejects .. escapes, absolute paths and outward symlinks', (t) => {
+  const base = tmpdir(t);
+  const root = path.join(base, 'ds');
+  write(root, 'styles.css', '');
+  write(root, 'sub/a.css', '');
+  write(base, 'secret.css', '');
+
+  assert.equal(isInsideRoot(root, 'styles.css'), true);
+  assert.equal(isInsideRoot(root, 'sub/a.css'), true);
+  assert.equal(isInsideRoot(root, 'sub/../styles.css'), true);
+  assert.equal(isInsideRoot(root, 'missing.css'), true); // lexical check only
+  assert.equal(isInsideRoot(root, '..foo.css'), true); // a name, not a parent ref
+
+  assert.equal(isInsideRoot(root, '../secret.css'), false);
+  assert.equal(isInsideRoot(root, 'sub/../../secret.css'), false);
+  assert.equal(isInsideRoot(root, '..'), false);
+  assert.equal(isInsideRoot(root, path.join(base, 'secret.css')), false);
+  assert.equal(isInsideRoot(root, ''), false);
+  assert.equal(isInsideRoot(root, undefined), false);
+
+  if (!symlinkOrSkip(t, path.join(base, 'secret.css'), path.join(root, 'out.css'))) return;
+  fs.symlinkSync(path.join(root, 'styles.css'), path.join(root, 'in.css'));
+  assert.equal(isInsideRoot(root, 'out.css'), false);
+  assert.equal(isInsideRoot(root, 'in.css'), true);
+});
+
+test('buildModel skips an @import that climbs out of the folder', (t) => {
+  const base = tmpdir(t);
+  const root = path.join(base, 'ds');
+  write(base, 'secret.css', ':root { --leaked: #abcdef; }\n');
+  write(root, 'styles.css', '@import "../secret.css";\n:root { --colorA: #000; }\n');
+  write(root, 'nested/inner.css', '@import "../../secret.css";\n');
+  write(root, 'theme.css', '');
+  const model = buildModel(root);
+
+  assert.deepEqual(model.globalCssPaths, ['styles.css']);
+  assert.deepEqual(model.tokens.map((tk) => tk.name), ['--colorA']);
+  assert.ok(model.issues.some((i) =>
+    /`styles\.css` imports `\.\.\/secret\.css`, which is outside the design-system folder/.test(i)));
+});
+
+test('buildModel skips an @import of a symlink that points out of the folder', (t) => {
+  const base = tmpdir(t);
+  const root = path.join(base, 'ds');
+  write(base, 'secret.css', ':root { --leaked: #abcdef; }\n');
+  write(root, 'styles.css', '@import "./linked.css";\n:root { --colorA: #000; }\n');
+  if (!symlinkOrSkip(t, path.join(base, 'secret.css'), path.join(root, 'linked.css'))) return;
+  const model = buildModel(root);
+
+  assert.deepEqual(model.globalCssPaths, ['styles.css']);
+  assert.ok(!model.tokens.some((tk) => tk.name === '--leaked'));
+  assert.ok(model.issues.some((i) => /imports `linked\.css`, which is outside/.test(i)));
+});
+
+test('buildModel ignores a manifest CSS entry outside the folder', (t) => {
+  const base = tmpdir(t);
+  const root = path.join(base, 'ds');
+  write(base, 'secret.css', ':root { --leaked: #abcdef; }\n');
+  write(root, 'colors_and_type.css', ':root { --colorA: #000; }\n');
+  write(root, '_ds_manifest.json', JSON.stringify({ globalCssPaths: ['../secret.css'] }));
+  const model = buildModel(root);
+
+  assert.equal(model.globalCssEntry, null);
+  assert.deepEqual(model.globalCssPaths, []);
+  assert.ok(model.issues.some((i) => /No global CSS entry/.test(i)));
 });

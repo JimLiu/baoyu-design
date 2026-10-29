@@ -49,6 +49,25 @@ function walk(root) {
 const rel = (root, abs) => path.relative(root, abs).split(path.sep).join('/');
 const read = (abs) => fs.readFileSync(abs, 'utf8');
 
+const within = (parent, child) => {
+  const r = path.relative(parent, child);
+  return r === '' || (r !== '..' && !r.startsWith(`..${path.sep}`) && !path.isAbsolute(r));
+};
+
+// Whether `relPath` (relative to `root`) stays inside `root`. A design system
+// is untrusted input, so every path it names — an @import spec, a manifest
+// entry — must pass this before it is read or copied. Rejects absolute paths
+// and `..` escapes, then resolves symlinks so a link pointing out of the folder
+// is rejected too. A path that doesn't exist yet only gets the lexical check.
+export function isInsideRoot(root, relPath) {
+  if (typeof relPath !== 'string' || !relPath || path.isAbsolute(relPath)) return false;
+  const abs = path.resolve(root, relPath);
+  if (!within(path.resolve(root), abs)) return false;
+  let realAbs;
+  try { realAbs = fs.realpathSync(abs); } catch { return true; }
+  try { return within(fs.realpathSync(root), realAbs); } catch { return false; }
+}
+
 // ---------------------------------------------------------------------------
 // global CSS entry + @import closure
 // ---------------------------------------------------------------------------
@@ -84,7 +103,7 @@ function manifestCssEntry(root) {
     const paths = Array.isArray(m && m.globalCssPaths) ? m.globalCssPaths : [];
     if (!paths.length) return null;
     const entry = paths[paths.length - 1];
-    if (entry && fs.existsSync(path.join(root, entry))) return entry;
+    if (isInsideRoot(root, entry) && fs.existsSync(path.join(root, entry))) return entry;
   } catch { /* no/invalid manifest */ }
   return null;
 }
@@ -92,12 +111,19 @@ function manifestCssEntry(root) {
 const IMPORT_RE = /@import\s+(?:url\(\s*)?["']([^"')]+)["']\s*\)?\s*;/g;
 
 // post-order @import closure: each file's imports come before the file itself.
-function resolveCssClosure(root, entryRel) {
+// Paths that leave `root` are skipped and collected in `escapes` — the closure
+// is what import-design-system copies, so an escaping @import would otherwise
+// read and write files outside both the DS folder and the project.
+function resolveCssClosure(root, entryRel, escapes = []) {
   const order = [];
   const seen = new Set();
-  const visit = (relPath) => {
+  const visit = (relPath, importer) => {
     if (seen.has(relPath)) return;
     seen.add(relPath);
+    if (!isInsideRoot(root, relPath)) {
+      escapes.push({ path: relPath, importer });
+      return;
+    }
     const abs = path.join(root, relPath);
     let css;
     try { css = read(abs); } catch { return; }
@@ -109,11 +135,11 @@ function resolveCssClosure(root, entryRel) {
       const childRel = path.posix.normalize(
         path.posix.join(path.posix.dirname(relPath), spec),
       );
-      visit(childRel);
+      visit(childRel, relPath);
     }
     order.push(relPath);
   };
-  visit(entryRel);
+  visit(entryRel, null);
   return order;
 }
 
@@ -515,7 +541,14 @@ export function buildModel(projectDir) {
   let globalCssPaths = [];
   let tokenInfo = { tokens: [], unclassified: [], valueByName: new Map() };
   if (globalCssEntry) {
-    globalCssPaths = resolveCssClosure(root, globalCssEntry);
+    const escapes = [];
+    globalCssPaths = resolveCssClosure(root, globalCssEntry, escapes);
+    for (const e of escapes) {
+      issues.push(
+        `${e.importer ? `\`${e.importer}\` imports` : 'Global CSS entry'} \`${e.path}\`, ` +
+        'which is outside the design-system folder — skipped. Keep every stylesheet inside the folder.',
+      );
+    }
     tokenInfo = extractTokens(root, globalCssPaths);
   } else {
     issues.push(

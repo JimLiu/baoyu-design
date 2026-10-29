@@ -104,3 +104,61 @@ test('an uncompiled-bundle warning never blocks a stylesheet-only DS', (t) => {
   const prompt = read(projectDir, '_ds/css-only/_ds_prompt.md');
   assert.ok(prompt.includes('Loading the stylesheet(s) is how you use this design system.'));
 });
+
+// --- path containment (issue #16) ----------------------------------------------------
+
+function symlinkOrSkip(t, target, linkPath) {
+  try { fs.symlinkSync(target, linkPath); return true; }
+  catch { t.skip('symlinks unavailable'); return false; }
+}
+
+// A stylesheet-only DS (manifest, no bundle) is enough to drive the importer.
+function cssOnlyDs(dsDir, css) {
+  write(dsDir, 'styles.css', css);
+  write(dsDir, '_ds_manifest.json', JSON.stringify({ namespace: 'Evil_aaaaaa' }));
+}
+
+test('an escaping @import can neither read nor overwrite files outside the folders', (t) => {
+  // Layout from the issue's proof of concept: the importer would copy
+  // <dsDir>/../../../.bashrc (the attacker's repo root) onto
+  // <projectDir>/_ds/ds/../../../.bashrc (the victim's home).
+  const home = path.join(tmpdir(t), 'home');
+  const dsDir = path.join(home, 'attacker-repo/a/b/ds');
+  const projectDir = path.join(home, 'proj');
+  write(home, 'attacker-repo/.bashrc', 'echo PWNED\n');
+  write(home, '.bashrc', 'original\n');
+  cssOnlyDs(dsDir, '@import "../../../.bashrc";\n:root { --colorA: #000; }\n');
+  fs.mkdirSync(projectDir);
+
+  const r = runScript(SCRIPT, [dsDir, projectDir]);
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(read(home, '.bashrc'), 'original\n');
+  assert.match(r.stdout, /`styles\.css` imports `\.\.\/\.\.\/\.\.\/\.bashrc`, which is outside/);
+
+  const copied = fs.readdirSync(path.join(projectDir, '_ds/ds'), { recursive: true });
+  assert.ok(!copied.some((f) => f.includes('bashrc')));
+  const meta = readJson(projectDir, '_d_meta.json');
+  assert.equal(meta.designSystems[0].slug, 'ds');
+});
+
+test('symlinks pointing out of the DS are never copied or read into the prompt', (t) => {
+  const base = tmpdir(t);
+  const dsDir = path.join(base, 'ds');
+  const projectDir = path.join(base, 'proj');
+  write(base, 'secret.md', '# Secret Title\n\nTOP-SECRET-CONTENT\n');
+  write(base, 'outside-assets/key.txt', 'TOP-SECRET-KEY\n');
+  cssOnlyDs(dsDir, ':root { --colorA: #000; }\n');
+  fs.mkdirSync(projectDir);
+  if (!symlinkOrSkip(t, path.join(base, 'secret.md'), path.join(dsDir, 'README.md'))) return;
+  fs.symlinkSync(path.join(base, 'outside-assets'), path.join(dsDir, 'assets'));
+
+  const r = runScript(SCRIPT, [dsDir, projectDir]);
+  assert.equal(r.status, 0, r.stderr);
+
+  const dest = '_ds/ds';
+  assert.ok(exists(projectDir, `${dest}/styles.css`));
+  assert.ok(!exists(projectDir, `${dest}/README.md`));
+  assert.ok(!exists(projectDir, `${dest}/assets/key.txt`));
+  assert.ok(!read(projectDir, `${dest}/_ds_prompt.md`).includes('TOP-SECRET'));
+  assert.notEqual(readJson(projectDir, '_d_meta.json').designSystems[0].name, 'Secret Title');
+});
