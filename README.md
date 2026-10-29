@@ -130,7 +130,7 @@ Next to `baoyu-design`, the repo ships skills that bring claude.ai's **Artifact 
 | Skill | Makes | In the local editor |
 |---|---|---|
 | [`claude-slides`](skills/claude-slides/) | Slide decks: `project/deck.json` plus one HTML file per slide | Present, retype, drag; export PDF, HTML or PowerPoint |
-| [`claude-design`](skills/claude-design/) | A canvas of artboards: `project/canvas.json` plus `.dc.html` Design Components | See the artboards side by side, retype copy, adjust tweaks |
+| [`claude-design`](skills/claude-design/) | A canvas of artboards: `project/canvas.json` plus `.dc.html` Design Components | See the artboards side by side, retype copy, adjust tweaks; export HTML, PDF or PNG |
 | [`claude-design-system`](skills/claude-design-system/) | Design systems: tokens, a README brand book, component previews, fonts, asset groups | Browse and edit colors, type, components and assets |
 | [`claude-dashboard`](skills/claude-dashboard/) | Data-backed dashboards: datasets (CSV, TSV, JSON) and a page of charts, numbers and tables over them | Live charts, filters, and a Sources panel that traces every number to its rows |
 

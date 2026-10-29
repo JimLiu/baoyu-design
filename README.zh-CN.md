@@ -131,7 +131,7 @@ skills/baoyu-design/
 | 技能 | 产出 | 在本地编辑器里 |
 |---|---|---|
 | [`claude-slides`](skills/claude-slides/) | 幻灯片：`project/deck.json` 加上每页一个 HTML 文件 | 放映、改字、拖动；导出 PDF、HTML 或 PowerPoint |
-| [`claude-design`](skills/claude-design/) | 一块画布上的多个画板：`project/canvas.json` 加上 `.dc.html` 设计组件 | 并排查看画板、改文案、调 tweaks |
+| [`claude-design`](skills/claude-design/) | 一块画布上的多个画板：`project/canvas.json` 加上 `.dc.html` 设计组件 | 并排查看画板、改文案、调 tweaks；导出 HTML、PDF 或 PNG |
 | [`claude-design-system`](skills/claude-design-system/) | 设计系统：tokens、README 品牌手册、组件预览、字体、素材分组 | 浏览和编辑颜色、字体、组件和素材 |
 | [`claude-dashboard`](skills/claude-dashboard/) | 数据驱动的仪表盘：数据集（CSV、TSV、JSON）加上基于它们的图表、数字和表格页面 | 实时图表、筛选，以及能把每个数字追溯到原始行的 Sources 面板 |
 
