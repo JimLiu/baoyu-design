@@ -19,9 +19,10 @@ where `d3` has no helper; if you draw another, the hand-over says which and why.
 
 A dashboard is a folder, `<root>`: `designs/<slug>/` in the current project
 unless the person names another (`<slug>`: the title in lowercase words joined
-by `-`). The first `write-db` or `upload` creates it. One script, Node 22 or
-later with nothing to install, does every call; below, `A` is
-`<this skill's folder>/scripts/artifact.mjs`.
+by `-`; a title not in Latin letters, such as a Chinese one, takes a short
+English rendering of it: `x-account-analytics`). The first `write-db` or
+`upload` creates it. One script, Node 22 or later with nothing to install,
+does every call; below, `A` is `<this skill's folder>/scripts/artifact.mjs`.
 
 | Command | Does |
 |---|---|
@@ -38,6 +39,9 @@ later with nothing to install, does every call; below, `A` is
   (`collection` and `doc_id` in place of `path` work too; `file_path`, a JSON
   file, in place of `data`). Up to 50 writes and 1 MB, each document once;
   every write is checked before any is written. `-` reads the batch from stdin.
+  From a shell heredoc, quote its word (`<<'EOF'`): unquoted, the shell
+  expands `$file` and any other `$` or backtick in the batch. Or write the
+  batch to a file and pass its path.
 - **A file's text without escaping**: `{"$file": "<path>"}` anywhere in
   `data` becomes that file's text, so the page is
   `{"op": "set", "path": "files/index.html", "data": {"text": {"$file": "designs/<slug>/src/index.html"}}}`.
@@ -115,7 +119,10 @@ reply's `url` as it came (`/_blob/<id>`; an external one isn't read), `name` the
 own, `format` (`"csv"`, `"tsv"`, `"json"`) only when the extension doesn't
 say. JSON is an array of row objects, or one under `rows`/`data`/`results`;
 a CSV's first row names the columns. Cells arrive as text: convert
-(`Number(x)`, `day.slice(0, 10)`) first.
+(`Number(x)`, `day.slice(0, 10)`) first. A date not in ISO form
+(`Thu, Oct 29, 2026`) is parsed as UTC, `d3.utcParse('%a, %b %d, %Y')(day)`
+with the format fitted to the cells, never `new Date(day)`: that is local
+midnight, which `d3.utcFormat` shows as the day before east of UTC.
 
 - `updated: {at, by}` on every file write: `at` the ISO time now, `by` who
   (the person's name, else your own); `check` counts it missing as a
@@ -246,7 +253,12 @@ a new folder makes another.
    narrowing when Sources opens). A chart that plots
    values gets a tooltip that stays inside the page, not `title`.
    **Look** — text in `var(--font-anthropic-sans)`, big numbers in
-   `var(--font-anthropic-serif)`.
+   `var(--font-anthropic-serif)`. Write the page in the person's language,
+   its numbers, dates and state lines included: design-defaults' `'en'`
+   formats and `Failed to load` are English examples. In Chinese, headline figures
+   take `Intl.NumberFormat('zh-CN', {notation: 'compact', maximumFractionDigits: 1})`
+   (万, 亿), dates `d3.utcFormat('%-m月%-d日')`, and a failed source
+   `加载失败`.
 3. **Write** with one `write-db` batch (up to 50 writes, 1 MB):
    `dash/meta`, `dash/params` if any, every `datasets/<id>`,
    `files/index.html`. Next, in the same turn, run `check <root>`: it reads
