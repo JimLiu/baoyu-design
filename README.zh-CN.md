@@ -1,141 +1,67 @@
 # baoyu-design
 
+
+https://github.com/user-attachments/assets/d5b4f39b-a701-49de-87b8-64f3c6ef9c61
+
+
+
 **在你自己的本地 Agent 上运行 Claude Design —— Cursor、Claude Code、Claude Desktop，或任何能读写文件的编码 Agent。**
 
 [English](README.md) · [简体中文](README.zh-CN.md) · [更新日志](CHANGELOG.zh.md)
 
-![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg) ![Best with Opus 4.8](https://img.shields.io/badge/Best%20with-Opus%204.8-d97757) ![Harness](https://img.shields.io/badge/Cursor%20%C2%B7%20Claude%20Code%20%C2%B7%20Codex-supported-1f6feb)
+![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg) ![Best with Opus 5.5](https://img.shields.io/badge/Best%20with-Opus%205.5-d97757) ![Harness](https://img.shields.io/badge/Cursor%20%C2%B7%20Claude%20Code%20%C2%B7%20Codex-supported-1f6feb)
 
 `baoyu-design` 把 **Claude Design**（[claude.ai/design](https://claude.ai/design) 背后的设计引擎）打包成一个可移植的 **Agent Skill（技能）**。把它放进本地 Agent，你就能在自己的编辑器里获得这个网站绝大部分的能力：精致的 UI 稿、可交互原型、线框图、落地页、仪表盘、移动 App、幻灯片 —— 全部以「自包含 HTML」的形式产出。
+
+除此之外，仓库里还有四个技能，把 claude.ai 的 **Artifact 类型**搬到同样的 Agent 上：可编辑的幻灯片、设计画布、设计系统和数据仪表盘，每一种都用它自己的编辑器打开，编辑器就运行在你的电脑上。
 
 不依赖网站，不需要额外订阅，也不用上传。活儿由你机器上已有的 Agent 完成，所有产物都留在你自己的仓库里。
 
 ---
 
-## 截图
+## 仓库里的技能
 
-Cursor、Codex、Claude 和 Claude Design 使用的是同一个 Reader Mac App Prompt。
-
-| Cursor | Codex | Claude | Claude Design |
-|---|---|---|---|
-| <img src="assets/screenshots/cursor-reader-mac-app.webp" alt="Cursor 运行 baoyu-design" width="240"> | <img src="assets/screenshots/codex-reader-mac-app.webp" alt="Codex 运行 baoyu-design" width="240"> | <img src="assets/screenshots/claude-reader-mac-app.webp" alt="Claude 运行 baoyu-design" width="240"> | <img src="assets/screenshots/claude-design-reader-mac-app.webp" alt="Claude Design 使用同一 Reader Mac App Prompt 的效果" width="240"> |
-
-<details>
-<summary>展开查看共同使用的 Prompt</summary>
-
-```markdown
-帮我开发一款Reader Mac App，帮助我更好的阅读和收藏文章。数据都在本地。
-
-## 信息采集
-
-1. 主动添加
-可以手动添加不同类型的信息：
-- URL：输入 URL，自动抓取内容和图片
-- 附件：上传PDF、视频、图片
-- Markdown 编辑：类似于发布博客，输入标题、内容、发布图片
-- 其他
-
-2. 自动订阅
-- RSS 订阅
-- 社交媒体账号：X、微博、YouTube
-- 其他
-
-## 信息编辑和分类
-
-1. 标签
-每条内容都可以打标签
-
-2. 分类、目录
-可以创建树形目录，可以把内容放到不同的分类
-
-3. 收藏
-可以点击收藏
-
-4. 编辑
-每一条内容都可以编辑，有个内置的Markdown编辑
-
-## AI 辅助
-
-1. 自动翻译
-可以支持不同语言的翻译
-
-2. 总结和摘要
-可以去对抓取了的内容进行摘要
-
-3. 二次创作
-可以基于一条或者多条内容进行二次创作
-
-4. 集成 AI Chat
-
-可以通过 AI Chat 去调用 AI Agent 辅助对内容进行处理
-```
-
-</details>
-
----
-
-## 为什么在本地跑
-
-- **摆脱对网站的依赖。** 不必离开编辑器，就能用上 `claude.ai/design` 绝大部分的功能 —— 同一套方法论、同样的工艺标准、同样的产出格式。
-- **搭配 Opus 4.8 效果最佳。** 这个技能本身是一份冗长且要求很高的设计指令，模型越强、效果越好。建议搭配 **Claude Opus 4.8** 获得最佳结果；在其他能力足够的模型上也能良好运行。
-- **用「指」代替「描述」来迭代。** 因为产物就是跑在 `localhost` 上的普通 HTML，你可以充分借助 Agent 自带的网页预览与元素标注能力（Cursor Browser / DevTools、Claude Preview 或 Codex Browser）：在实时预览里直接点选某个按钮，说出想改成什么，Agent 就会去改对应的源码 —— 这是一条紧凑、可视化的「二次编辑」回路，在网站上很难做到。
-- **一切都归你所有。** 产物会落到 `designs/<项目名>/` 目录下，是可以纳入版本控制、二次分叉、导出或直接上线的自包含 HTML。
-
----
-
-## 它能做什么
-
-这个技能会驱动一套完整的设计流程 —— 先问澄清问题 → 收集设计上下文 → 产出一个或多个 HTML 交付物 → 预览并校验。它内置了**一大批子技能**，外加一组开箱即用的组件脚手架。
-
-| 类别 | 内置子技能 |
-|---|---|
-| **核心设计** | 高保真设计 · 可交互原型 · 线框图 · 前端美学方向 |
-| **幻灯片** | 制作演示文稿 · 演讲者备注 |
-| **移动与动效** | 移动端原型 · 动画视频 · 音效 |
-| **网站与营销** | 网站与落地页 · 社交媒体内容 · HTML 邮件 · 传单 · 三折页 |
-| **数据与研究** | 网页研究 · 数据科学 · 数据可视化 · 地图与地理 · 实验工作流 |
-| **文档、3D 与插画** | 制作文档 · 3D 对象 · 水彩插画 |
-| **设计系统** | 创建设计系统 · 使用设计系统 · 设计系统预览 · 设计组件（`.dc.html`）· 可调参数化 |
-| **导入设计源** | Figma `.fig`（离线解码）· GitHub 仓库 · 现成 HTML/CSS |
-| **导出与交付** | 独立 HTML · PDF · PPTX（可编辑）· PPTX（截图）· 视频（MP4）· 导出到 Figma · 导出到 Canva · 交接给 Claude Code |
-| **AI 素材与集成** | Gemini 图像生成 · 在原型中调用 Claude · 读取 PDF |
-
-**起步组件**（位于 [`starter-components/`](skills/baoyu-design/starter-components/)）让 Agent 不必从零手搓基础件：设备、浏览器和社交媒体外壳；可平移缩放的设计画布；幻灯片、动画、图表、文档、文件和 3D 舞台；参数调节面板；可填充的图片占位槽；以及能逐笔回放水彩画的绘画运行时。
-
----
-
-## 工作原理
-
-整个技能就是纯 Markdown 加几个 JSX/JS 脚手架 —— 无需构建、无需运行时。
-
-```
-skills/baoyu-design/
-├── SKILL.md              # 入口 —— 编排整个流程
-├── system-prompt.md      # 设计方法论与工艺标准（唯一事实来源）
-├── references/
-│   ├── claude.md         # Claude Code 的工具映射
-│   ├── cursor.md         # Cursor 的工具映射
-│   └── codex.md          # Codex Agent 的工具映射
-├── built-in-skills/      # 专项子技能（幻灯片、移动端、导入、导出……）
-└── starter-components/   # 设备/社交外壳、幻灯片、图表、文档、3D、动画……
-```
-
-当你提出设计需求时，Agent 会读取 `SKILL.md`，从 `system-prompt.md` 加载核心方法论，判断自己运行在 Cursor、Claude Code、Codex Agent，还是一个通用的可读写文件 harness；如果有匹配的参考文档，就读取对应文档，然后只按需载入这次任务用得到的子技能。这种拆分让「工艺规则」与具体 Agent 无关，而每个环境各自去解析自己的工具来完成「提问」「预览」「截图」「校验」。
+| 技能 | 产出 | 在哪里修改 |
+|---|---|---|
+| [`baoyu-design`](skills/baoyu-design/) | UI 稿、可交互原型、线框图、落地页、幻灯片和动画，以自包含 HTML 的形式放在 `designs/<项目名>/` 下 | Agent 自带的网页预览：点选元素，说出想怎么改 |
+| [`claude-slides`](skills/claude-slides/) | 幻灯片：`project/deck.json` 加上每页一个 HTML 文件 | 幻灯片编辑器：放映、改字、拖动；导出 PDF、HTML 或 PowerPoint |
+| [`claude-design`](skills/claude-design/) | 一块画布上的多个画板：`project/canvas.json` 加上 `.dc.html` 设计组件 | 画布编辑器：并排查看画板、播放原型、改文案、调 tweaks；导出 HTML、PDF 或 PNG |
+| [`claude-design-system`](skills/claude-design-system/) | 设计系统：tokens、README 品牌手册、组件预览、字体、素材分组 | 设计系统编辑器：浏览和编辑颜色、字体、组件和素材 |
+| [`claude-dashboard`](skills/claude-dashboard/) | 数据驱动的仪表盘：数据集（CSV、TSV、JSON）加上基于它们的图表、数字和表格页面 | 仪表盘页面：实时图表、筛选，以及能把每个数字追溯到原始行的 Sources 面板 |
 
 ---
 
 ## Artifact 技能：可编辑的幻灯片、画布、设计系统与仪表盘
 
-除了 `baoyu-design`，仓库里还有几个技能，把 claude.ai 的 **Artifact 类型**搬到本地 Agent 上。`baoyu-design` 产出的是自包含的 HTML；这几个技能则按该类型自己的文件格式把内容写进一个文件夹，再用这个类型的编辑器页面打开它，编辑器就在你自己的电脑上运行：
+`baoyu-design` 产出的是自包含的 HTML；这四个技能则按该 Artifact 类型自己的文件格式把内容写进一个文件夹，再用这个类型的编辑器页面打开它，编辑器就在你自己的电脑上运行。Agent 写文件，编辑器立刻显示每一次写入；你在编辑器里的修改也会存回同一批文件，所以你和 Agent 可以轮流改。
 
-| 技能 | 产出 | 在本地编辑器里 |
-|---|---|---|
-| [`claude-slides`](skills/claude-slides/) | 幻灯片：`project/deck.json` 加上每页一个 HTML 文件 | 放映、改字、拖动；导出 PDF、HTML 或 PowerPoint |
-| [`claude-design`](skills/claude-design/) | 一块画布上的多个画板：`project/canvas.json` 加上 `.dc.html` 设计组件 | 并排查看画板、改文案、调 tweaks；导出 HTML、PDF 或 PNG |
-| [`claude-design-system`](skills/claude-design-system/) | 设计系统：tokens、README 品牌手册、组件预览、字体、素材分组 | 浏览和编辑颜色、字体、组件和素材 |
-| [`claude-dashboard`](skills/claude-dashboard/) | 数据驱动的仪表盘：数据集（CSV、TSV、JSON）加上基于它们的图表、数字和表格页面 | 实时图表、筛选，以及能把每个数字追溯到原始行的 Sources 面板 |
+### `claude-slides`：幻灯片
 
-每个 `SKILL.md` 都基本原样保留了该类型的英文原版说明，只把 Artifact 工具的调用换成了本地的等价操作。这个工具就放在每个技能里，是 `scripts/artifact.mjs`（Node 20+，仪表盘需 Node 22+；无需安装依赖）：
+<img src="assets/screenshots/claude-slides-editor.webp" alt="claude-slides 编辑器里打开的一份 20 页图书策划案" width="880">
+
+一套幻灯片就是 `project/deck.json` 加上每页一个 HTML 文件。在编辑器里可以全屏放映、直接改字、拖动元素，插入文字、图片、表格和形状，并导出成 PDF、HTML 或 PowerPoint。*上图：一份 20 页的图书策划案。*
+
+### `claude-design`：多画板画布
+
+<img src="assets/screenshots/claude-design-canvas.webp" alt="claude-design 画布上并排的落地页和它的手机版" width="880">
+
+一块画布上并排放着多个画板：`project/canvas.json` 加上每个画板一个 `.dc.html` 设计组件。画板可以当成能交互的原型来播放，在画布上播或者全屏播；也可以改文案、调 tweaks、贴便签；整份设计能导出成独立的 HTML 页面、PDF 或 PNG 图片（1× 或 2×，多个画板打包成 .zip）。*上图：这个仓库的介绍落地页，旁边是它的手机版，用的是 React Spectrum 设计系统。*
+
+### `claude-design-system`：设计系统
+
+<img src="assets/screenshots/claude-design-system-editor.webp" alt="claude-design-system 编辑器里 React Spectrum 设计系统的实时组件预览" width="880">
+
+一套设计系统包括 tokens、README 品牌手册、组件预览、字体和素材分组。在编辑器里可以浏览和编辑颜色、字体、间距、圆角、阴影、组件和素材。从组件库导入的设计系统，组件预览用的就是真组件，可以直接交互。幻灯片和画布可以安装它，之后编辑器的主题和颜色菜单就会列出它的颜色和文字样式。*上图：从 Adobe 组件库导入的 React Spectrum（Spectrum 2）。*
+
+### `claude-dashboard`：数据仪表盘
+
+<img src="assets/screenshots/claude-dashboard.webp" alt="claude-dashboard 页面里用示例数据做的 X 账号数据仪表盘" width="880">
+
+一个仪表盘就是数据集（CSV、TSV 或 JSON）加上一页基于它们算出来的图表、数字和表格。图表是实时的，Sources 面板能把每个数字追溯到原始数据行。拿到新导出的数据交给 Agent，它会把文件换上，页面上的数字全部重算。数字、日期和说明文字都跟着你的语言走。*上图：一年的 X 账号每日数据，用的是示例数据。*
+
+### 运行编辑器
+
+每个 `SKILL.md` 都基本原样保留了该类型的英文原版说明，只把 Artifact 工具的调用换成了本地的等价操作。这个工具就放在每个技能里，是 `scripts/artifact.mjs`（Node 20+，仪表盘需 Node 22+；无需安装依赖）。平时 Agent 会替你运行；手动运行的话：
 
 ```bash
 node skills/claude-slides/scripts/artifact.mjs open designs/q3-review             # 启动编辑器，打印网址
@@ -144,7 +70,16 @@ node skills/claude-slides/scripts/artifact.mjs upload designs/q3-review hero.jpg
 node skills/claude-slides/scripts/artifact.mjs list                                 # 查找磁盘上的设计系统
 ```
 
-Agent 写文件，编辑器立刻显示每一次写入；你在编辑器里的修改也会存回同一批文件，所以你和 Agent 可以轮流改。仪表盘也用同一个脚本（`write-db`、`read-db`、`upload`、`check`、`open`）写入它自己在 `<root>/db/` 下的存储。幻灯片和画布可以安装用 `claude-design-system` 做的设计系统：把系统的 tokens 复制进自己的文件夹，编辑器的主题和颜色菜单就会列出它的颜色和文字样式。编辑器已预先构建好放在 `scripts/editor/`；[`tools/artifact-skills/`](tools/artifact-skills/) 用来重新构建。
+仪表盘也用同一个脚本（`write-db`、`read-db`、`upload`、`check`、`open`）写入它自己在 `<root>/db/` 下的存储。每个技能都运行自己的本地服务器，编辑器已预先构建好放在 `scripts/editor/`；[`tools/artifact-skills/`](tools/artifact-skills/) 用来重新构建。
+
+---
+
+## 为什么在本地跑
+
+- **摆脱对网站的依赖。** 不必离开编辑器，就能用上 `claude.ai/design` 绝大部分的功能 —— 同一套方法论、同样的工艺标准、同样的产出格式。
+- **搭配 Opus 5.5 效果最佳。** 这个技能本身是一份冗长且要求很高的设计指令，模型越强、效果越好。建议搭配 **Claude Opus 5.5** 获得最佳结果；在其他能力足够的模型上也能良好运行。
+- **用「指」代替「描述」来迭代。** 因为产物就是跑在 `localhost` 上的普通 HTML，你可以充分借助 Agent 自带的网页预览与元素标注能力（Cursor Browser / DevTools、Claude Preview 或 Codex Browser）：在实时预览里直接点选某个按钮，说出想改成什么，Agent 就会去改对应的源码 —— 这是一条紧凑、可视化的「二次编辑」回路，在网站上很难做到。
+- **一切都归你所有。** 产物会落到 `designs/<项目名>/` 目录下，是可以纳入版本控制、二次分叉、导出或直接上线的自包含 HTML。
 
 ---
 
@@ -153,8 +88,8 @@ Agent 写文件，编辑器立刻显示每一次写入；你在编辑器里的�
 ### 前置条件
 
 - 一个本地 Agent —— **[Cursor](https://cursor.com)**、**[Claude Code](https://claude.com/claude-code)**、**[Codex](https://developers.openai.com/codex/)**，或安装器支持的其余 70+ 个 Agent（Cline、Roo Code、GitHub Copilot……）。其中 Cursor、Claude Code 与 Codex 在技能里内置了一等的工具参考文档。
-- 模型选择 **Claude Opus 4.8**，效果最佳。
-- **Node.js**（用于运行下面的 `npx` 安装器）。另外备一个 **Python 3** 跑本地预览服务器会很方便。
+- 模型选择 **Claude Opus 5.5**，效果最佳。
+- **Node.js**，用于运行下面的 `npx` 安装器，以及 Artifact 技能的编辑器（Node 20+，仪表盘需 Node 22+）。另外备一个 **Python 3** 跑 `baoyu-design` 的本地预览服务器会很方便。
 
 ### 安装
 
@@ -218,6 +153,8 @@ Agent 会 clone 或抓取该仓库、加载 `SKILL.md` 然后开干 —— 临�
 
 在 Claude Code 里你也可以用 `/baoyu-design` 显式触发；在 Codex 里，如果 Skills 可用，可以提到 `$baoyu-design`。Agent 会问几个澄清问题、在 `designs/` 下生成 HTML，并通过 `localhost` 预览。**在实时预览里点选任意元素，说出想改成什么** —— Agent 就会去改对应源码，完成一次快速、可视化的二次编辑。
 
+Artifact 技能的用法也一样。直接说你要什么（*「根据这份 PRD 做一套 12 页的幻灯片」*、*「把这个 CSV 做成仪表盘」*），或者点名调用：Claude Code 里用 `/claude-slides`、`/claude-design`、`/claude-design-system` 或 `/claude-dashboard`，Codex 里用 `$claude-slides` 等。Agent 会把文件写到 `designs/<slug>/` 下，启动编辑器，再把它的 `http://127.0.0.1` 地址给你。
+
 ### 预览服务器
 
 交付物通过 HTTP 预览（多文件原型无法从 `file://` 加载）。通常 Agent 会自动帮你起服务；若要手动运行：
@@ -229,9 +166,50 @@ python3 -m http.server 4311 --directory designs
 
 ---
 
-## 设计系统
+## baoyu-design 能做什么
 
-除了一次性的设计稿，这个技能还能让整个项目都遵循某个**设计系统** —— 也就是把一个品牌的 token、字体、组件和完整 UI Kit 打包成的、带版本的产物。设计系统和你的项目一起放在 `designs/` 下：你可以用**创建设计系统**子技能自己做一个、直接放入一个现成的，或者从 Figma `.fig` 文件导入一个（见下一节）。系统一旦存在，下面两条流程就能让任意项目使用它。
+本页余下部分讲的都是 `baoyu-design`。这个技能会驱动一套完整的设计流程 —— 先问澄清问题 → 收集设计上下文 → 产出一个或多个 HTML 交付物 → 预览并校验。它内置了**一大批子技能**，外加一组开箱即用的组件脚手架。
+
+| 类别 | 内置子技能 |
+|---|---|
+| **核心设计** | 高保真设计 · 可交互原型 · 线框图 · 前端美学方向 |
+| **幻灯片** | 制作演示文稿 · 演讲者备注 |
+| **移动与动效** | 移动端原型 · 动画视频 · 音效 |
+| **网站与营销** | 网站与落地页 · 社交媒体内容 · HTML 邮件 · 传单 · 三折页 |
+| **数据与研究** | 网页研究 · 数据科学 · 数据可视化 · 地图与地理 · 实验工作流 |
+| **文档、3D 与插画** | 制作文档 · 3D 对象 · 水彩插画 |
+| **设计系统** | 创建设计系统 · 使用设计系统 · 设计系统预览 · 设计组件（`.dc.html`）· 可调参数化 |
+| **导入设计源** | Figma `.fig`（离线解码）· GitHub 仓库 · 现成 HTML/CSS |
+| **导出与交付** | 独立 HTML · PDF · PPTX（可编辑）· PPTX（截图）· 视频（MP4）· 导出到 Figma · 导出到 Canva · 交接给 Claude Code |
+| **AI 素材与集成** | Gemini 图像生成 · 在原型中调用 Claude · 读取 PDF |
+
+**起步组件**（位于 [`starter-components/`](skills/baoyu-design/starter-components/)）让 Agent 不必从零手搓基础件：设备、浏览器和社交媒体外壳；可平移缩放的设计画布；幻灯片、动画、图表、文档、文件和 3D 舞台；参数调节面板；可填充的图片占位槽；以及能逐笔回放水彩画的绘画运行时。
+
+---
+
+## baoyu-design 的工作原理
+
+整个技能就是纯 Markdown 加几个 JSX/JS 脚手架 —— 无需构建、无需运行时。
+
+```
+skills/baoyu-design/
+├── SKILL.md              # 入口 —— 编排整个流程
+├── system-prompt.md      # 设计方法论与工艺标准（唯一事实来源）
+├── references/
+│   ├── claude.md         # Claude Code 的工具映射
+│   ├── cursor.md         # Cursor 的工具映射
+│   └── codex.md          # Codex Agent 的工具映射
+├── built-in-skills/      # 专项子技能（幻灯片、移动端、导入、导出……）
+└── starter-components/   # 设备/社交外壳、幻灯片、图表、文档、3D、动画……
+```
+
+当你提出设计需求时，Agent 会读取 `SKILL.md`，从 `system-prompt.md` 加载核心方法论，判断自己运行在 Cursor、Claude Code、Codex Agent，还是一个通用的可读写文件 harness；如果有匹配的参考文档，就读取对应文档，然后只按需载入这次任务用得到的子技能。这种拆分让「工艺规则」与具体 Agent 无关，而每个环境各自去解析自己的工具来完成「提问」「预览」「截图」「校验」。
+
+---
+
+## baoyu-design 里的设计系统
+
+除了一次性的设计稿，`baoyu-design` 还能让整个项目都遵循某个**设计系统** —— 也就是把一个品牌的 token、字体、组件和完整 UI Kit 打包成的、带版本的产物。设计系统和你的项目一起放在 `designs/` 下：你可以用**创建设计系统**子技能自己做一个、直接放入一个现成的，或者从 Figma `.fig` 文件导入一个（见下一节）。系统一旦存在，下面两条流程就能让任意项目使用它。
 
 ### 导入现有设计系统
 
@@ -324,6 +302,10 @@ CLI 通过 Playwright 启动一个无头 Chromium，把幻灯片当作真网页�
 - *「照着这个代码库复刻 composer 的 UI，然后导出成独立 HTML。」*
 - *「把这个 UI Kit 的 `.fig` 导入成设计系统，再用它做一个仪表盘。」*
 - *「用我们的设计系统做一个仪表盘，从它自带的分析页起步。」*
+- *「用 claude-slides 做一套 Q3 复盘的幻灯片，然后导出成 PowerPoint。」*
+- *「在 claude-design 画布上并排放一个落地页和它的手机版。」*
+- *「把 Chakra UI 组件库做成一套设计系统，组件预览要能直接交互。」*
+- *「把这份数据分析 CSV 做成仪表盘，对比最近 28 天和再往前 28 天。」*
 
 想要最好的效果，**请给它设计上下文** —— 截图、UI Kit、Figma `.fig` 文件或代码库。从真实上下文出发，是对质量影响最大的一个杠杆；如果你不提供，技能也会主动向你索要。
 

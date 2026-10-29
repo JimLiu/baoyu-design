@@ -9,137 +9,59 @@ https://github.com/user-attachments/assets/d5b4f39b-a701-49de-87b8-64f3c6ef9c61
 
 [English](README.md) · [简体中文](README.zh-CN.md) · [Changelog](CHANGELOG.md)
 
-![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg) ![Best with Opus 4.8](https://img.shields.io/badge/Best%20with-Opus%204.8-d97757) ![Harness](https://img.shields.io/badge/Cursor%20%C2%B7%20Claude%20Code%20%C2%B7%20Codex-supported-1f6feb)
+![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg) ![Best with Opus 5.5](https://img.shields.io/badge/Best%20with-Opus%205.5-d97757) ![Harness](https://img.shields.io/badge/Cursor%20%C2%B7%20Claude%20Code%20%C2%B7%20Codex-supported-1f6feb)
 
 `baoyu-design` packages **Claude Design** — the design engine behind [claude.ai/design](https://claude.ai/design) — as a portable **Agent Skill**. Drop it into a local agent and you get most of what the website does, right inside your editor: polished UI mockups, interactive prototypes, wireframes, landing pages, dashboards, mobile apps, and slide decks — all produced as self‑contained HTML.
+
+Next to it, four more skills bring claude.ai's **Artifact types** to the same agents: editable slide decks, design canvases, design systems and data dashboards, each opened in its own editor that runs on your machine.
 
 No website, no separate subscription, no upload step. The agent already on your machine does the work, and every artifact stays in your repo.
 
 ---
 
-## Screenshots
+## Skills in this repo
 
-The same Reader Mac App prompt was used in Cursor, Codex, Claude, and Claude Design.
-
-| Cursor | Codex | Claude | Claude Design |
-|---|---|---|---|
-| <img src="assets/screenshots/cursor-reader-mac-app.webp" alt="Cursor running baoyu-design" width="240"> | <img src="assets/screenshots/codex-reader-mac-app.webp" alt="Codex running baoyu-design" width="240"> | <img src="assets/screenshots/claude-reader-mac-app.webp" alt="Claude running baoyu-design" width="240"> | <img src="assets/screenshots/claude-design-reader-mac-app.webp" alt="Claude Design running the same Reader Mac App prompt" width="240"> |
-
-<details>
-<summary>Prompt used for all screenshots</summary>
-
-```markdown
-Build a Reader Mac app that helps me read and save articles better. All data is stored locally.
-
-## Information collection
-
-1. Manual adding
-Support manually adding different types of information:
-- URL: enter a URL and automatically fetch content and images
-- Attachments: upload PDFs, videos, and images
-- Markdown editing: like publishing a blog post, enter the title, body, and cover image
-- Other
-
-2. Automatic subscriptions
-- RSS feeds
-- Social media accounts: X, Weibo, YouTube
-- Other
-
-## Editing and organization
-
-1. Tags
-Every item can have tags.
-
-2. Categories and folders
-Create tree-structured folders and place content in different categories.
-
-3. Favorites
-Users can click to favorite an item.
-
-4. Editing
-Every item can be edited with a built-in Markdown editor.
-
-## AI assistance
-
-1. Automatic translation
-Support translation across different languages.
-
-2. Summaries and abstracts
-Generate summaries for captured content.
-
-3. Derivative creation
-Create new work based on one or more pieces of content.
-
-4. Integrated AI Chat
-Use AI Chat to call AI Agents that help process content.
-```
-
-</details>
-
----
-
-## Why run it locally
-
-- **Free yourself from the website.** You get the vast majority of `claude.ai/design`'s capabilities without ever leaving your editor — same methodology, same craft standards, same output format.
-- **Best with Opus 4.8.** The skill is a long, demanding design brief; the stronger the model, the better the result. Pair it with **Claude Opus 4.8** for the best output, and it still works well on other capable models.
-- **Iterate by pointing, not describing.** Because the deliverable is plain HTML served on `localhost`, you can lean on your agent's built‑in browser preview and element‑annotation tools (Cursor Browser / DevTools, Claude Preview, or Codex Browser). Point at a button in the live preview, say what you want changed, and the agent edits the underlying source — a tight, visual second‑pass editing loop that's hard to get on a website.
-- **Everything is yours.** Output lands in `designs/<project>/` as self‑contained HTML you can version, fork, export, or ship.
-
----
-
-## What it can make
-
-The skill drives a full design process — clarifying questions → gathering design context → producing one or more HTML deliverables → previewing and verifying. It ships a deep bench of **built‑in skills** and a set of ready‑made component scaffolds.
-
-| Area | Built‑in skills |
-|---|---|
-| **Core design** | Hi‑fi design · Interactive prototype · Wireframe · Frontend aesthetic direction |
-| **Decks** | Make a deck · Speaker notes |
-| **Mobile & motion** | Mobile prototype · Animated video · Sound effects |
-| **Web & campaigns** | Website & landing page · Social media content · HTML email · Flier · Trifold brochure |
-| **Data & research** | Web research · Data science · Data visualization · Maps & geography · Experiment workflow |
-| **Documents, 3D & illustration** | Make a doc · 3D object · Watercolor illustration |
-| **Design systems** | Create design system · Use design system · Design system preview · Design Components (`.dc.html`) · Make tweakable |
-| **Import sources** | Figma `.fig` (offline decode) · GitHub repo · Existing HTML/CSS |
-| **Export & handoff** | Standalone HTML · PDF · PPTX (editable) · PPTX (screenshots) · Video (MP4) · Send to Figma · Send to Canva · Handoff to Claude Code |
-| **AI assets & integration** | Gemini image generation · Call Claude from prototypes · Read PDF |
-
-**Starter components** (in [`starter-components/`](skills/baoyu-design/starter-components/)) save the agent from hand‑rolling the basics: device, browser, and social-media shells; a pan‑zoom design canvas; slide, animation, chart, document, file, and 3D stages; a tweaks panel; a fillable image slot; and a watercolor painting runtime that replays a painting stroke by stroke.
-
----
-
-## How it works
-
-The skill is plain Markdown plus a few JSX/JS scaffolds — no build step, no runtime.
-
-```
-skills/baoyu-design/
-├── SKILL.md              # Entry point — orchestrates the whole flow
-├── system-prompt.md      # The design methodology & craft standards (source of truth)
-├── references/
-│   ├── claude.md         # Tool map for Claude Code
-│   ├── cursor.md         # Tool map for Cursor
-│   └── codex.md          # Tool map for Codex Agent
-├── built-in-skills/      # Specialized prompts (decks, mobile, import, export, …)
-└── starter-components/   # Device/social shells, deck, chart, document, 3D, animation, …
-```
-
-When you ask for a design, the agent reads `SKILL.md`, loads the core methodology from `system-prompt.md`, detects whether it's running in Cursor, Claude Code, Codex Agent, or a generic file‑capable harness, and reads the matching reference doc when one exists. It then pulls in only the built‑in skill(s) the task needs. The split keeps craft rules harness‑independent while each environment resolves its own tools for *asking questions*, *previewing*, *screenshotting*, and *verifying*.
+| Skill | Makes | You edit it in |
+|---|---|---|
+| [`baoyu-design`](skills/baoyu-design/) | UI mockups, prototypes, wireframes, landing pages, decks and animations, as self‑contained HTML in `designs/<project>/` | Your agent's browser preview: point at an element and say what to change |
+| [`claude-slides`](skills/claude-slides/) | Slide decks: `project/deck.json` plus one HTML file per slide | The slides editor: present, retype, drag; export PDF, HTML or PowerPoint |
+| [`claude-design`](skills/claude-design/) | A canvas of artboards: `project/canvas.json` plus `.dc.html` Design Components | The canvas editor: artboards side by side, play prototypes, retype copy, adjust tweaks; export HTML, PDF or PNG |
+| [`claude-design-system`](skills/claude-design-system/) | Design systems: tokens, a README brand book, component previews, fonts, asset groups | The design system editor: browse and edit colors, type, components and assets |
+| [`claude-dashboard`](skills/claude-dashboard/) | Data‑backed dashboards: datasets (CSV, TSV, JSON) and a page of charts, numbers and tables over them | The dashboard page: live charts, filters, and a Sources panel that traces every number to its rows |
 
 ---
 
 ## Artifact skills: editable decks, canvases, design systems and dashboards
 
-Next to `baoyu-design`, the repo ships skills that bring claude.ai's **Artifact types** to local agents. Where `baoyu-design` writes self‑contained HTML, these write the type's own file format into a folder and open it in that type's editor page, served from your machine:
+Where `baoyu-design` writes self‑contained HTML, these four skills write the Artifact type's own file format into a folder and open it in that type's editor page, served from your machine. The agent writes the files and the editor shows each write at once; your edits in the editor are saved back into the same files, so you and the agent can take turns.
 
-| Skill | Makes | In the local editor |
-|---|---|---|
-| [`claude-slides`](skills/claude-slides/) | Slide decks: `project/deck.json` plus one HTML file per slide | Present, retype, drag; export PDF, HTML or PowerPoint |
-| [`claude-design`](skills/claude-design/) | A canvas of artboards: `project/canvas.json` plus `.dc.html` Design Components | See the artboards side by side, retype copy, adjust tweaks; export HTML, PDF or PNG |
-| [`claude-design-system`](skills/claude-design-system/) | Design systems: tokens, a README brand book, component previews, fonts, asset groups | Browse and edit colors, type, components and assets |
-| [`claude-dashboard`](skills/claude-dashboard/) | Data-backed dashboards: datasets (CSV, TSV, JSON) and a page of charts, numbers and tables over them | Live charts, filters, and a Sources panel that traces every number to its rows |
+### `claude-slides`: slide decks
 
-Each `SKILL.md` keeps the type's original instructions nearly word for word; only the Artifact tool calls are swapped for local ones. That tool lives inside each skill as `scripts/artifact.mjs` (Node 20+, the dashboard's Node 22+; nothing to install):
+<img src="assets/screenshots/claude-slides-editor.webp" alt="A 20-slide book proposal deck open in the claude-slides editor" width="880">
+
+A deck is `project/deck.json` plus one HTML file per slide. In the editor you can present full screen, retype any text, drag elements, add text, images, tables and shapes, and export to PDF, HTML or PowerPoint. *Above: a 20‑slide book proposal, in Chinese.*
+
+### `claude-design`: a canvas of artboards
+
+<img src="assets/screenshots/claude-design-canvas.webp" alt="A landing page and its phone version side by side on the claude-design canvas" width="880">
+
+A canvas holds artboards side by side: `project/canvas.json` plus one `.dc.html` Design Component per artboard. Play an artboard as a working prototype, on the canvas or full screen; retype copy, adjust tweaks and leave notes; export the whole design as a standalone HTML page, a PDF or PNG images (1× or 2×, several artboards in a .zip). *Above: a landing page for this repo with its phone version beside it, built on the React Spectrum design system.*
+
+### `claude-design-system`: design systems
+
+<img src="assets/screenshots/claude-design-system-editor.webp" alt="Live component previews of the React Spectrum design system in the claude-design-system editor" width="880">
+
+A design system is tokens, a README brand book, component previews, fonts and asset groups. In the editor you browse and edit colors, type, spacing, radii, shadows, components and assets. Import one from a component library and its previews are the real components, live and interactive. Decks and canvases can install it: their editors' Theme and color menus then offer its colors and text styles. *Above: React Spectrum (Spectrum 2), imported from Adobe's component library.*
+
+### `claude-dashboard`: data‑backed dashboards
+
+<img src="assets/screenshots/claude-dashboard.webp" alt="An X account analytics dashboard with sample data in the claude-dashboard page" width="880">
+
+A dashboard is datasets (CSV, TSV or JSON) and a page of charts, numbers and tables computed from them. The charts are live, and the Sources panel traces every number back to its rows. Give the agent a newer export and it swaps the file in; the page recomputes every number. Numbers, dates and labels follow your language. *Above: a year of daily X account analytics, with sample data.*
+
+### Run the editors
+
+Each `SKILL.md` keeps the type's original instructions nearly word for word; only the Artifact tool calls are swapped for local ones. That tool lives inside each skill as `scripts/artifact.mjs` (Node 20+, the dashboard's Node 22+; nothing to install). The agent runs it for you; by hand:
 
 ```bash
 node skills/claude-slides/scripts/artifact.mjs open designs/q3-review             # start the editor, print its URL
@@ -148,7 +70,16 @@ node skills/claude-slides/scripts/artifact.mjs upload designs/q3-review hero.jpg
 node skills/claude-slides/scripts/artifact.mjs list                                 # find design systems on disk
 ```
 
-The agent writes the files and the editor shows each write at once; your edits in the editor are saved back into the same files, so you and the agent can take turns. A dashboard is written through the same script (`write-db`, `read-db`, `upload`, `check`, `open`) into its own store under `<root>/db/`. A deck or canvas can install a design system made with `claude-design-system`: it copies the system's tokens into its own folder, and the editor's Theme and color menus then offer its colors and text styles. The editors ship prebuilt in `scripts/editor/`; [`tools/artifact-skills/`](tools/artifact-skills/) rebuilds them.
+A dashboard is written through the same script (`write-db`, `read-db`, `upload`, `check`, `open`) into its own store under `<root>/db/`. Each skill runs its own local server, and the editors ship prebuilt in `scripts/editor/`; [`tools/artifact-skills/`](tools/artifact-skills/) rebuilds them.
+
+---
+
+## Why run it locally
+
+- **Free yourself from the website.** You get the vast majority of `claude.ai/design`'s capabilities without ever leaving your editor — same methodology, same craft standards, same output format.
+- **Best with Opus 5.5.** The skill is a long, demanding design brief; the stronger the model, the better the result. Pair it with **Claude Opus 5.5** for the best output, and it still works well on other capable models.
+- **Iterate by pointing, not describing.** Because the deliverable is plain HTML served on `localhost`, you can lean on your agent's built‑in browser preview and element‑annotation tools (Cursor Browser / DevTools, Claude Preview, or Codex Browser). Point at a button in the live preview, say what you want changed, and the agent edits the underlying source — a tight, visual second‑pass editing loop that's hard to get on a website.
+- **Everything is yours.** Output lands in `designs/<project>/` as self‑contained HTML you can version, fork, export, or ship.
 
 ---
 
@@ -157,8 +88,8 @@ The agent writes the files and the editor shows each write at once; your edits i
 ### Prerequisites
 
 - A local agent — **[Cursor](https://cursor.com)**, **[Claude Code](https://claude.com/claude-code)**, **[Codex](https://developers.openai.com/codex/)**, or any of the 70+ agents the installer supports (Cline, Roo Code, GitHub Copilot…). Cursor, Claude Code, and Codex have first‑class tool references inside the skill.
-- **Claude Opus 4.8** selected as the model, for best results.
-- **Node.js** (to run the `npx` installer below). **Python 3** is also handy for the local preview server.
+- **Claude Opus 5.5** selected as the model, for best results.
+- **Node.js**, for the `npx` installer below and for the artifact skills' editors (Node 20+, the dashboard Node 22+). **Python 3** is also handy for `baoyu-design`'s local preview server.
 
 ### Install
 
@@ -222,6 +153,8 @@ Once the skill is installed (or fetched), just describe a design task in plain l
 
 In Claude Code you can also trigger it explicitly with `/baoyu-design`; in Codex, mention `$baoyu-design` when skills are available. The agent asks a few clarifying questions, builds the HTML under `designs/`, and previews it over `localhost`. **Point at any element in the live preview and say what to change** — the agent edits the underlying source for a fast, visual second pass.
 
+The artifact skills work the same way. Ask for what you want (*"Make a 12‑slide deck from this PRD"*, *"Turn this CSV into a dashboard"*) or call one by name: `/claude-slides`, `/claude-design`, `/claude-design-system` or `/claude-dashboard` in Claude Code, `$claude-slides` and so on in Codex. The agent writes the files under `designs/<slug>/`, starts the editor, and gives you its `http://127.0.0.1` URL.
+
 ### Preview server
 
 Deliverables are previewed over HTTP (multi‑file prototypes won't load from `file://`). The agent normally starts this for you; to run it by hand:
@@ -233,9 +166,50 @@ python3 -m http.server 4311 --directory designs
 
 ---
 
-## Design systems
+## What baoyu-design can make
 
-Beyond one‑off mockups, the skill can hold a whole project to a **design system** — a versioned bundle of a brand's tokens, fonts, components, and full UI kits. Systems live next to your projects under `designs/`: author one with the *Create design system* built‑in skill, drop in a pre‑built one, or import one from a Figma `.fig` file (see the next section). Once a system exists, two flows let any project consume it.
+The rest of this page covers `baoyu-design`. The skill drives a full design process — clarifying questions → gathering design context → producing one or more HTML deliverables → previewing and verifying. It ships a deep bench of **built‑in skills** and a set of ready‑made component scaffolds.
+
+| Area | Built‑in skills |
+|---|---|
+| **Core design** | Hi‑fi design · Interactive prototype · Wireframe · Frontend aesthetic direction |
+| **Decks** | Make a deck · Speaker notes |
+| **Mobile & motion** | Mobile prototype · Animated video · Sound effects |
+| **Web & campaigns** | Website & landing page · Social media content · HTML email · Flier · Trifold brochure |
+| **Data & research** | Web research · Data science · Data visualization · Maps & geography · Experiment workflow |
+| **Documents, 3D & illustration** | Make a doc · 3D object · Watercolor illustration |
+| **Design systems** | Create design system · Use design system · Design system preview · Design Components (`.dc.html`) · Make tweakable |
+| **Import sources** | Figma `.fig` (offline decode) · GitHub repo · Existing HTML/CSS |
+| **Export & handoff** | Standalone HTML · PDF · PPTX (editable) · PPTX (screenshots) · Video (MP4) · Send to Figma · Send to Canva · Handoff to Claude Code |
+| **AI assets & integration** | Gemini image generation · Call Claude from prototypes · Read PDF |
+
+**Starter components** (in [`starter-components/`](skills/baoyu-design/starter-components/)) save the agent from hand‑rolling the basics: device, browser, and social-media shells; a pan‑zoom design canvas; slide, animation, chart, document, file, and 3D stages; a tweaks panel; a fillable image slot; and a watercolor painting runtime that replays a painting stroke by stroke.
+
+---
+
+## How baoyu-design works
+
+The skill is plain Markdown plus a few JSX/JS scaffolds — no build step, no runtime.
+
+```
+skills/baoyu-design/
+├── SKILL.md              # Entry point — orchestrates the whole flow
+├── system-prompt.md      # The design methodology & craft standards (source of truth)
+├── references/
+│   ├── claude.md         # Tool map for Claude Code
+│   ├── cursor.md         # Tool map for Cursor
+│   └── codex.md          # Tool map for Codex Agent
+├── built-in-skills/      # Specialized prompts (decks, mobile, import, export, …)
+└── starter-components/   # Device/social shells, deck, chart, document, 3D, animation, …
+```
+
+When you ask for a design, the agent reads `SKILL.md`, loads the core methodology from `system-prompt.md`, detects whether it's running in Cursor, Claude Code, Codex Agent, or a generic file‑capable harness, and reads the matching reference doc when one exists. It then pulls in only the built‑in skill(s) the task needs. The split keeps craft rules harness‑independent while each environment resolves its own tools for *asking questions*, *previewing*, *screenshotting*, and *verifying*.
+
+---
+
+## Design systems in baoyu-design
+
+Beyond one‑off mockups, `baoyu-design` can hold a whole project to a **design system** — a versioned bundle of a brand's tokens, fonts, components, and full UI kits. Systems live next to your projects under `designs/`: author one with the *Create design system* built‑in skill, drop in a pre‑built one, or import one from a Figma `.fig` file (see the next section). Once a system exists, two flows let any project consume it.
 
 ### Import an existing design system
 
@@ -328,6 +302,10 @@ Finally, a validation pass compares captures against the input — djb2‑hashin
 - *"Recreate the composer UI from this codebase, then export it as standalone HTML."*
 - *"Turn this UI kit `.fig` into a design system, then build a dashboard with it."*
 - *"Build a dashboard using our design system, starting from its analytics screen."*
+- *"Make a claude-slides deck for the Q3 review, then export it to PowerPoint."*
+- *"Put a landing page and its phone version side by side on a claude-design canvas."*
+- *"Turn the Chakra UI component library into a design system with live component previews."*
+- *"Turn this analytics CSV into a dashboard that compares the last 28 days with the 28 before."*
 
 For best results, **give it design context** — a screenshot, a UI kit, a Figma `.fig` export, or a codebase. Starting from real context is the single biggest lever on quality; the skill will ask for it if you don't provide it.
 
