@@ -4,6 +4,11 @@ English | [中文](./CHANGELOG.zh.md)
 
 All notable changes to `baoyu-design` are tracked in this file.
 
+## 2.0.3 - 2026-10-29
+
+### Fixes
+- `claude-design`: a page's phone version, the artboard beside the page at phone width, is now a 390×844 phone screen whose content scrolls inside the frame, so full-screen Fit shows it at its own size like a phone. Before, it took the page's full height, and Fit shrank it to a sliver.
+
 ## 2.0.2 - 2026-10-28
 
 ### Fixes
