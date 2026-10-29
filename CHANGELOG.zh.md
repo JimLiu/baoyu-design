@@ -4,6 +4,13 @@
 
 本文档记录 `baoyu-design` 的重要变更。
 
+## 2.0.1 - 2026-10-28
+
+### 修复
+- `claude-design-system`：从组件库导入的设计系统现在带可交互的组件预览，不再只有说明文档或手绘的静态卡片。agent 会收录全部导出组件，安装 npm 上已发布的包（加 `--ignore-scripts`，不运行仓库里的任何代码）并打包；仓库自己的构建只用于未发布的包，静态预览只作为标明了的备选。
+- `claude-design-system`：说明需要 React 19 的库怎么处理（打成 `components/lib/react.js` 和 `react-dom.js` 并登记到 `libraries`），以及 Typekit 等 Google Fonts 以外的字体在预览里会改用回退字体。
+- `baoyu-design`：导入设计系统时，读取或复制的每个路径都限定在设计系统文件夹和项目之内；指向外面的 `@import`、清单条目或符号链接会被跳过并报告 (#16)。
+
 ## 2.0.0 - 2026-10-28
 
 ### 新功能

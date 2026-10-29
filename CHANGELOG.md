@@ -4,6 +4,13 @@ English | [中文](./CHANGELOG.zh.md)
 
 All notable changes to `baoyu-design` are tracked in this file.
 
+## 2.0.1 - 2026-10-28
+
+### Fixes
+- `claude-design-system`: a design system imported from a component library now gets live, interactive component previews instead of README-only or hand-drawn static cards. The agent takes every exported component, installs the package published on npm (`--ignore-scripts`, so none of the repository's code runs) and bundles it; the repository's own build is only for unpublished packages, and static previews are a labelled fallback.
+- `claude-design-system`: document libraries that need React 19 (ship `components/lib/react.js` and `react-dom.js`, listed in `libraries`), and that fonts from hosts other than Google Fonts, such as Typekit, fall back in previews.
+- `baoyu-design`: importing a design system keeps every path it reads or copies inside the design-system folder and the project; an `@import` or manifest entry that points outside, or a symlink leading out, is skipped and reported (#16).
+
 ## 2.0.0 - 2026-10-28
 
 ### Features
