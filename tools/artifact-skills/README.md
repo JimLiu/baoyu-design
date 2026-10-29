@@ -5,7 +5,8 @@ Maintainer tooling for the Artifact-type skills: `claude-slides`, `claude-design
 
 Each skill holds
 
-- `SKILL.md`: the type's original instructions, hand-ported (only the Artifact tool parts changed). Never generated.
+- `SKILL.md`: the type's original instructions, hand-ported: the Artifact tool parts changed, plus local notes the
+  original lacks (keep them when porting a change). Never generated.
 - `artifact-type/reference/`: the type's reference pages, copied verbatim.
 - `scripts/artifact.mjs`: the local Artifact tool (`open`, `stop`, `check`, `upload`, and per type `list` or
   `write-db`/`read-db`), one self-contained Node script with no dependencies.
