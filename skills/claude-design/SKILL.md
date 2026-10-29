@@ -119,6 +119,10 @@ a Google Fonts `css2` `<link>` in `<helmet>` and step 3's urls; icons: a mounted
 stroke SVG, never emoji; no `<iframe>`, `<object>` or `<embed>`; no global keydown handlers. Repeats, branches, events,
 child components (`<sc-for>`, `<sc-if>`, `<dc-import>`), prototype links and all else:
 `artifact-type/reference/format.md`. Sizes: phone app 390×844, PAGE `w` 1280–1440.
+A PAGE's phone version, its own artboard beside the PAGE, is a phone screen, not a PAGE: 390×844 and `$preview` the
+same, no `expand`, the same fluid root (no fixed height), the rest of the page scrolling inside the frame. Full screen,
+Fit then shows a phone at its own size that scrolls like one, and the canvas shows its first screen. Never its full
+height at 390: Fit shrinks that to a sliver.
 
 ## Reading the references in a canvas
 
@@ -138,7 +142,7 @@ The reference pages address the appifacts-design skill's files; their FORMAT rul
 - No filler, invented stats or lorem ipsum; missing facts become placeholders like [YOUR PRICE].
 - Rationale and option notes go in your reply, never in an artboard; design levers are `data-props` tweaks, never widgets.
 - No design system? Commit to a small one, from the subject: 1–3 typefaces, a ground, 0–2 accents of like chroma and lightness. Cream, serif display and clay are your habit: only if the brief or brand asks. Branded Anthropic work: Ivory #FAF9F5, Slate #141413, Clay #D97757, serif display over sans body (stacks: `brand-colors.md`, `brand-typography.md`).
-- No AI tropes (gradient washes, left-border cards, emoji; Inter, Roboto, Arial). Touch targets ≥44px; print body ≥12pt; no fake status bars; PAGEs work at phone width. Over-tall beats clipped. Recreations are exact only from real source; no other company's proprietary design.
+- No AI tropes (gradient washes, left-border cards, emoji; Inter, Roboto, Arial). Touch targets ≥44px; print body ≥12pt; no fake status bars; PAGEs work at phone width. Over-tall beats clipped (a PAGE's phone version excepted: it is a phone screen). Recreations are exact only from real source; no other company's proprietary design.
 - Accessible as drawn: real `<button>`, `<a href>`, `<input>` + `<label>` even in a static mockup; never `role`/`onClick` on a div or span (Tab skips it); `aria-label` on icon-only buttons; SVG: decor `aria-hidden="true"`, else `role="img" aria-label`. Text 4.5:1 (3:1 at 24px+): caption grey and fills under white text fail most; darken both. Colors that must be told apart also differ in lightness, not hue alone; prefer blue/orange to red/green.
 
 ## Revising a canvas
