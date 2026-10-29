@@ -4,6 +4,13 @@ English | [中文](./CHANGELOG.zh.md)
 
 All notable changes to `baoyu-design` are tracked in this file.
 
+## 2.0.2 - 2026-10-28
+
+### Fixes
+- `claude-dashboard`: a dashboard's numbers, dates and state lines follow the person's language (in Chinese: 万/亿, `10月1日`, `加载失败`), and a title not in Latin letters gets a short English folder name.
+- `claude-dashboard`: dates not in ISO form, such as `Thu, Oct 29, 2026` in an X analytics export, are parsed as UTC with `d3.utcParse`, not `new Date()`, which shows them as the day before east of UTC.
+- `claude-dashboard`: a batch sent through a shell heredoc quotes its end marker (`<<'EOF'`); unquoted, the shell expands the `$file` in `{"$file": …}`.
+
 ## 2.0.1 - 2026-10-28
 
 ### Fixes
