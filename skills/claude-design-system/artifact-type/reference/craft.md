@@ -44,7 +44,8 @@ the brand's REAL sources (codebase, attached files, decks, guidelines).
   the first yourself, laid out as `format.md`'s "tokens.css as
   compiled", its first line `/* <title> — generated from tokens.json */`
   (the page takes over only a file whose first comment ends with those
-  words). Where a system's components wrap themselves in an element the
+  words). A page that opens a system synced by `/design-sync` never saves it,
+  so each sync writes the file, laid out the same. Where a system's components wrap themselves in an element the
   tokens are declared on, the page's values cannot reach inside: their
   values still go into `tokens.json`, remove nothing, and tell the user
   an edit on the page will not change those previews.
@@ -65,10 +66,10 @@ the brand's REAL sources (codebase, attached files, decks, guidelines).
   `project/`. So does a stylesheet, whole, before values are lifted out
   of it: ONE call sends the old file aside and the new one at its path.
   In `README.md` repair paths, cut the section the migration appended
-  at its end (“## Migrated from …”), and add; cut or reword nothing
-  else. Leave no file that stays linking a path you emptied; the
-  migration's own notes under `assets/notes/` (or `docs/`) are neither
-  moved nor re-pointed.
+  at its end (“## Moved to Claude” or “## Migrated from …”), and add;
+  cut or reword nothing else. Leave no file that stays linking a path
+  you emptied; the migration's own notes under `assets/notes/` (or
+  `docs/`) are neither moved nor re-pointed.
   A file that cannot
   move (no free path; the call stays refused; your tool cannot remove
   files, as in a chat) stays where it is: name it. What `archived/`

@@ -48,13 +48,13 @@ The order of elements in the HTML source is the order they paint. There is no `z
 - **Tree / linear flowchart**: Use flow for a straight chain or a small tree (at most two levels, four leaves); pin anything bigger, a bracket, or lines that join or cross. The page reference/diagrams.md has both idioms.
 - **Widths**: Make every column, card, pill, and legend item at least as wide as its longest word. If not, the word breaks in the middle. The rule, the numbers, and the wrap opt-ins are in format.md in the "Text" section.
 
-A `<div>` is invisible unless it has background, border or box-shadow. So you can group freely. A plain grouping `<div>` costs nothing visually. Fifteen `<div>` levels is the build cap (an empty, unpainted `<div>`, such as a `flex:1` spacer, does not count). Past three levels, the slide wants splitting. Revising a deck you do not know was made from the type, keep to 5: its page keeps the editor it was published with, and one from before the cap rose from 5 locks a deeper slide that `validate-content.ts` passes.
+A `<div>` is invisible unless it has background, border or box-shadow. So you can group freely. A plain grouping `<div>` costs nothing visually. Fifteen `<div>` levels is the build cap (an empty, unpainted `<div>`, such as a `flex:1` spacer, does not count). Past three levels, the slide wants splitting. Revising a deck you do not know was made from the type, keep to 5 and give `gap` one length: its page keeps the editor it was published with, and an old one locks a deeper slide that `validate-content.ts` passes, or cannot draw two gaps.
 
 ## Grid idioms
 
 Use `display:grid; grid-template-columns:repeat(3, 1fr); gap:32px`. This fills children into cells in row-major order. Use `grid-column:span 2` to widen one cell.
 
-That is the whole grid vocabulary. You can see the supported CSS in format.md in the "Supported CSS" section: tracks of `px`, `fr`, `auto`, or `repeat(N, …)`, and one `gap`. No `minmax()`, `auto-fill`, named areas, or line numbers.
+That is the whole grid vocabulary (format.md, "Supported CSS"): tracks of `px`, `fr`, `auto`, or `repeat(N, …)`, and `gap` (row gap, column gap). No `minmax()`, `auto-fill`, named areas, or line numbers.
 
 Use grid for KPI tiles, photo grids, feature matrices, and anything a flex row cannot keep square. Add `aspect-ratio:1` (or `4/3`) to the tiles. Row heights follow the content unless you set `grid-template-rows`. A table is usually better than a grid of text cells when the content is tabular.
 

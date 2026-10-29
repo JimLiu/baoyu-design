@@ -21,8 +21,8 @@ tool call fetches it.
 
 The kit's record is the `context` key: `mode` is which face of the
 editor is up (values per family, below); `dirty` is true while their
-editor holds unsaved edits, so their screen may differ from the artifact
-you read; `selected` lists what is selected (the ids below); `selection`,
+editor holds edits that may not yet be in the artifact you read, so their screen
+may differ from it; `selected` lists what is selected (the ids below); `selection`,
 when present, labels up to five of those ids, most recent last, each
 `{id, kind, label}` — `id` is one of `selected`, `kind` says what it is,
 `label` (sometimes absent) is its first words cut to about 60 characters,
@@ -43,7 +43,7 @@ colour (`c`) — text, never an id.
 For `selected`, resolve each entry against the content you hold. When
 `dirty` is false, act. When `dirty` is true and an entry addresses
 something below the top level (inside a frame or artboard), say what
-you resolved it to and ask them to confirm (or Save first) before
+you resolved it to and ask them to confirm before
 changing it. If an entry does not resolve, re-read the saved artifact,
 then resolve or ask. While presenting, previewing, or with one artboard
 focused full-window there is no selection: "this" is the slide on

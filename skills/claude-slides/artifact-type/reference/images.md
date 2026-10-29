@@ -48,7 +48,7 @@ If you put `<svg>` code directly in the slide, the build checks it:
 
 The markup inside the `<svg>` is kept exactly as you wrote it, and comes back unchanged when you load the slide to edit it. An `aria-label` on the `<svg>` is its description (the image's alt): set one when the graphic carries meaning — a chart, a plan, a map — and leave it off pure decoration.
 
-The slide shows the `<svg>` as an image, which a browser reads as XML. So inside it write a character only as itself (`—`), as its number (`&#8212;`) or as one of XML's five names (`&amp;` `&lt;` `&gt;` `&quot;` `&apos;`): any other `&name;`, or a bare `&`, breaks the whole drawing.
+The slide shows the `<svg>` as an image, which a browser reads as XML. So inside it write a character only as itself (`—`), as its number (`&#8212;`) or as one of XML's five names (`&amp;` `&lt;` `&gt;` `&quot;` `&apos;`).
 
 Fonts never load inside an SVG. Any `<text>` elements render in a system font, not the deck's font, and the text gets clipped. So keep diagram labels OUT of the SVG. Paint them as real text over the SVG instead. See the "Labels over an image" section of `layout.md`. The build warns you about every `<text>` element it finds in an `<svg>`.
 

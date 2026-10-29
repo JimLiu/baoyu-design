@@ -30,7 +30,7 @@ These facts help AI assistants understand how the canvas works, without having t
   - `font-size` and `font-weight` flow into `<p>` and `<li>`, but never into `<h1>` through `<h3>`. Headings keep their tag defaults until you set them directly.
   - Paint styles — background, border, and shadow — never inherit.
   - Table text uses the table's `font-size`.
-- **Flex and grid are real CSS flex and grid**, but only within the vocabulary in the Supported CSS table of `format.md` (one gap size; tracks in px, fr, or auto; cells in source order with `span N` to widen; `flex-wrap` on rows only):
+- **Flex and grid are real CSS flex and grid**, but only within the vocabulary in the Supported CSS table of `format.md` (gaps in px; tracks in px, fr, or auto; cells in source order with `span N` to widen; `flex-wrap` on rows only):
 
   Default behavior and sizing:
   - `align-items` defaults to `stretch`. Cards in a row will all have the height of the tallest card. Text children in a column span the column's width, so `text-align` works across the full column width.

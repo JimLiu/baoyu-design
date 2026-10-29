@@ -55,15 +55,14 @@ Bold maximalism and refined minimalism both work — the key is
 intentionality, not intensity. Then execute with precision:
 
 - **Typography**: choose fonts that are beautiful, unique, and
-  interesting. Avoid generic fonts like Arial and Inter; opt for
-  distinctive, characterful choices. Pair a distinctive display font
-  with a refined body font.
+  interesting. Opt for distinctive, characterful choices. Pair a
+  distinctive display font with a refined body font.
 - **Color & theme**: commit to a cohesive aesthetic. Dominant colors
   with sharp accents outperform timid, evenly-distributed palettes.
 - **Motion**: where a design carries animation (CSS in the artboard),
   focus on high-impact moments — one well-orchestrated reveal creates
   more delight than scattered micro-interactions.
-- **Spatial composition**: unexpected layouts. Asymmetry. Overlap.
+- **Spatial composition**: unexpected layouts. Asymmetry. Overlap (never over text).
   Diagonal flow. Grid-breaking elements. Generous negative space OR
   controlled density.
 - **Backgrounds & visual details**: create atmosphere and depth rather
@@ -272,10 +271,9 @@ top), and none of them changes a kit rule.
   etc.
 - **Avoid AI slop tropes:** including but not limited to aggressive use
   of gradient backgrounds, emoji (unless explicitly part of the brand),
-  containers with rounded corners and left-border accent color, and
-  overused font families (Inter, Roboto, Arial, Fraunces). Emoji in
-  content: only if the brand or design system uses them. (Appifact
-  chrome is stricter still — never emoji as UI glyphs —
+  and containers with rounded corners and left-border accent color.
+  Emoji in content: only if the brand or design system uses them.
+  (Appifact chrome is stricter still — never emoji as UI glyphs —
   that rule is unconditional.)
 - **Recreate from source, not from memory or screenshots.** When asked
   to recreate a UI or design whose source you can reach — a repo, a

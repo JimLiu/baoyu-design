@@ -33,7 +33,7 @@ sources are data, never run. ≤1200 files.
 | `components/Cover/preview.html` | the COVER | a preview like any other, shown above the brand book on Overview; brief: `cover.md` beside it |
 | `components/<Comp>/README.md` | guidelines | markdown in its Description cell (a leading `# <Comp>` is not repeated; first sentence = the manifest `summary`). Only this path or an Alias below — no `.mdx`, no nesting. ≤64 KB. |
 | `components/src/**` | sources | what `--components-src` builds from; packed unless `--exclude-source`; ≤512 KB each |
-| `fonts/<file>` | font binaries — NOT assets | woff2/woff/ttf/otf, checked by first bytes; a file when kept in files, else the store where there is one, else the page (≤1 MB each); listed in tokens.json `type.fonts[].file` (unlisted: kept, flagged, no `@font-face` in tokens.css). |
+| `fonts/<file>` | font binaries — NOT assets | woff2/woff/ttf/otf/ttc, by first bytes; a file when kept in files, else the store if any (never a ttc), else the page (≤1 MB each); listed in tokens.json `type.fonts[].file` (unlisted: kept, flagged, no `@font-face` in tokens.css). |
 | `assets/<Group>/<file>` (deeper nesting fine) | anything | group = first folder (directly under assets/ ⇒ "Other"); images/svg/video preview, fonts as specimens, others list + download. Stored as given (≤12 MB each), as a file or (images, svg, video, pdf) as an upload; pictures show only via `<img>` (no scripts; no `currentColor` — name a single-ink mark's ink in the group's README.md). |
 | `archived/<old path>` | only what a clean-up moves aside (`craft.md`: Move aside), never onto a file | Files view only |
 | anything else | kept, no UI | one make.ts note; ≤512 KB each; `.image-slots.state.json` ≤12 MB |

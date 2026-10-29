@@ -94,7 +94,7 @@ Only use an `<svg>` element when the line must be curved. Use a `<path>` with a 
 
 The `width` and `height` of the `<svg>` must match the `viewBox`. Use the `<path>`'s stroke color as the `<marker>`'s fill. Keep the `<path>` at least 2 stroke widths (8px at a 4px stroke) inside the `viewBox` so the head does not get clipped.
 
-Do not put `<text>` or comments inside the `<svg>`. Inside it write a character only as itself (`—`), as its number (`&#8212;`) or as one of XML's five names (`&amp;` `&lt;` `&gt;` `&quot;` `&apos;`): any other `&name;`, or a bare `&`, breaks the drawing. When the curves carry meaning the labels do not (direction, polarity), give the `<svg>` an `aria-label` saying it ("more listings → lower rents"): that is its alt; without one a screen reader skips it.
+Do not put `<text>` or comments inside the `<svg>`. Inside it write a character only as itself (`—`), as its number (`&#8212;`) or as one of XML's five names (`&amp;` `&lt;` `&gt;` `&quot;` `&apos;`). When the curves carry meaning the labels do not (direction, polarity), give the `<svg>` an `aria-label` saying it ("more listings → lower rents"): that is its alt; without one a screen reader skips it.
 
 In the editor, the `<svg>` appears as one image. You cannot edit each arrow separately.
 

@@ -160,10 +160,9 @@ top), and none of them changes a kit rule.
   etc.
 - **Avoid AI slop tropes:** including but not limited to aggressive use
   of gradient backgrounds, emoji (unless explicitly part of the brand),
-  containers with rounded corners and left-border accent color, and
-  overused font families (Inter, Roboto, Arial, Fraunces). Emoji in
-  content: only if the brand or design system uses them. (Appifact
-  chrome is stricter still — never emoji as UI glyphs —
+  and containers with rounded corners and left-border accent color.
+  Emoji in content: only if the brand or design system uses them.
+  (Appifact chrome is stricter still — never emoji as UI glyphs —
   that rule is unconditional.)
 - **Recreate from source, not from memory or screenshots.** When asked
   to recreate a UI or design whose source you can reach — a repo, a

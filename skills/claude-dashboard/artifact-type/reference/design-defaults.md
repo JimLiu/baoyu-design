@@ -64,12 +64,37 @@ Shapes to mix or ignore; where a shape says otherwise, the shape wins:
   sentence around one number, then a chart under each heading that says what
   it shows; one accent series, the rest muted.
 - **Scroll story** — a finding told as the reader scrolls, also asked for as a
-  story, a narrative, a scroll-driven story or scrollytelling: short chapters
-  of text in one column beside one chart that stays in view
-  (`position: sticky`) and changes as each chapter reaches the middle (an
-  `IntersectionObserver` with `root: document`, without which this page
-  ignores its `rootMargin`); one idea a chapter, its numbers marked like any
-  other; when narrow, the chart stays on top and the text scrolls under it.
+  story, a narrative, a scroll-driven story, a scrollyteller or scrollytelling:
+  short chapters of text (each `data-read-step`) in one column (`data-read`)
+  beside one chart that stays in view (`position: sticky`) and changes as each
+  chapter reaches the middle (an `IntersectionObserver` with `root: document`,
+  without which this page ignores its `rootMargin`); one idea a chapter, its
+  numbers marked like any other; when narrow, the chart stays on top and the
+  text scrolls under it.
+- **Letter** — an update written as a letter to its readers (members,
+  investors, a team): a greeting, a few short paragraphs in one narrow centered
+  column (`data-read`), each number inside its sentence and marked like any
+  other, with a word that follows it (up, down) filled from the data too; at
+  most one small chart, a sign-off, and `[brackets]` for what only the person
+  can say; no tiles, headline figure, section headings or filters.
+
+If the `context` of a message's view-context block holds `form`, the person
+picked that shape for this dashboard while it had no page: `visual-analysis`
+is Visual analysis above, `scroll-story` is Scroll story, `letter` is Letter,
+`visual-short` is the shape in `artifact-type/reference/visual-short.md`:
+read it first. Take it as a preference they stated and build that shape alone,
+not a mix, unless their message asks for a different one; calling it a
+dashboard does not. With no `form`, choose as you would.
+
+If `context` holds `designSystem`, first read
+`artifact-type/reference/design-system.md` if a design system is named, or the key
+isn't `none` and they ask about color or type.
+
+### Read aloud
+
+A progressive enhancement: the dashboard reads a `data-read` element aloud for
+some readers. Before a page or your reply speaks of listening, read
+`artifact-type/reference/read-aloud.md`.
 
 ### Look
 
@@ -95,8 +120,7 @@ Shapes to mix or ignore; where a shape says otherwise, the shape wins:
   title, a headline figure or a tile's main number,
   `var(--font-anthropic-serif)` at weight 400 works well.
 - For spacing there are `--cds-gap-` and `--cds-pad-` plus `xs`, `sm`, `md`,
-  `lg` or `xl`, and `--cds-radius` for corners. A row looks tidier with boxes
-  of one height.
+  `lg` or `xl`, and `--cds-radius` for corners.
 - Series can take `dash.colors` in order. When one matters most, the rest can
   be `--cds-chart-muted`; `--cds-chart-status-critical` works for a value
   past a limit. Colors are tokens that follow the theme, so there is no
@@ -105,8 +129,8 @@ Shapes to mix or ignore; where a shape says otherwise, the shape wins:
   with a gap), and a rate, a running total or several series over time as a
   line drawn point to point, since a curve suggests values the data doesn't
   have.
-- Lines look good at 2px with round caps and joins, and bars up to 32px thick
-  with rounded ends. Gridlines can be 1px `--cds-chart-grid`, an axis line
+- Lines look good at 2px with round caps and joins, and bars up to 32px thick.
+  Gridlines can be 1px `--cds-chart-grid`, an axis line
   `--cds-chart-axis`, a reference line `--cds-chart-reference`, and tick
   labels `--color-fg-muted` at caption size.
 - A tooltip can be a small popover: `background: var(--cds-surface-popover)`,
@@ -188,7 +212,13 @@ timed from the first draw that has rows so a redraw doesn't replay it.
 
 ### Handing over
 
-Tell the person, in a line each, what they can do next: ask you for any chart or control by name, such as a flow diagram, a date filter or a click that filters every card; download a source's rows as CSV from Sources; and, as an editor, edit a live query's request in Sources (its SQL or other arguments), test it, save it and restore an earlier one. Then what to know about their data: each live query runs with the reader's own access whenever the dashboard is opened, refreshed or filtered; and where a query is not refreshing automatically, everyone who can open the dashboard sees its saved rows, whatever their own access, until they ask you to refresh it or an editor makes it live again in Sources, which the page can't undo.
+Tell the person, in a line each, what they can do next: ask you for any chart or control by name, such as a flow diagram, a date filter or a click that filters every card; download a source's rows as CSV from Sources; and, as an editor, edit a live query's request in Sources (its SQL or other arguments), test it, save it and restore an earlier one, or edit or replace an attached file there. Then what to know about their data: each live query runs with the reader's own access whenever the dashboard is opened, refreshed or filtered, and an attached file is read by everyone who can open the dashboard, whatever their own access.
+
+Then where the numbers could come from next, once and in a line:
+
+- A file the person gave is often an export of a system one of their connectors reaches: name the connector and say the same numbers can come from it live.
+- Where no connector holds the data, name the source that would and offer to connect it; suggest the connector if you have a tool for that.
+- Rows you wrote yourself (sample, estimated or recalled, neither the person's own nor looked up) are a file whose `title` starts with "Sample" and whose `description` says how you made them: say which numbers on the page those are.
 
 ### Links
 
@@ -221,14 +251,13 @@ if (named) go(named); // after the first draw, when the element exists
 - A `<b>` is bold 700 from the kit's rule `[data-appifact-content] :is(b,
   strong)`: a selector at least as specific, such as `.page b`, sets a
   number's weight.
-- Token names are written in full: `var(--cds-chart-${x})` hides a typo.
 - `--color-ok`, `--color-warn` and `--color-bad` are text colors.
 - An area under a line can fade to nothing at the baseline: a vertical
   `linearGradient` (`x2` 0, `y2` 1) with stops at 0, .25, .5, .75 and 1 at
   opacity .26, .16, .08, .03 and 0, colored with `style` (`stop-color:
   ${dash.colors[0]}`), since `d3.color()` can't read `dash.colors`.
-- Bars round with `rx` 4 on a rect (the browser caps it at half the bar) or
-  `border-radius` on an HTML bar. Dashed reference lines keep the default flat
+- Bars take `--cds-radius` or less: `rx` on a rect (the browser caps it at half
+  the bar), `border-radius` on an HTML bar. Dashed reference lines keep the default flat
   ends (`butt`), so short dashes stay even.
 - Boxes in one row stay the same height if the grid keeps its default stretch
   and the border is on the item itself; a column beside stacked rows is as tall

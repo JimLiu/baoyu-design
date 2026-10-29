@@ -18,8 +18,8 @@ tool call fetches it.
 
 The kit's record is the `context` key: `mode` is which face of the
 editor is up (values per family, below); `dirty` is true while their
-editor holds unsaved edits, so their screen may differ from the artifact
-you read; `selected` lists what is selected (the ids below); `selection`,
+editor holds edits that may not yet be in the artifact you read, so their screen
+may differ from it; `selected` lists what is selected (the ids below); `selection`,
 when present, labels up to five of those ids, most recent last, each
 `{id, kind, label}` — `id` is one of `selected`, `kind` says what it is,
 `label` (sometimes absent) is its first words cut to about 60 characters,
@@ -40,7 +40,7 @@ colour (`c`) — text, never an id.
 For `selected`, resolve each entry against the content you hold. When
 `dirty` is false, act. When `dirty` is true and an entry addresses
 something below the top level (inside a frame or artboard), say what
-you resolved it to and ask them to confirm (or Save first) before
+you resolved it to and ask them to confirm before
 changing it. If an entry does not resolve, re-read the saved artifact,
 then resolve or ask. While presenting, previewing, or with one artboard
 focused full-window there is no selection: "this" is the slide on
@@ -55,7 +55,7 @@ deeper nesting) discard the record and ask. Use only ids that match content you 
 source files, or state read back from the artifact).
 <!-- /shared:view-context -->
 
-Slides publishes `{ mode, deck, slideId, slideTitle, slideIndex, slideCount, dirty, selected, selection }` (plus `edits`, above; plus `slideHeld`, `slideHeldWhy` on a slide the page cannot let them edit; plus `sections`, `slideSections`, `selectedCount`, `editingSection` in `grid`):
+Slides publishes `{ mode, deck, slideId, slideTitle, slideIndex, slideCount, dirty, selected, selection }` (plus `edits`, above; plus `slideHeld`, `slideHeldWhy` on a slide the page cannot let them edit; plus `sections`, `slideSections`, `selectedCount`, `editingSection` in `grid`; plus `selectedSlides` and `selectedCount` in `edit` while several slides are selected):
 
 - `mode` — `"edit"` (one slide), `"grid"` (the Canvas view: every slide laid out by section), or `"present"` (full-screen show).
 - `deck` — null for a deck that is its own artifact; inside a page that holds several decks (a classroom), the id of the one this viewer has open, matching `^[A-Za-z0-9_-]{1,64}$`. Two viewers with different `deck` values are looking at different decks.
@@ -72,5 +72,6 @@ Slides publishes `{ mode, deck, slideId, slideTitle, slideIndex, slideCount, dir
   - If your copy of deck.html is stale, re-read the saved artifact.
   - If an entry does not resolve, ask rather than guess.
   - Every entry matches `^[A-Za-z0-9_-]{1,64}(\/\d{1,2}){0,4}$`. If anything else, discard the whole record, as above.
+- `selectedSlides` — in `edit` only, present only while the viewer has several slides selected in the thumbnail strip (`selected` is then empty): their `<section>` ids in deck order, each matching `^[A-Za-z0-9_-]{1,64}$`. `selectedCount` beside it says how many are selected (in `grid`, `selectedCount` counts the Canvas view's selection instead, as above). "These slides" means these. The list holds at most the last 20 in deck order: when `selectedCount` is more than the entries listed, you do not know the rest (`slideId` may not be listed), so ask which slides are meant before acting on "these".
 - `selection` — up to 5 of `selected` (most recent last) as `{id, kind, label}`, as above. `kind` is the element as the editor sees it: `text`, `img`, `icon`, `shape`, `table`, `html` (an embed), `spacer`, and `stack`, `grid` or `overlay` for a `<div>`; `slide` for a slide selected in the Canvas view; `section` for a section selected there (`id` is its key in `deck/meta` `sections`, `label` its description, else “Section N”); `cell` while typing in a table cell. `label` is the element's first words; a wordless element gets a name instead — `Empty text`, `Image` or `Image — <alt>`, `Icon — <its name>`, the shape's name, `Web embed`, `Spacer`, `Table 3×2` (rows × columns), `Group` / `Grid` / `Overlay` alone or with their first words after " — ". A slide's label is its title as above; a cell's, its text. Empty when `selected` is.
 - In `grid` only (deck sections — groups of slides — are `project/deck.json` `sections`: a map of key → `{description, start}` — `description` one sentence shown on the section's line ('' until written) — `start` being the id of the section's first slide, the section running to the next one's start; an empty section has `before` instead of `start`): `sections` — the keys of the selected sections, most recent last, matching `^[A-Za-z0-9_-]{1,64}$`; "this section" means these, and a request about one covers its whole run of slides. `slideSections` — for each entry of `selected`, the key of the section that slide sits in, or `-` for the undescribed opening run. “Section 3” from the viewer means the third row, counting from the top with the opening run as 1. `editingSection` — the key of the section whose description the viewer is typing (`-` for the opening run's), else null.
