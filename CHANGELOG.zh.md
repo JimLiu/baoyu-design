@@ -4,6 +4,21 @@
 
 本文档记录 `baoyu-design` 的重要变更。
 
+## 2.0.0 - 2026-10-28
+
+### 新功能
+- 新增四个 skill，把 claude.ai 的 Artifact 类型带到本地 agent：`claude-slides`（幻灯片）、`claude-design`（多画板画布）、`claude-design-system`（设计系统）和 `claude-dashboard`（数据看板）。每个 `SKILL.md` 保留该类型的原始说明，只把 Artifact 工具调用换成本地的 `scripts/artifact.mjs`（Node 20+，看板需 Node 22+，无需安装依赖）。
+- 每个 skill 自带预构建的编辑器（`scripts/editor/`），并各自起一个本地服务：agent 写入的文件会立刻显示在编辑器里，在编辑器里的修改也会存回同一批文件，你和 agent 可以轮流改。
+- 幻灯片和画布可以安装用 `claude-design-system` 做的设计系统，之后编辑器的主题和颜色菜单会提供它的颜色和文字样式。
+- `claude-design` 编辑器右上角工具栏新增「Export」按钮，可把整份设计导出为独立 HTML 网页、PDF 或 PNG 图片。导出 PDF 和 PNG 前先选要包含的画板；PNG 支持 1× 或 2×，多个画板打包成 .zip 下载。
+- 新增 `tools/artifact-skills/`，用于重新构建预构建的编辑器。
+
+### 变更
+- `baoyu-design` 只在任务真正要创建或修改视觉交付物时触发；架构或协议分析、渲染引擎或后端实现、技术类 Markdown 本身不再触发它。
+
+### 文档
+- 中英文 README 介绍四个 artifact skill、它们的 `artifact.mjs` 命令，以及 `claude-design` 的导出功能。
+
 ## 1.3.0 - 2026-09-23
 
 ### 新功能

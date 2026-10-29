@@ -4,6 +4,21 @@ English | [中文](./CHANGELOG.zh.md)
 
 All notable changes to `baoyu-design` are tracked in this file.
 
+## 2.0.0 - 2026-10-28
+
+### Features
+- Add four skills that bring claude.ai's Artifact types to local agents: `claude-slides` (slide decks), `claude-design` (a canvas of artboards), `claude-design-system` (design systems) and `claude-dashboard` (data-backed dashboards). Each `SKILL.md` keeps the type's original instructions, with the Artifact tool calls swapped for a local `scripts/artifact.mjs` (Node 20+, the dashboard Node 22+; nothing to install).
+- Each skill ships its editor prebuilt in `scripts/editor/` and runs its own local server, so you and the agent can take turns: the agent's file writes show up in the editor at once, and edits made in the editor are saved back into the same files.
+- Decks and canvases can install a design system made with `claude-design-system`; the editor's Theme and color menus then offer its colors and text styles.
+- `claude-design` gets an Export button in the editor toolbar: export the whole design as a standalone HTML page, a PDF or PNG images. PDF and PNG first ask which artboards to include; PNG exports at 1× or 2×, and several artboards download as a .zip.
+- Add `tools/artifact-skills/` to rebuild the prebuilt editors.
+
+### Changed
+- `baoyu-design` now triggers only when a task creates or edits a visual deliverable. Architecture or protocol analysis, rendering-engine or backend work and technical Markdown no longer trigger it on their own.
+
+### Documentation
+- Document the four artifact skills, their `artifact.mjs` commands and the `claude-design` export in the English and Chinese READMEs.
+
 ## 1.3.0 - 2026-09-23
 
 ### Features
