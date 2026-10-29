@@ -1,5 +1,10 @@
 # baoyu-design
 
+
+https://github.com/user-attachments/assets/d5b4f39b-a701-49de-87b8-64f3c6ef9c61
+
+
+
 **Run Claude Design on your own local agent — Cursor, Claude Code, Claude Desktop, or any file‑capable coding agent.**
 
 [English](README.md) · [简体中文](README.zh-CN.md) · [Changelog](CHANGELOG.md)
