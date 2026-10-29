@@ -124,6 +124,30 @@ skills/baoyu-design/
 
 ---
 
+## Artifact 技能：可编辑的幻灯片、画布、设计系统与仪表盘
+
+除了 `baoyu-design`，仓库里还有几个技能，把 claude.ai 的 **Artifact 类型**搬到本地 Agent 上。`baoyu-design` 产出的是自包含的 HTML；这几个技能则按该类型自己的文件格式把内容写进一个文件夹，再用这个类型的编辑器页面打开它，编辑器就在你自己的电脑上运行：
+
+| 技能 | 产出 | 在本地编辑器里 |
+|---|---|---|
+| [`claude-slides`](skills/claude-slides/) | 幻灯片：`project/deck.json` 加上每页一个 HTML 文件 | 放映、改字、拖动；导出 PDF、HTML 或 PowerPoint |
+| [`claude-design`](skills/claude-design/) | 一块画布上的多个画板：`project/canvas.json` 加上 `.dc.html` 设计组件 | 并排查看画板、改文案、调 tweaks |
+| [`claude-design-system`](skills/claude-design-system/) | 设计系统：tokens、README 品牌手册、组件预览、字体、素材分组 | 浏览和编辑颜色、字体、组件和素材 |
+| [`claude-dashboard`](skills/claude-dashboard/) | 数据驱动的仪表盘：数据集（CSV、TSV、JSON）加上基于它们的图表、数字和表格页面 | 实时图表、筛选，以及能把每个数字追溯到原始行的 Sources 面板 |
+
+每个 `SKILL.md` 都基本原样保留了该类型的英文原版说明，只把 Artifact 工具的调用换成了本地的等价操作。这个工具就放在每个技能里，是 `scripts/artifact.mjs`（Node 20+，仪表盘需 Node 22+；无需安装依赖）：
+
+```bash
+node skills/claude-slides/scripts/artifact.mjs open designs/q3-review             # 启动编辑器，打印网址
+node skills/claude-slides/scripts/artifact.mjs check designs/q3-review            # 校验文件
+node skills/claude-slides/scripts/artifact.mjs upload designs/q3-review hero.jpg  # 存入图片，打印它的 /_blob/ 地址
+node skills/claude-slides/scripts/artifact.mjs list                                 # 查找磁盘上的设计系统
+```
+
+Agent 写文件，编辑器立刻显示每一次写入；你在编辑器里的修改也会存回同一批文件，所以你和 Agent 可以轮流改。仪表盘也用同一个脚本（`write-db`、`read-db`、`upload`、`check`、`open`）写入它自己在 `<root>/db/` 下的存储。幻灯片和画布可以安装用 `claude-design-system` 做的设计系统：把系统的 tokens 复制进自己的文件夹，编辑器的主题和颜色菜单就会列出它的颜色和文字样式。编辑器已预先构建好放在 `scripts/editor/`；[`tools/artifact-skills/`](tools/artifact-skills/) 用来重新构建。
+
+---
+
 ## 快速开始
 
 ### 前置条件
@@ -134,7 +158,7 @@ skills/baoyu-design/
 
 ### 安装
 
-**推荐方式 —— `skills` CLI。** [`npx skills`](https://github.com/vercel-labs/skills)（来自 Vercel Labs）会读取本仓库，找到 `skills/baoyu-design/`，并把它放进所检测到的 Agent 对应的目录里：
+**推荐方式 —— `skills` CLI。** [`npx skills`](https://github.com/vercel-labs/skills)（来自 Vercel Labs）会读取本仓库，找到 `skills/` 下的技能，并把它们放进所检测到的 Agent 对应的目录里：
 
 ```bash
 # 安装到当前项目（自动检测你的 Agent）
@@ -150,6 +174,9 @@ npx skills add JimLiu/baoyu-design --agent codex
 
 # 先列出仓库里有哪些技能
 npx skills add JimLiu/baoyu-design --list
+
+# 只安装其中几个技能
+npx skills add JimLiu/baoyu-design --skill baoyu-design --skill claude-slides
 ```
 
 它会把技能装到 Claude Code 的 `.claude/skills/`，以及 Cursor/Codex 风格 Agent 的 `.agents/skills/`（加上 `-g` 则装到 `~/` 级别的用户目录）。

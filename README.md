@@ -123,6 +123,30 @@ When you ask for a design, the agent reads `SKILL.md`, loads the core methodolog
 
 ---
 
+## Artifact skills: editable decks, canvases, design systems and dashboards
+
+Next to `baoyu-design`, the repo ships skills that bring claude.ai's **Artifact types** to local agents. Where `baoyu-design` writes self‑contained HTML, these write the type's own file format into a folder and open it in that type's editor page, served from your machine:
+
+| Skill | Makes | In the local editor |
+|---|---|---|
+| [`claude-slides`](skills/claude-slides/) | Slide decks: `project/deck.json` plus one HTML file per slide | Present, retype, drag; export PDF, HTML or PowerPoint |
+| [`claude-design`](skills/claude-design/) | A canvas of artboards: `project/canvas.json` plus `.dc.html` Design Components | See the artboards side by side, retype copy, adjust tweaks |
+| [`claude-design-system`](skills/claude-design-system/) | Design systems: tokens, a README brand book, component previews, fonts, asset groups | Browse and edit colors, type, components and assets |
+| [`claude-dashboard`](skills/claude-dashboard/) | Data-backed dashboards: datasets (CSV, TSV, JSON) and a page of charts, numbers and tables over them | Live charts, filters, and a Sources panel that traces every number to its rows |
+
+Each `SKILL.md` keeps the type's original instructions nearly word for word; only the Artifact tool calls are swapped for local ones. That tool lives inside each skill as `scripts/artifact.mjs` (Node 20+, the dashboard's Node 22+; nothing to install):
+
+```bash
+node skills/claude-slides/scripts/artifact.mjs open designs/q3-review             # start the editor, print its URL
+node skills/claude-slides/scripts/artifact.mjs check designs/q3-review            # validate the files
+node skills/claude-slides/scripts/artifact.mjs upload designs/q3-review hero.jpg  # store an image, print its /_blob/ URL
+node skills/claude-slides/scripts/artifact.mjs list                                 # find design systems on disk
+```
+
+The agent writes the files and the editor shows each write at once; your edits in the editor are saved back into the same files, so you and the agent can take turns. A dashboard is written through the same script (`write-db`, `read-db`, `upload`, `check`, `open`) into its own store under `<root>/db/`. A deck or canvas can install a design system made with `claude-design-system`: it copies the system's tokens into its own folder, and the editor's Theme and color menus then offer its colors and text styles. The editors ship prebuilt in `scripts/editor/`; [`tools/artifact-skills/`](tools/artifact-skills/) rebuilds them.
+
+---
+
 ## Quick start
 
 ### Prerequisites
@@ -133,7 +157,7 @@ When you ask for a design, the agent reads `SKILL.md`, loads the core methodolog
 
 ### Install
 
-**Recommended — the `skills` CLI.** [`npx skills`](https://github.com/vercel-labs/skills) (from Vercel Labs) reads this repo, finds `skills/baoyu-design/`, and drops it into the right folder for whatever agent it detects:
+**Recommended — the `skills` CLI.** [`npx skills`](https://github.com/vercel-labs/skills) (from Vercel Labs) reads this repo, finds the skills under `skills/`, and drops them into the right folder for whatever agent it detects:
 
 ```bash
 # Install into the current project (auto‑detects your agent)
@@ -149,6 +173,9 @@ npx skills add JimLiu/baoyu-design --agent codex
 
 # Just list what's in the repo first
 npx skills add JimLiu/baoyu-design --list
+
+# Install only some of the skills
+npx skills add JimLiu/baoyu-design --skill baoyu-design --skill claude-slides
 ```
 
 It installs to `.claude/skills/` for Claude Code and `.agents/skills/` for Cursor/Codex-style agents (add `-g` for the `~/`‑level user install).
