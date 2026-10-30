@@ -2,9 +2,9 @@
 // claude-slides: local Artifact tool (prebuilt; do not edit).
 
 import { spawn } from "node:child_process";
-import fs7 from "node:fs";
-import fsp from "node:fs/promises";
-import path9 from "node:path";
+import fs9 from "node:fs";
+import fsp2 from "node:fs/promises";
+import path11 from "node:path";
 import { fileURLToPath as fileURLToPath2, pathToFileURL } from "node:url";
 
 var BLOB_ID_PATTERN = /^[0-9a-f]{32}$/;
@@ -2308,6 +2308,195 @@ async function checkDesignSystem(dir) {
   return { title: index ? designSystemTitle(index, dir) : path8.basename(dir), namespace, issues, notes, notChecked };
 }
 
+var COMMENTS_FILE = "comments.json";
+var COMMENTS_VERSION = 1;
+var LIMITS = { text: 1e4, label: 1e3, detail: 4e3, anchor: 2048, section: 200, name: 100 };
+var AGENT_AUTHOR = { kind: "agent", name: "agent" };
+var CommentsError = class extends Error {
+  code;
+  status;
+  constructor(code, message, status = 400) {
+    super(message);
+    this.code = code;
+    this.status = status;
+  }
+};
+var emptyDoc = () => ({ version: COMMENTS_VERSION, threads: [] });
+function randomHex(bytes) {
+  const buf = new Uint8Array(bytes);
+  globalThis.crypto.getRandomValues(buf);
+  return Array.from(buf, (b) => b.toString(16).padStart(2, "0")).join("");
+}
+var newId = (prefix) => `${prefix}_${randomHex(5)}`;
+var isRecord4 = (v) => typeof v === "object" && v !== null && !Array.isArray(v);
+function parseDoc(text) {
+  const data = JSON.parse(text);
+  if (!isRecord4(data) || data.version !== COMMENTS_VERSION || !Array.isArray(data.threads)) {
+    throw new CommentsError("COMMENTS_FILE_INVALID", `not a version ${COMMENTS_VERSION} comments file (expected {"version": 1, "threads": [...]})`, 500);
+  }
+  const threads = data.threads.filter(
+    (t) => isRecord4(t) && typeof t.id === "string" && typeof t.anchor === "string" && typeof t.label === "string" && (t.status === "open" || t.status === "resolved") && Array.isArray(t.messages) && t.messages.every((m) => isRecord4(m) && typeof m.text === "string" && isRecord4(m.author) && (m.author.kind === "user" || m.author.kind === "agent"))
+  );
+  for (const t of threads) if (!isRecord4(t.location)) t.location = {};
+  return { version: COMMENTS_VERSION, threads };
+}
+var formatDoc = (doc) => `${JSON.stringify(doc, null, 2)}
+`;
+function addMessage(thread, author, text, now) {
+  const message = { id: newId("m"), author, text, at: now };
+  thread.messages.push(message);
+  thread.updatedAt = now;
+  if (author.kind === "agent") {
+    if (thread.agent) thread.agent = { ...thread.agent, status: "replied", repliedAt: now };
+  } else if (thread.status === "resolved") {
+    thread.status = "open";
+    delete thread.resolvedAt;
+  }
+  return message;
+}
+function setStatus(thread, status, now) {
+  if (thread.status === status) return;
+  thread.status = status;
+  thread.updatedAt = now;
+  if (status === "resolved") thread.resolvedAt = now;
+  else delete thread.resolvedAt;
+}
+function findThread(doc, ref) {
+  const exact = doc.threads.find((t) => t.id === ref);
+  if (exact) return exact;
+  const matches = ref.length >= 3 ? doc.threads.filter((t) => t.id.startsWith(ref)) : [];
+  if (matches.length === 1) return matches[0];
+  throw new CommentsError(
+    matches.length ? "AMBIGUOUS_COMMENT" : "COMMENT_NOT_FOUND",
+    matches.length ? `${ref} matches ${matches.length} comments; give more of the id.` : `No comment ${ref}.`,
+    404
+  );
+}
+function openThreads(doc) {
+  return doc.threads.filter((t) => t.status === "open").sort((a, b) => a.createdAt < b.createdAt ? -1 : a.createdAt > b.createdAt ? 1 : 0);
+}
+function agentView(thread, n) {
+  return {
+    id: thread.id,
+    ...n !== void 0 ? { n } : {},
+    status: thread.status,
+    ...thread.location.file ? { file: thread.location.file } : {},
+    where: thread.label,
+    ...thread.detail ? { detail: thread.detail } : {},
+    location: thread.location,
+    anchor: thread.anchor,
+    ...thread.agent ? { agent: thread.agent } : {},
+    messages: thread.messages.map((m) => ({ from: m.author.kind, name: m.author.name, text: m.text, at: m.at, ...m.editedAt ? { editedAt: m.editedAt } : {} }))
+  };
+}
+function agentViews(doc, threads) {
+  const open2 = openThreads(doc);
+  return threads.map((t) => {
+    const i = open2.indexOf(t);
+    return agentView(t, i >= 0 ? i + 1 : void 0);
+  });
+}
+
+import fs7 from "node:fs";
+import fsp from "node:fs/promises";
+import path9 from "node:path";
+var LOCK_STALE_MS = 1e4;
+var LOCK_WAIT_MS = 5e3;
+var LOCK_RETRY_MS = 20;
+var commentsPath = (root) => path9.join(root, COMMENTS_FILE);
+async function readComments(root) {
+  let text;
+  try {
+    text = await fsp.readFile(commentsPath(root), "utf8");
+  } catch (error) {
+    if (error.code === "ENOENT") return emptyDoc();
+    throw error;
+  }
+  if (text.trim() === "") return emptyDoc();
+  try {
+    return parseDoc(text);
+  } catch (error) {
+    if (error instanceof CommentsError) throw new CommentsError(error.code, `${commentsPath(root)}: ${error.message}`, 500);
+    throw new CommentsError("COMMENTS_FILE_INVALID", `${commentsPath(root)} is not valid JSON: ${error.message}`, 500);
+  }
+}
+async function lock(root) {
+  const file = `${commentsPath(root)}.lock`;
+  const deadline = Date.now() + LOCK_WAIT_MS;
+  for (; ; ) {
+    try {
+      const handle = await fsp.open(file, "wx");
+      await handle.writeFile(`${process.pid}
+`);
+      await handle.close();
+      return () => fsp.rm(file, { force: true });
+    } catch (error) {
+      if (error.code !== "EEXIST") throw error;
+    }
+    const info = await fsp.stat(file).catch(() => null);
+    if (info && Date.now() - info.mtimeMs > LOCK_STALE_MS) {
+      await fsp.rm(file, { force: true });
+      continue;
+    }
+    if (Date.now() > deadline) throw new CommentsError("COMMENTS_LOCKED", `${file} is held by another process; try again (or delete it if nothing is running).`, 503);
+    await new Promise((resolve) => setTimeout(resolve, LOCK_RETRY_MS));
+  }
+}
+async function writeAtomic(file, text) {
+  const temp = path9.join(path9.dirname(file), `.${path9.basename(file)}.${process.pid}.${Date.now().toString(36)}.tmp`);
+  await fsp.writeFile(temp, text);
+  try {
+    await fsp.rename(temp, file);
+  } catch (error) {
+    await fsp.rm(temp, { force: true });
+    throw error;
+  }
+}
+async function updateComments(root, change) {
+  const unlock = await lock(root);
+  try {
+    const doc = await readComments(root);
+    const before = formatDoc(doc);
+    const result = await change(doc);
+    const after = formatDoc(doc);
+    const exists = fs7.existsSync(commentsPath(root));
+    if (after !== before && (exists || doc.threads.length > 0)) await writeAtomic(commentsPath(root), after);
+    return result;
+  } finally {
+    await unlock();
+  }
+}
+
+import fs8 from "node:fs";
+import path10 from "node:path";
+var STATE_FILE = ".artifact-server.json";
+var LOG_FILE = ".artifact-server.log";
+function readState(root) {
+  try {
+    return JSON.parse(fs8.readFileSync(path10.join(root, STATE_FILE), "utf8"));
+  } catch {
+    return null;
+  }
+}
+function alive(pid) {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return error.code === "EPERM";
+  }
+}
+async function runningServer(root, kind, probe) {
+  const state = readState(root);
+  if (!state || state.kind !== kind || !alive(state.pid)) return null;
+  try {
+    const response = await fetch(new URL(probe, state.url), { signal: AbortSignal.timeout(2e3) });
+    return response.ok ? state : null;
+  } catch {
+    return null;
+  }
+}
+
 var emitWarning = process.emitWarning.bind(process);
 process.emitWarning = ((warning, ...rest) => {
   if (String(typeof warning === "string" ? warning : warning.message).includes("localStorage")) return;
@@ -2315,10 +2504,8 @@ process.emitWarning = ((warning, ...rest) => {
 });
 var KIND = "slides";
 var SCRIPT = fileURLToPath2(import.meta.url);
-var EDITOR_DIR = path9.join(path9.dirname(SCRIPT), "editor");
-var SERVER_SCRIPT = path9.join(path9.dirname(SCRIPT), "server.mjs");
-var STATE_FILE = ".artifact-server.json";
-var LOG_FILE = ".artifact-server.log";
+var EDITOR_DIR = path11.join(path11.dirname(SCRIPT), "editor");
+var SERVER_SCRIPT = path11.join(path11.dirname(SCRIPT), "server.mjs");
 var MAX_LISTED = 200;
 var UPLOAD_MAX_BYTES = 20 * 1024 * 1024;
 var INDEX_FILE = KIND === "slides" ? "deck.json" : KIND === "design" ? CANVAS_FILE : DESIGN_SYSTEM_FILE;
@@ -2331,6 +2518,7 @@ var CliError = class extends Error {
     this.code = code;
   }
 };
+var SWITCHES = /* @__PURE__ */ new Set(["all", "wait", "resolve", "reopen"]);
 function parseArgs(argv) {
   const positional = [];
   const flags = /* @__PURE__ */ new Map();
@@ -2339,6 +2527,7 @@ function parseArgs(argv) {
     if (arg.startsWith("--")) {
       const eq = arg.indexOf("=");
       if (eq > 0) flags.set(arg.slice(2, eq), arg.slice(eq + 1));
+      else if (SWITCHES.has(arg.slice(2))) flags.set(arg.slice(2), "true");
       else if (i + 1 < argv.length && !argv[i + 1].startsWith("--")) flags.set(arg.slice(2), argv[++i]);
       else flags.set(arg.slice(2), "true");
     } else positional.push(arg);
@@ -2355,13 +2544,13 @@ function quote(s) {
 }
 function resolveArtifact(given, mustExist = true) {
   if (!given) throw new CliError("MISSING_ROOT", `Give the artifact folder: the one that holds project/${INDEX_FILE}.`);
-  let root = path9.resolve(given);
-  if (path9.basename(root) === "project" && fs7.existsSync(path9.join(root, INDEX_FILE)) && !fs7.existsSync(path9.join(root, "project"))) {
-    root = path9.dirname(root);
+  let root = path11.resolve(given);
+  if (path11.basename(root) === "project" && fs9.existsSync(path11.join(root, INDEX_FILE)) && !fs9.existsSync(path11.join(root, "project"))) {
+    root = path11.dirname(root);
   }
-  const project = path9.join(root, "project");
+  const project = path11.join(root, "project");
   if (mustExist) {
-    const stat = fs7.statSync(project, { throwIfNoEntry: false });
+    const stat = fs9.statSync(project, { throwIfNoEntry: false });
     if (!stat?.isDirectory()) {
       throw new CliError("NOT_FOUND", `${project} does not exist. Write project/${INDEX_FILE} and the other files under ${root} first.`);
     }
@@ -2383,7 +2572,7 @@ function localize(value) {
 function designSystemNotes(project, indexFile) {
   let index;
   try {
-    index = JSON.parse(fs7.readFileSync(path9.join(project, indexFile), "utf8"));
+    index = JSON.parse(fs9.readFileSync(path11.join(project, indexFile), "utf8"));
   } catch {
     return [];
   }
@@ -2397,10 +2586,10 @@ function designSystemNotes(project, indexFile) {
       notes.push(`designSystems namespace ${JSON.stringify(ns)} is not a folder name ([a-z0-9][a-z0-9_-]{0,63}): the page skips it. Use the lower-case folder (list prints it as folder), the same in the record and in project/ds/<folder>/.`);
       continue;
     }
-    const folder = path9.join(project, "ds", ns);
-    if (!fs7.existsSync(folder)) {
+    const folder = path11.join(project, "ds", ns);
+    if (!fs9.existsSync(folder)) {
       notes.push(`designSystems names "${ns}" but project/ds/${ns}/ does not exist: copy the system's project/tokens.json (and the files you use) there, or take the record out.`);
-    } else if (!fs7.existsSync(path9.join(folder, "tokens.json"))) {
+    } else if (!fs9.existsSync(path11.join(folder, "tokens.json"))) {
       notes.push(`project/ds/${ns}/ has no tokens.json, so the Theme and color menus show bare hexes: copy the system's project/tokens.json there (a system with none: nothing to do).`);
     }
   }
@@ -2412,9 +2601,9 @@ async function check(a) {
     try {
       rt = loadSlidesCompiler(EDITOR_DIR);
     } catch {
-      throw new CliError("COMPILER_MISSING", `The slides compiler is missing (${path9.join(EDITOR_DIR, "node", "compiler.cjs")}); reinstall the skill.`);
+      throw new CliError("COMPILER_MISSING", `The slides compiler is missing (${path11.join(EDITOR_DIR, "node", "compiler.cjs")}); reinstall the skill.`);
     }
-    if (!fs7.existsSync(path9.join(a.project, "deck.json"))) {
+    if (!fs9.existsSync(path11.join(a.project, "deck.json"))) {
       return {
         problems: 1,
         result: {
@@ -2478,11 +2667,11 @@ async function check(a) {
   }
   const r = await checkDesignSystem(a.project);
   const problems = r.issues.length;
-  if (fs7.existsSync(path9.join(a.project, DESIGN_SYSTEM_FILE))) {
-    if (!fs7.existsSync(path9.join(a.project, "README.md"))) {
+  if (fs9.existsSync(path11.join(a.project, DESIGN_SYSTEM_FILE))) {
+    if (!fs9.existsSync(path11.join(a.project, "README.md"))) {
       r.notes.push({ file: "README.md", message: "missing: every system includes project/README.md; every reader starts there (Creating, step 1)" });
     }
-    if (!fs7.existsSync(path9.join(a.project, "components", "Cover", "preview.html"))) {
+    if (!fs9.existsSync(path11.join(a.project, "components", "Cover", "preview.html"))) {
       r.notes.push({ file: "components/Cover/preview.html", message: "missing: every system gets a cover, written last before the index (cover.md)" });
     }
   }
@@ -2508,11 +2697,11 @@ function formatBytes(n) {
 }
 async function upload(a, given, group) {
   if (!given) throw new CliError("MISSING_FILE", "Give the file to upload.");
-  const file = path9.resolve(given);
-  const stat = await fsp.stat(file).catch(() => null);
+  const file = path11.resolve(given);
+  const stat = await fsp2.stat(file).catch(() => null);
   if (!stat) throw new CliError("FILE_NOT_FOUND", `No such file: ${given}`);
   if (!stat.isFile()) throw new CliError("NOT_A_FILE", `${given} is not a regular file.`);
-  const ext = path9.extname(file).slice(1).toLowerCase();
+  const ext = path11.extname(file).slice(1).toLowerCase();
   const type = contentTypeOf(file);
   const isMedia = type.startsWith("image/") || type.startsWith("font/");
   let limit = UPLOAD_MAX_BYTES;
@@ -2535,9 +2724,9 @@ async function upload(a, given, group) {
     limit = designSystemUploadLimit(type);
   }
   if (stat.size > limit) throw new CliError("FILE_TOO_LARGE", `${given} is ${formatBytes(stat.size)}, over the ${formatBytes(limit)} limit: compress or shrink it first.`);
-  const bytes = await fsp.readFile(file);
+  const bytes = await fsp2.readFile(file);
   const uploaded = await new DeckStore(a.project, LAYOUT).putBlob(bytes, type);
-  const base = path9.basename(file);
+  const base = path11.basename(file);
   if (KIND !== "design-system") {
     return {
       url: uploaded.url,
@@ -2569,12 +2758,12 @@ function folderName(name) {
 }
 var SKIP_DIRS = /* @__PURE__ */ new Set(["node_modules", "dist", "build", "out", "vendor", "target"]);
 async function listSystems(dirs) {
-  const extra = (process.env.CLAUDE_DESIGN_SYSTEMS ?? "").split(path9.delimiter).filter(Boolean);
-  const starts = [...dirs.length > 0 ? dirs : [process.cwd()], ...extra].map((d) => path9.resolve(d));
+  const extra = (process.env.CLAUDE_DESIGN_SYSTEMS ?? "").split(path11.delimiter).filter(Boolean);
+  const starts = [...dirs.length > 0 ? dirs : [process.cwd()], ...extra].map((d) => path11.resolve(d));
   const found = /* @__PURE__ */ new Map();
   const visit = async (dir, depth) => {
-    const project = path9.join(dir, "project");
-    if (fs7.existsSync(path9.join(project, DESIGN_SYSTEM_FILE)) && !found.has(dir)) {
+    const project = path11.join(dir, "project");
+    if (fs9.existsSync(path11.join(project, DESIGN_SYSTEM_FILE)) && !found.has(dir)) {
       const info = await readDesignSystemInfo(project).catch(() => null);
       if (info) {
         const namespace = info.namespace;
@@ -2583,58 +2772,38 @@ async function listSystems(dirs) {
           namespace: namespace ?? null,
           folder: folderName(typeof namespace === "string" && namespace.trim() ? namespace : String(info.title ?? "")),
           root: dir,
-          readme: fs7.existsSync(path9.join(project, "README.md")) ? path9.join(project, "README.md") : null,
-          tokens: fs7.existsSync(path9.join(project, "tokens.json")) ? path9.join(project, "tokens.json") : null
+          readme: fs9.existsSync(path11.join(project, "README.md")) ? path11.join(project, "README.md") : null,
+          tokens: fs9.existsSync(path11.join(project, "tokens.json")) ? path11.join(project, "tokens.json") : null
         });
         return;
       }
     }
     if (depth <= 0) return;
-    const entries = await fsp.readdir(dir, { withFileTypes: true }).catch(() => []);
+    const entries = await fsp2.readdir(dir, { withFileTypes: true }).catch(() => []);
     for (const entry of entries) {
       if (!entry.isDirectory() || entry.name.startsWith(".") || SKIP_DIRS.has(entry.name) || entry.name === "project") continue;
-      await visit(path9.join(dir, entry.name), depth - 1);
+      await visit(path11.join(dir, entry.name), depth - 1);
     }
   };
   for (const start of starts) await visit(start, 4);
   return [...found.values()];
 }
-function readState(root) {
-  try {
-    return JSON.parse(fs7.readFileSync(path9.join(root, STATE_FILE), "utf8"));
-  } catch {
-    return null;
-  }
-}
-function alive(pid) {
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch (error) {
-    return error.code === "EPERM";
-  }
-}
-async function runningServer(root) {
-  const state = readState(root);
-  if (!state || state.kind !== KIND || !alive(state.pid)) return null;
-  try {
-    const response = await fetch(new URL("__deck/session", state.url), { signal: AbortSignal.timeout(2e3) });
-    return response.ok ? state : null;
-  } catch {
-    return null;
-  }
-}
+var runningServer2 = (root) => runningServer(root, KIND, "__deck/session");
 function serverArgs(flags) {
   const out = [];
   if (flags.has("port")) out.push("--port", flags.get("port"));
   if (flags.has("host")) out.push("--host", flags.get("host"));
+  if (flags.get("agent-hook")) out.push("--agent-hook", flags.get("agent-hook"));
   return out;
 }
+function reusedNote(a, flags) {
+  return flags.get("agent-hook") ? { note: `--agent-hook was not applied: the server was already running. To use it: ${script("stop", a.root)}, then open again.` } : {};
+}
 function assertServerFiles() {
-  if (!fs7.existsSync(path9.join(EDITOR_DIR, "index.html"))) {
+  if (!fs9.existsSync(path11.join(EDITOR_DIR, "index.html"))) {
     throw new CliError("EDITOR_MISSING", `The editor page is missing (${EDITOR_DIR}); reinstall the skill.`);
   }
-  if (!fs7.existsSync(SERVER_SCRIPT)) {
+  if (!fs9.existsSync(SERVER_SCRIPT)) {
     throw new CliError("EDITOR_MISSING", `The editor server is missing (${SERVER_SCRIPT}); reinstall the skill.`);
   }
 }
@@ -2643,16 +2812,16 @@ async function serve(a, flags) {
     throw new CliError("NOT_A_" + KIND.toUpperCase().replace("-", "_"), `project/${INDEX_FILE} is missing or not a valid ${NOUN} index; write it, then run ${script("check", a.root)}.`);
   }
   assertServerFiles();
-  const existing = await runningServer(a.root);
+  const existing = await runningServer2(a.root);
   if (existing && existing.pid !== process.pid) {
-    print({ url: existing.url, root: a.root, pid: existing.pid, reused: true });
+    print({ url: existing.url, root: a.root, pid: existing.pid, reused: true, ...reusedNote(a, flags) });
     return;
   }
   const host = flags.get("host") ?? "127.0.0.1";
   const port = Number(flags.get("port") ?? 0);
   if (!Number.isInteger(port) || port < 0 || port > 65535) throw new CliError("INVALID_PORT", "--port is a number from 0 to 65535.");
   const server = await import(pathToFileURL(SERVER_SCRIPT).href);
-  const state = await server.serveForeground({ root: a.root, port, host });
+  const state = await server.serveForeground({ root: a.root, port, host, agentHook: flags.get("agent-hook") || void 0 });
   print({ url: state.url, root: a.root, pid: state.pid });
 }
 async function open(a, flags) {
@@ -2660,18 +2829,18 @@ async function open(a, flags) {
     throw new CliError("NOT_A_" + KIND.toUpperCase().replace("-", "_"), `project/${INDEX_FILE} is missing or not a valid ${NOUN} index; write it, then run ${script("check", a.root)}.`);
   }
   assertServerFiles();
-  const existing = await runningServer(a.root);
+  const existing = await runningServer2(a.root);
   if (existing) {
-    print({ url: existing.url, root: a.root, pid: existing.pid, reused: true });
+    print({ url: existing.url, root: a.root, pid: existing.pid, reused: true, ...reusedNote(a, flags) });
     return;
   }
   const port = Number(flags.get("port") ?? 0);
   if (!Number.isInteger(port) || port < 0 || port > 65535) throw new CliError("INVALID_PORT", "--port is a number from 0 to 65535.");
-  const logFile = path9.join(a.root, LOG_FILE);
-  const fd = fs7.openSync(logFile, "a");
+  const logFile = path11.join(a.root, LOG_FILE);
+  const fd = fs9.openSync(logFile, "a");
   const child = spawn(process.execPath, [SERVER_SCRIPT, a.root, ...serverArgs(flags)], { detached: true, stdio: ["ignore", "ignore", fd] });
   child.unref();
-  fs7.closeSync(fd);
+  fs9.closeSync(fd);
   let exited = false;
   child.once("exit", () => exited = true);
   const deadline = Date.now() + 15e3;
@@ -2684,14 +2853,14 @@ async function open(a, flags) {
     }
     if (exited) break;
   }
-  const tail = fs7.existsSync(logFile) ? fs7.readFileSync(logFile, "utf8").split("\n").slice(-12).join("\n") : "";
+  const tail = fs9.existsSync(logFile) ? fs9.readFileSync(logFile, "utf8").split("\n").slice(-12).join("\n") : "";
   throw new CliError("SERVER_FAILED", `The editor server did not start. Run ${script("serve", a.root)} in the foreground to see why.${tail ? `
 ${tail}` : ""}`);
 }
 async function stop(a) {
   const state = readState(a.root);
   if (!state || !alive(state.pid)) {
-    fs7.rmSync(path9.join(a.root, STATE_FILE), { force: true });
+    fs9.rmSync(path11.join(a.root, STATE_FILE), { force: true });
     print({ stopped: false, message: "No editor server is running for this folder." });
     return;
   }
@@ -2702,18 +2871,110 @@ async function stop(a) {
     print({ stopped: false, pid: state.pid, message: `The server did not exit within 5 s; end it with: kill ${state.pid}` });
     return;
   }
-  fs7.rmSync(path9.join(a.root, STATE_FILE), { force: true });
+  fs9.rmSync(path11.join(a.root, STATE_FILE), { force: true });
   print({ stopped: true, pid: state.pid });
+}
+var WAIT_CHUNK_S = 300;
+function commentHints(a) {
+  return {
+    reply: script("comment-reply", a.root, "<id>", "<text>"),
+    resolve: script("comment-resolve", a.root, "<id>")
+  };
+}
+async function listComments(a, all) {
+  const doc = await readComments(a.root);
+  const threads = all ? [...doc.threads].sort((x, y) => x.createdAt.localeCompare(y.createdAt)) : openThreads(doc);
+  const resolved = doc.threads.filter((t) => t.status === "resolved").length;
+  return {
+    root: a.root,
+    file: commentsPath(a.root),
+    threads: agentViews(doc, threads),
+    ...all || !resolved ? {} : { resolved: `${resolved} resolved, not shown (--all shows them)` },
+    ...threads.length ? commentHints(a) : {}
+  };
+}
+async function waitComments(a, flags) {
+  const timeout = flags.has("timeout") ? Number(flags.get("timeout")) : Infinity;
+  if (!(timeout > 0)) throw new CliError("INVALID_TIMEOUT", "--timeout is a number of seconds above 0.");
+  const deadline = Date.now() + timeout * 1e3;
+  let failures = 0;
+  for (; ; ) {
+    const state = await runningServer2(a.root);
+    if (!state) {
+      throw new CliError("NO_SERVER", `No editor server is running for this folder: start it with ${script("open", a.root)}, then wait again.`);
+    }
+    const left = Math.min(WAIT_CHUNK_S, (deadline - Date.now()) / 1e3);
+    if (left <= 0) return { root: a.root, threads: [], timedOut: true, next: script("comments", a.root, "--wait") };
+    let body;
+    try {
+      const response = await fetch(new URL(`__comments/agent/wait?timeout=${Math.max(1, Math.round(left))}`, state.url), {
+        signal: AbortSignal.timeout((left + 30) * 1e3)
+      });
+      if (response.status === 404) {
+        throw new CliError(
+          "SERVER_OUTDATED",
+          `The running editor server has no comments (an older version started it). Restart it: ${script("stop", a.root)}, then ${script("open", a.root)}.`
+        );
+      }
+      if (!response.ok) throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+      body = await response.json();
+      failures = 0;
+    } catch (error) {
+      if (error instanceof CliError) throw error;
+      if (++failures >= 3) throw new CliError("SERVER_GONE", `Lost the editor server: ${error.message}`);
+      await new Promise((resolve) => setTimeout(resolve, 1e3));
+      continue;
+    }
+    if (body.closed) continue;
+    const threads = body.threads ?? [];
+    if (threads.length) return { root: a.root, file: commentsPath(a.root), threads, ...commentHints(a), next: script("comments", a.root, "--wait") };
+  }
+}
+async function readStdin() {
+  if (process.stdin.isTTY) return "";
+  const chunks = [];
+  for await (const chunk of process.stdin) chunks.push(chunk);
+  return Buffer.concat(chunks).toString("utf8");
+}
+async function replyComment(a, id, words, resolve) {
+  if (!id) throw new CliError("MISSING_ID", `Give the comment id: ${script("comment-reply", a.root, "<id>", "<text>")}`);
+  const given = words.join(" ");
+  const text = (given === "" || given === "-" ? await readStdin() : given).replace(/\r\n?/g, "\n").trim();
+  if (!text) throw new CliError("EMPTY_REPLY", "The reply is empty: pass it as an argument, or as - with the text on stdin.");
+  if (text.length > LIMITS.text) throw new CliError("REPLY_TOO_LONG", `A reply is at most ${LIMITS.text} characters.`);
+  const thread = await updateComments(a.root, (doc) => {
+    const found = findThread(doc, id);
+    const now = (/* @__PURE__ */ new Date()).toISOString();
+    addMessage(found, AGENT_AUTHOR, text, now);
+    if (resolve) setStatus(found, "resolved", now);
+    return found;
+  });
+  return { replied: thread.id, status: thread.status, file: commentsPath(a.root) };
+}
+async function resolveComment(a, id, reopen) {
+  if (!id) throw new CliError("MISSING_ID", `Give the comment id: ${script("comment-resolve", a.root, "<id>")}`);
+  const thread = await updateComments(a.root, (doc) => {
+    const found = findThread(doc, id);
+    setStatus(found, reopen ? "open" : "resolved", (/* @__PURE__ */ new Date()).toISOString());
+    return found;
+  });
+  return { id: thread.id, status: thread.status, file: commentsPath(a.root) };
 }
 var USAGE = `${"claude-slides"} \u2014 local Artifact tool for the ${NOUN} type
 
 Usage:
   node scripts/artifact.mjs open   <root> [--port n] [--host h]   start the editor in the background; prints {"url"}
   node scripts/artifact.mjs serve  <root> [--port n] [--host h]   run the editor server in the foreground
+                                   [--agent-hook "<command>"]     open/serve: run this for each comment sent to the agent
+                                                                  (the comment as JSON on stdin)
   node scripts/artifact.mjs stop   <root>                         stop the background editor server
   node scripts/artifact.mjs check  <root>                         validate project/; exit 1 while problems remain
   node scripts/artifact.mjs upload <root> <file>${KIND === "design-system" ? " --group G  " : "            "}      store an upload; prints its /_blob/<id> url
   node scripts/artifact.mjs list   [dir \u2026]                        find design systems (folders holding project/design-system.json)
+  node scripts/artifact.mjs comments <root> [--all]               the open comments people left in the editor (--all: resolved too)
+  node scripts/artifact.mjs comments <root> --wait [--timeout s]  wait for a comment sent to the agent from the open editor
+  node scripts/artifact.mjs comment-reply <root> <id> <text|->    reply as the agent (-: text on stdin) [--resolve]
+  node scripts/artifact.mjs comment-resolve <root> <id> [--reopen]   mark a comment resolved (or open again)
 
 <root> is the artifact folder: its files live at <root>/project/<path> (project/${INDEX_FILE}, \u2026).`;
 async function main() {
@@ -2736,15 +2997,26 @@ async function main() {
     }
     case "upload": {
       const a = resolveArtifact(positional[0], false);
-      if (!fs7.statSync(a.root, { throwIfNoEntry: false })?.isDirectory()) {
+      if (!fs9.statSync(a.root, { throwIfNoEntry: false })?.isDirectory()) {
         throw new CliError("NOT_FOUND", `${a.root} does not exist. Make the artifact folder first.`);
       }
-      fs7.mkdirSync(a.project, { recursive: true });
+      fs9.mkdirSync(a.project, { recursive: true });
       print(await upload(a, positional[1], flags.get("group")));
       return 0;
     }
     case "list":
       print(await listSystems(positional));
+      return 0;
+    case "comments": {
+      const a = resolveArtifact(positional[0]);
+      print(flags.has("wait") ? await waitComments(a, flags) : await listComments(a, flags.has("all")));
+      return 0;
+    }
+    case "comment-reply":
+      print(await replyComment(resolveArtifact(positional[0]), positional[1], positional.slice(2), flags.has("resolve")));
+      return 0;
+    case "comment-resolve":
+      print(await resolveComment(resolveArtifact(positional[0]), positional[1], flags.has("reopen")));
       return 0;
     case void 0:
     case "help":
