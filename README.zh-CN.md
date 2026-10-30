@@ -36,6 +36,8 @@ https://github.com/user-attachments/assets/d5b4f39b-a701-49de-87b8-64f3c6ef9c61
 
 `baoyu-design` 产出的是自包含的 HTML；这四个技能则按该 Artifact 类型自己的文件格式把内容写进一个文件夹，再用这个类型的编辑器页面打开它，编辑器就在你自己的电脑上运行。Agent 写文件，编辑器立刻显示每一次写入；你在编辑器里的修改也会存回同一批文件，所以你和 Agent 可以轮流改。
 
+在幻灯片、画布和设计系统编辑器里，点击 **Comment**（或按 **C**）就能对元素或区域留下评论。评论保存在项目本地的 `comments.json`，Agent 通过 `artifact.mjs` 读取和回复。Agent 用 `comments <root> --wait` 等待评论时，编辑器会显示 **Send to agent**，让你把评论交给它处理。
+
 ### `claude-slides`：幻灯片
 
 <img src="assets/screenshots/claude-slides-editor.webp" alt="claude-slides 编辑器里打开的一份 20 页图书策划案" width="880">

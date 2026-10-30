@@ -4,6 +4,25 @@ English | [中文](./CHANGELOG.zh.md)
 
 All notable changes to `baoyu-design` are tracked in this file.
 
+## 2.1.0 - 2026-10-30
+
+### Features
+- `claude-slides`, `claude-design` and `claude-design-system`: leave comments on elements or areas in the editor. Comments are saved locally with their file and location; the agent can read, reply to, resolve and reopen threads. While an agent listens, a **Send to agent** checkbox lets you send a comment for it to act on.
+- Add `dataviz`, a chart-design skill for any output medium, with guidance on chart forms, color, marks, legends, accessibility and interaction, plus JavaScript and Python palette validators.
+- Refresh all four artifact editors to the 2026-10-29 upstream release, including the design canvas's Theme tab, read-only code-synced design systems, and updated font and icon assets.
+- `claude-slides`: decks opened on their own page gain additional export formats; PowerPoint export embeds linked Google Fonts, with WOFF2 decoding in the page.
+
+### Fixes
+- Editor servers exit with an error when their port is already in use instead of hanging.
+
+### Changed
+- Ship the artifact tools and editors prebuilt and remove the separate `tools/artifact-skills/` build tooling.
+- `claude-dashboard`: share server state and HTTP helpers with the other artifact servers.
+
+### Documentation
+- Sync the four artifact skills and their reference pages with the 2026-10-29 upstream instructions, covering design-system setup, slide links, canvas notes and dashboard data workflows.
+- Reorganize the English and Chinese READMEs around the skills, with editor screenshots, updated examples, dataviz and comments guidance, and a demo video in the Chinese README.
+
 ## 2.0.3 - 2026-10-29
 
 ### Fixes

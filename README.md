@@ -36,6 +36,8 @@ No website, no separate subscription, no upload step. The agent already on your 
 
 Where `baoyu-design` writes self‑contained HTML, these four skills write the Artifact type's own file format into a folder and open it in that type's editor page, served from your machine. The agent writes the files and the editor shows each write at once; your edits in the editor are saved back into the same files, so you and the agent can take turns.
 
+In the slides, canvas and design-system editors, choose **Comment** (or press **C**) to comment on an element or area. Comments stay in the project's local `comments.json`; the agent reads and replies through `artifact.mjs`. While it listens with `comments <root> --wait`, the editor offers **Send to agent** to send your comment for it to act on.
+
 ### `claude-slides`: slide decks
 
 <img src="assets/screenshots/claude-slides-editor.webp" alt="A 20-slide book proposal deck open in the claude-slides editor" width="880">
