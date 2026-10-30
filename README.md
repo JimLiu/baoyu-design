@@ -40,21 +40,21 @@ In the slides, canvas and design-system editors, choose **Comment** (or press **
 
 ### `claude-slides`: slide decks
 
-<img src="assets/screenshots/claude-slides-editor.webp" alt="A 20-slide book proposal deck open in the claude-slides editor" width="880">
+<img src="assets/screenshots/claude-slides-editor.webp" alt="A five-slide health class deck about sleep open in the claude-slides editor" width="880">
 
-A deck is `project/deck.json` plus one HTML file per slide. In the editor you can present full screen, retype any text, drag elements, add text, images, tables and shapes, and export to PDF, HTML or PowerPoint. *Above: a 20‑slide book proposal, in Chinese.*
+A deck is `project/deck.json` plus one HTML file per slide. In the editor you can present full screen, retype any text, drag elements, add text, images, tables and shapes, and export to PDF, HTML or PowerPoint. *Above: a five‑slide health class deck about sleep, built on a sample design system.*
 
 ### `claude-design`: a canvas of artboards
 
-<img src="assets/screenshots/claude-design-canvas.webp" alt="A landing page and its phone version side by side on the claude-design canvas" width="880">
+<img src="assets/screenshots/claude-design-canvas.webp" alt="A coffee subscription landing page and its mobile signup form side by side on the claude-design canvas" width="880">
 
-A canvas holds artboards side by side: `project/canvas.json` plus one `.dc.html` Design Component per artboard. Play an artboard as a working prototype, on the canvas or full screen; retype copy, adjust tweaks and leave notes; export the whole design as a standalone HTML page, a PDF or PNG images (1× or 2×, several artboards in a .zip). *Above: a landing page for this repo with its phone version beside it, built on the React Spectrum design system.*
+A canvas holds artboards side by side: `project/canvas.json` plus one `.dc.html` Design Component per artboard. Play an artboard as a working prototype, on the canvas or full screen; retype copy, adjust tweaks and leave notes; export the whole design as a standalone HTML page, a PDF or PNG images (1× or 2×, several artboards in a .zip). *Above: the landing hero of a coffee subscription, with its mobile signup form beside it.*
 
 ### `claude-design-system`: design systems
 
-<img src="assets/screenshots/claude-design-system-editor.webp" alt="Live component previews of the React Spectrum design system in the claude-design-system editor" width="880">
+<img src="assets/screenshots/claude-design-system-editor.webp" alt="The overview page of the Nimbus design system in the claude-design-system editor" width="880">
 
-A design system is tokens, a README brand book, component previews, fonts and asset groups. In the editor you browse and edit colors, type, spacing, radii, shadows, components and assets. Import one from a component library and its previews are the real components, live and interactive. Decks and canvases can install it: their editors' Theme and color menus then offer its colors and text styles. *Above: React Spectrum (Spectrum 2), imported from Adobe's component library.*
+A design system is tokens, a README brand book, component previews, fonts and asset groups. In the editor you browse and edit colors, type, spacing, radii, shadows, components and assets. Import one from a component library and its previews are the real components, live and interactive. Decks and canvases can install it: their editors' Theme and color menus then offer its colors and text styles. *Above: Nimbus, a small design system for a weather app.*
 
 ### `claude-dashboard`: data‑backed dashboards
 

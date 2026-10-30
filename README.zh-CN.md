@@ -40,21 +40,21 @@ https://github.com/user-attachments/assets/d5b4f39b-a701-49de-87b8-64f3c6ef9c61
 
 ### `claude-slides`：幻灯片
 
-<img src="assets/screenshots/claude-slides-editor.webp" alt="claude-slides 编辑器里打开的一份 20 页图书策划案" width="880">
+<img src="assets/screenshots/claude-slides-editor.webp" alt="claude-slides 编辑器里打开的一份讲睡眠的 5 页健康课幻灯片" width="880">
 
-一套幻灯片就是 `project/deck.json` 加上每页一个 HTML 文件。在编辑器里可以全屏放映、直接改字、拖动元素，插入文字、图片、表格和形状，并导出成 PDF、HTML 或 PowerPoint。*上图：一份 20 页的图书策划案。*
+一套幻灯片就是 `project/deck.json` 加上每页一个 HTML 文件。在编辑器里可以全屏放映、直接改字、拖动元素，插入文字、图片、表格和形状，并导出成 PDF、HTML 或 PowerPoint。*上图：一份讲睡眠的 5 页健康课幻灯片，用的是一套示例设计系统。*
 
 ### `claude-design`：多画板画布
 
-<img src="assets/screenshots/claude-design-canvas.webp" alt="claude-design 画布上并排的落地页和它的手机版" width="880">
+<img src="assets/screenshots/claude-design-canvas.webp" alt="claude-design 画布上并排的咖啡订阅落地页和它的手机版注册表单" width="880">
 
-一块画布上并排放着多个画板：`project/canvas.json` 加上每个画板一个 `.dc.html` 设计组件。画板可以当成能交互的原型来播放，在画布上播或者全屏播；也可以改文案、调 tweaks、贴便签；整份设计能导出成独立的 HTML 页面、PDF 或 PNG 图片（1× 或 2×，多个画板打包成 .zip）。*上图：这个仓库的介绍落地页，旁边是它的手机版，用的是 React Spectrum 设计系统。*
+一块画布上并排放着多个画板：`project/canvas.json` 加上每个画板一个 `.dc.html` 设计组件。画板可以当成能交互的原型来播放，在画布上播或者全屏播；也可以改文案、调 tweaks、贴便签；整份设计能导出成独立的 HTML 页面、PDF 或 PNG 图片（1× 或 2×，多个画板打包成 .zip）。*上图：一个咖啡订阅服务的落地页首屏，旁边是它的手机版注册表单。*
 
 ### `claude-design-system`：设计系统
 
-<img src="assets/screenshots/claude-design-system-editor.webp" alt="claude-design-system 编辑器里 React Spectrum 设计系统的实时组件预览" width="880">
+<img src="assets/screenshots/claude-design-system-editor.webp" alt="claude-design-system 编辑器里 Nimbus 设计系统的概览页" width="880">
 
-一套设计系统包括 tokens、README 品牌手册、组件预览、字体和素材分组。在编辑器里可以浏览和编辑颜色、字体、间距、圆角、阴影、组件和素材。从组件库导入的设计系统，组件预览用的就是真组件，可以直接交互。幻灯片和画布可以安装它，之后编辑器的主题和颜色菜单就会列出它的颜色和文字样式。*上图：从 Adobe 组件库导入的 React Spectrum（Spectrum 2）。*
+一套设计系统包括 tokens、README 品牌手册、组件预览、字体和素材分组。在编辑器里可以浏览和编辑颜色、字体、间距、圆角、阴影、组件和素材。从组件库导入的设计系统，组件预览用的就是真组件，可以直接交互。幻灯片和画布可以安装它，之后编辑器的主题和颜色菜单就会列出它的颜色和文字样式。*上图：Nimbus，一套给天气应用做的小型设计系统。*
 
 ### `claude-dashboard`：数据仪表盘
 
