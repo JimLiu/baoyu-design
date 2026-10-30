@@ -3,6 +3,6 @@
   "version": "2.1.0",
   "private": true,
   "scripts": {
-    "test": "node --test 'skills/baoyu-design/agents/tests/*.test.mjs'"
+    "test": "node --test 'archive/baoyu-design/agents/tests/*.test.mjs'"
   }
 }
