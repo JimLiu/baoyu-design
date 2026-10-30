@@ -66336,8 +66336,8 @@ function installUiFoundation(runtime2) {
     sheetSeparatorClasses = "[&_[role=separator]]:-mx-1 [&_[role=separator]]:mt-0";
     initializeSheetClassNames = (0, runtime2.initializeOnce)(() => {
       sheetTransitionClasses = `${SHEET_DURATION_CLASS} ease-out motion-reduce:transition-none`;
-      sheetPopupClasses = `group/sheet relative w-full min-w-0 max-w-none overflow-hidden ${sheetRadiusClasses} pb-[max(env(safe-area-inset-bottom),0.5rem)] transition-[translate,height,scale] ${sheetTransitionClasses} [&_[data-cds-sheet-scroll]]:overscroll-contain [&[data-cds-sheet-pressed]_[data-cds-sheet-scroll]]:[scroll-padding-block:0px]`;
-      sheetDrillBodyClasses = `flex min-h-0 flex-1 flex-col transition-[translate] ${sheetTransitionClasses} group-data-[cds-sheet-drilled]/sheet:-translate-x-full rtl:group-data-[cds-sheet-drilled]/sheet:translate-x-full`;
+      sheetPopupClasses = `group/sheet relative w-full min-w-0 max-w-none overflow-hidden ${sheetRadiusClasses} forced-colors:border-x-0 forced-colors:border-b-0 [--cds-menu-gutter:initial] pb-[max(env(safe-area-inset-bottom),0.5rem)] pl-[env(safe-area-inset-left,0px)] pr-[env(safe-area-inset-right,0px)] transition-[translate,height,scale] ${sheetTransitionClasses} [&_[data-cds-sheet-scroll]]:overscroll-contain [&[data-cds-sheet-pressed]_[data-cds-sheet-scroll]]:[scroll-padding-block:0px]`;
+      sheetDrillBodyClasses = `flex min-h-0 flex-1 flex-col transition-[translate] ${sheetTransitionClasses} group-data-[cds-sheet-drilled]/sheet:-translate-x-[calc(100%+env(safe-area-inset-left,0px))] rtl:group-data-[cds-sheet-drilled]/sheet:translate-x-[calc(100%+env(safe-area-inset-right,0px))]`;
       sheetBackdropClasses = `draggable-none fixed inset-0 bg-backdrop transition-opacity ${sheetTransitionClasses} data-[starting-style]:opacity-0 data-[ending-style]:opacity-0`;
     });
     initializeSheetDrag = (0, runtime2.initializeOnce)(() => {
@@ -71360,6 +71360,7 @@ function installUiOverlays(runtime2) {
   var initializePassiveOpen;
   var menuItemVariants;
   var menuItemDescriptionPaddingClass;
+  var menuItemDangerStacksClass;
   var initializeMenuItemVariants;
   var reactMenuOpener;
   var menuOpenerRefContext;
@@ -75646,6 +75647,7 @@ function installUiOverlays(runtime2) {
       ]);
     });
     menuItemDescriptionPaddingClass = "pb-[calc((var(--cds-h-control)-var(--cds-font-size-body)-var(--cds-leading-footnote)+var(--cds-font-size-footnote))/2)]";
+    menuItemDangerStacksClass = "stacks:data-[highlighted]:bg-danger stacks:data-[highlighted]:text-danger stacks:data-[highlighted]:[--cds-shortcut-cap-ink:var(--cds-text-muted)]";
     initializeMenuItemVariants = (0, runtime2.initializeOnce)(() => {
       (0, runtime2.initializeNpmDependency)();
       menuItemVariants = (0, runtime2.cva)(
@@ -75654,7 +75656,7 @@ function installUiOverlays(runtime2) {
           variants: {
             variant: {
               default: "text-primary data-[highlighted]:bg-fill-ghost-hover",
-              danger: "group/menu-danger text-danger data-[highlighted]:bg-fill-danger data-[highlighted]:text-on-danger data-[highlighted]:[--cds-shortcut-cap-ink:currentColor] stacks:data-[highlighted]:bg-danger stacks:data-[highlighted]:text-danger stacks:data-[highlighted]:[--cds-shortcut-cap-ink:var(--cds-text-muted)]"
+              danger: `group/menu-danger text-danger data-[highlighted]:bg-fill-danger data-[highlighted]:text-on-danger data-[highlighted]:[--cds-shortcut-cap-ink:currentColor] ${menuItemDangerStacksClass}`
             }
           },
           defaultVariants: {
@@ -83254,6 +83256,8 @@ function installUiDisclosure(runtime2) {
   var fieldFocusWithinClasses;
   var TEXT_INPUT_PLACEHOLDER_CLASS;
   var TEXT_INPUT_INVALID_CLASS;
+  var TEXT_INPUT_HOVER_SURFACE_CLASS;
+  var FIELD_CARET_SLOT_CLASS;
   var initializeUiDisclosure12;
   function preventRepeatedClickSelection(event) {
     if (event.detail <= 1 || event.button !== 0) {
@@ -86030,6 +86034,8 @@ function installUiDisclosure(runtime2) {
     fieldFocusWithinClasses = "has-[:focus-visible]:shadow-focus data-[invalid]:has-[:focus-visible]:shadow-focus-danger";
     TEXT_INPUT_REQUIRED_CLASS = "cds-input cds-reset min-w-0 flex-1 h-full bg-transparent border-0 p-0 outline-none focus-visible:outline-hidden text-body font-normal text-primary focus-visible:shadow-none placeholder:text-muted disabled:opacity-disabled";
     initializeUiDisclosure12 = (0, runtime2.initializeOnce)(() => {
+      TEXT_INPUT_HOVER_SURFACE_CLASS = `${TEXT_INPUT_SURFACE_CLASS} ${TEXT_INPUT_HOVER_CLASS}`;
+      FIELD_CARET_SLOT_CLASS = `pointer-events-none flex size-icon shrink-0 items-center justify-center ${staysSecondaryTextClasses}`;
       TEXT_INPUT_CLASS = `h-control ps-md rounded ${TEXT_INPUT_SURFACE_CLASS} font-sans text-body font-normal text-primary transition duration-fast`;
       TEXT_INPUT_PLACEHOLDER_CLASS = `rounded ${TEXT_INPUT_SURFACE_CLASS} px-md py-sm transition duration-fast`;
       TEXT_INPUT_INVALID_CLASS = `${TEXT_INPUT_PLACEHOLDER_CLASS} [&:hover:not(:focus-within):not([data-invalid]):not([data-disabled])]:shadow-field-hover focus-within:shadow-focus data-[invalid]:focus-within:shadow-focus-danger font-sans text-body text-primary`;
@@ -90121,13 +90127,6 @@ function installUiMenu(runtime2) {
 }
 
 function installUiInputs(runtime2) {
-  var reactHu;
-  var supportsNativeFieldSizing;
-  var initializeUiInputs;
-  var reactForUiInputs;
-  var jsxForUiInputs;
-  var TextArea;
-  var initializeUiInputs2;
   var reactForUiInputs2;
   var jsxForUiInputs2;
   var COUNTER_VARIANT_CLASSES;
@@ -90190,92 +90189,6 @@ function installUiInputs(runtime2) {
   var dialogKeyboardExcludedStyleProperties;
   var dialogKeyboardPositionProperties;
   var initializeUiInputs10;
-  function resizeTextAreaToContent(input, options) {
-    if (input.clientWidth === 0 || input.style.height !== options.current && input.style.height !== "") {
-      return;
-    }
-    let offsetHeight = input.offsetHeight, value = offsetHeight - input.clientHeight, { overflowY: style, marginBottom: style2 } = input.style;
-    input.style.height = "0px";
-    input.style.marginBottom = `${offsetHeight}px`;
-    input.style.overflowY = "hidden";
-    options.current = `${input.scrollHeight + value}px`;
-    input.style.height = options.current;
-    input.style.marginBottom = style2;
-    input.style.overflowY = style;
-  }
-  function observeTextAreaValue(input, options) {
-    let value = Object.getOwnPropertyDescriptor(input, "value"), value2 = value ?? Object.getOwnPropertyDescriptor(Object.getPrototypeOf(input), "value");
-    if (!value2?.set || !value2.configurable) {
-      return;
-    }
-    let flag = true, callback = (input2) => {
-      value2.set?.call(input, input2);
-      if (flag) {
-        options();
-      }
-    };
-    Object.defineProperty(input, "value", {
-      ...value2,
-      set: callback
-    });
-    return () => {
-      flag = false;
-      if (Object.getOwnPropertyDescriptor(input, "value")?.set !== callback) {
-        return;
-      }
-      if (value) {
-        Object.defineProperty(input, "value", value);
-      } else {
-        Reflect.deleteProperty(input, "value");
-      }
-    };
-  }
-  function useTextAreaAutosize({
-    autosize,
-    value,
-    defaultValue
-  }) {
-    let value2 = autosize && !supportsNativeFieldSizing, value3 = value !== void 0, ref = reactHu.useRef(null), ref2 = reactHu.useRef("");
-    (0, runtime2.useIsomorphicLayoutEffect)(() => {
-      let current = ref.current, value4 = current?.ownerDocument.defaultView;
-      if (!value2 || !current || !value4) {
-        return;
-      }
-      let callback = () => resizeTextAreaToContent(current, ref2), index4 = 0, callback2 = () => {
-        value4.cancelAnimationFrame(index4);
-        index4 = value4.requestAnimationFrame(callback);
-      }, value5 = new value4.ResizeObserver(callback2);
-      value5.observe(current);
-      value4.document.fonts.addEventListener("loadingdone", callback);
-      let callback3 = (event) => {
-        if (event.target === current.form) {
-          callback2();
-        }
-      }, value6 = current.getRootNode(), value7 = value6 instanceof value4.ShadowRoot ? value6 : value4.document, value8;
-      if (!value3) {
-        value8 = observeTextAreaValue(current, callback);
-        current.addEventListener("input", callback);
-        value7.addEventListener("reset", callback3, true);
-      }
-      return () => {
-        value8?.();
-        value7.removeEventListener("reset", callback3, true);
-        value5.disconnect();
-        value4.cancelAnimationFrame(index4);
-        value4.document.fonts.removeEventListener("loadingdone", callback);
-        current.removeEventListener("input", callback);
-        if (current.style.height === ref2.current) {
-          current.style.height = "";
-        }
-      };
-    }, [value2, value3]);
-    (0, runtime2.useIsomorphicLayoutEffect)(() => {
-      if (value2 && ref.current) {
-        resizeTextAreaToContent(ref.current, ref2);
-      }
-    }, [value2, value2 ? value : null, value2 ? defaultValue : null]);
-    return ref;
-  }
   function isPictogramElement(input) {
     if (!reactfK0.isValidElement(input) || typeof input.type === "string") {
       return false;
@@ -90757,69 +90670,6 @@ function installUiInputs(runtime2) {
   }
   bindRuntimeValue(
     runtime2,
-    "resizeTextAreaToContent",
-    () => resizeTextAreaToContent
-  );
-  bindRuntimeValue(runtime2, "observeTextAreaValue", () => observeTextAreaValue);
-  bindRuntimeValue(runtime2, "useTextAreaAutosize", () => useTextAreaAutosize);
-  bindRuntimeValue(
-    runtime2,
-    "reactHu",
-    () => reactHu,
-    (value) => {
-      reactHu = value;
-    }
-  );
-  bindRuntimeValue(
-    runtime2,
-    "supportsNativeFieldSizing",
-    () => supportsNativeFieldSizing,
-    (value) => {
-      supportsNativeFieldSizing = value;
-    }
-  );
-  bindRuntimeValue(
-    runtime2,
-    "initializeUiInputs",
-    () => initializeUiInputs,
-    (value) => {
-      initializeUiInputs = value;
-    }
-  );
-  bindRuntimeValue(
-    runtime2,
-    "reactForUiInputs",
-    () => reactForUiInputs,
-    (value) => {
-      reactForUiInputs = value;
-    }
-  );
-  bindRuntimeValue(
-    runtime2,
-    "jsxForUiInputs",
-    () => jsxForUiInputs,
-    (value) => {
-      jsxForUiInputs = value;
-    }
-  );
-  bindRuntimeValue(
-    runtime2,
-    "TextArea",
-    () => TextArea,
-    (value) => {
-      TextArea = value;
-    }
-  );
-  bindRuntimeValue(
-    runtime2,
-    "initializeUiInputs2",
-    () => initializeUiInputs2,
-    (value) => {
-      initializeUiInputs2 = value;
-    }
-  );
-  bindRuntimeValue(
-    runtime2,
     "reactForUiInputs2",
     () => reactForUiInputs2,
     (value) => {
@@ -91284,82 +91134,6 @@ function installUiInputs(runtime2) {
     }
   );
   return () => {
-    initializeUiInputs = (0, runtime2.initializeOnce)(() => {
-      (0, runtime2.initializeIsomorphicLayoutEffect)();
-      reactHu = (0, runtime2.toModuleNamespace)(
-        (0, runtime2.loadReactNamespace)(),
-        1
-      );
-      supportsNativeFieldSizing = typeof CSS === "undefined" || typeof CSS.supports !== "function" || CSS.supports("field-sizing", "content");
-    });
-    initializeUiInputs2 = (0, runtime2.initializeOnce)(() => {
-      (0, runtime2.initializeClassNames)();
-      (0, runtime2.initializeCdsRoot)();
-      (0, runtime2.initializeMergedRefs)();
-      (0, runtime2.initializeUiDisclosure12)();
-      (0, runtime2.initializeUiMenu)();
-      initializeUiInputs();
-      (0, runtime2.initializeNpmDependency)();
-      reactForUiInputs = (0, runtime2.toModuleNamespace)(
-        (0, runtime2.loadReactNamespace)(),
-        1
-      );
-      jsxForUiInputs = (0, runtime2.toModuleNamespace)(
-        (0, runtime2.loadJsxNamespace)(),
-        1
-      );
-      TextArea = reactForUiInputs.forwardRef(
-        ({
-          className,
-          rows,
-          resize = "none",
-          autosize = false,
-          bare = false,
-          size: size4,
-          fullWidth = true,
-          id,
-          "aria-describedby": ariaDescribedby,
-          "aria-invalid": ariaInvalid,
-          disabled: disabled2,
-          style,
-          ...props
-        }, options) => {
-          let value = (0, runtime2.useFieldInvalid)(), value2 = rows ?? 3, value3 = autosize && rows !== void 0, value4 = resize === "y" ? "resize-y" : "resize-none", value5 = autosize ? "[field-sizing:content]" : "", value6 = useTextAreaAutosize({
-            autosize,
-            value: props.value,
-            defaultValue: props.defaultValue
-          }), value7 = (0, runtime2.useMergedRefs)(options, value6), value8 = value3 ? bare ? "min-h-[calc(var(--cds-textarea-rows)*1lh)]" : "min-h-[calc(var(--cds-textarea-rows)*1lh+2*var(--cds-pad-sm))]" : "", value9 = value3 ? {
-            ...style,
-            "--cds-textarea-rows": value2
-          } : style, value10 = fullWidth ? "w-full" : "";
-          return jsxForUiInputs.jsx(runtime2.baseField.Control, {
-            id,
-            "aria-describedby": ariaDescribedby,
-            disabled: disabled2,
-            render: jsxForUiInputs.jsx("textarea", {
-              ref: value7,
-              "data-cds": "TextArea",
-              rows: value2,
-              style: value9,
-              ...(0, runtime2.getControlSizeAttributes)(size4),
-              "data-invalid": value || void 0,
-              "aria-invalid": value || ariaInvalid,
-              ...props,
-              className: (0, runtime2.cn)(
-                "cds-reset",
-                value10,
-                bare ? "block resize-none border-0 bg-transparent p-0 shadow-none" : `cds-input font-normal ${runtime2.TEXT_INPUT_PLACEHOLDER_CLASS} enabled:[&:hover:not(:focus):not([data-invalid])]:shadow-field-hover focus-visible:shadow-focus data-[invalid]:focus-visible:shadow-focus-danger ${value4}`,
-                "font-sans text-body text-primary placeholder:text-muted outline-none focus-visible:outline-hidden disabled:opacity-disabled",
-                value5,
-                value8,
-                className
-              )
-            })
-          });
-        }
-      );
-      TextArea.displayName = "TextArea";
-    });
     initializeUiInputs3 = (0, runtime2.initializeOnce)(() => {
       (0, runtime2.initializeClassNames)();
       (0, runtime2.initializeCdsRoot)();
@@ -91454,17 +91228,17 @@ function installUiInputs(runtime2) {
     };
     initializeUiInputs5 = (0, runtime2.initializeOnce)(() => {
       leadingIconInsetClasses = {
-        glyph: "ml-[6px] compact:ml-[6px] comfortable:ml-[4px]",
-        text: "ml-[4px] compact:ml-[4px] comfortable:ml-[2px]"
+        glyph: "ms-[6px] compact:ms-[6px] comfortable:ms-[4px]",
+        text: "ms-[4px] compact:ms-[4px] comfortable:ms-[2px]"
       };
       leadingIconOutsetClasses = {
-        glyph: "-ml-[6px] compact:-ml-[6px] comfortable:-ml-[4px]",
-        text: "-ml-[4px] compact:-ml-[4px] comfortable:-ml-[2px]"
+        glyph: "-ms-[6px] compact:-ms-[6px] comfortable:-ms-[4px]",
+        text: "-ms-[4px] compact:-ms-[4px] comfortable:-ms-[2px]"
       };
       SPLIT_BUTTON_LABEL_CLASS = leadingIconInsetClasses.glyph;
       trailingIconOutsetClasses = {
-        glyph: "-mr-[4px]",
-        text: "-mr-[2px] compact:-mr-[2px] comfortable:-mr-[4px]"
+        glyph: "-me-[4px]",
+        text: "-me-[2px] compact:-me-[2px] comfortable:-me-[4px]"
       };
       SPLIT_BUTTON_ICON_CLASS = trailingIconOutsetClasses.glyph;
       leadingIconSpacingClasses = {
@@ -91697,6 +91471,19 @@ function installUiDialog(runtime2) {
   var dialogPressTargets;
   var isDialogActivationKey;
   var TALL_WINDOW_QUERY;
+  var DIALOG_PANELS_PAD_CLASS;
+  var dialogPanelsBodyClasses;
+  var dialogPanelsScrollBodyClasses;
+  var dialogBandClasses;
+  var dialogStickyBandClasses;
+  var dialogAlertBandClasses;
+  var dialogBandTitleClasses;
+  var dialogAlertBandTitleClasses;
+  var dialogBandSlotClasses;
+  var dialogBandDescriptionClasses;
+  var dialogAlertBandDescriptionClasses;
+  var dialogAfterBandDescriptionClasses;
+  var dialogPanelsContext;
   var dialogBackdropBaseClasses;
   var DialogTrigger3;
   var DIALOG_AUTOFILL_WAIT_MS;
@@ -91904,6 +91691,38 @@ function installUiDialog(runtime2) {
     children
   }) {
     let value = reactI5.useContext(confirmationDialogContext);
+    if (reactI5.useContext(dialogPanelsContext)) {
+      return jsxD5.jsxs(jsxD5.Fragment, {
+        children: [
+          jsxD5.jsxs("div", {
+            "data-cds-part": "band",
+            "data-cds-alert": value ? "" : void 0,
+            className: (0, runtime2.cn)(
+              value ? dialogAlertBandClasses : dialogStickyBandClasses,
+              className
+            ),
+            children: [
+              jsxD5.jsx(DialogTitle3, {
+                className: value ? dialogAlertBandTitleClasses : dialogBandTitleClasses,
+                children
+              }),
+              actions && jsxD5.jsx("div", {
+                className: dialogBandSlotClasses,
+                children: actions
+              }),
+              showClose && jsxD5.jsx(DialogCloseButton, {
+                "aria-label": closeLabel,
+                className: dialogBandSlotClasses
+              })
+            ]
+          }),
+          description && jsxD5.jsx(runtime2.baseAlertDialog.Description, {
+            className: value ? `${dialogAlertBandDescriptionClasses} mb-pad-md` : `${dialogBandDescriptionClasses} mb-pad-xl`,
+            children: description
+          })
+        ]
+      });
+    }
     return jsxD5.jsxs("div", {
       className: (0, runtime2.cn)("mb-pad-md flex items-start gap-2", className),
       children: [
@@ -92228,7 +92047,7 @@ function installUiDialog(runtime2) {
       [value5, onOpenChange, open4]
     ), value13 = (0, runtime2.useDefaultOverlayLayer)("modal");
     useDialogStyleDebug(portalClassName);
-    let ref7 = reactI5.useRef(null), value14 = jsxD5.jsx(runtime2.Button, {
+    let panels = (0, runtime2.useFeatureFlagPart)("panels"), ref7 = reactI5.useRef(null), value14 = jsxD5.jsx(runtime2.Button, {
       ref: ref2,
       variant: confirmVariant,
       busy: value5,
@@ -92266,6 +92085,7 @@ function installUiDialog(runtime2) {
                 jsxD5.jsx(DesktopWindowDragStrip, {}),
                 jsxD5.jsx(ConfirmationDialogPopupInner, {
                   "data-cds": "ConfirmationDialog",
+                  "data-cds-fizzy": panels ? "" : void 0,
                   ref: value8,
                   onKeyDownCapture: callback3,
                   onPointerDownCapture: callback3,
@@ -92278,12 +92098,21 @@ function installUiDialog(runtime2) {
                     dialogPopupTransitionClasses,
                     nestedDialogBlurClasses,
                     dialogSizeClasses[size4],
+                    panels && DIALOG_PANELS_PAD_CLASS,
                     className
                   ),
                   children: jsxD5.jsxs("div", {
-                    className: dialogPopupPositionClasses,
+                    className: panels ? dialogPanelsBodyClasses : dialogPopupPositionClasses,
                     children: [
-                      jsxD5.jsx(runtime2.baseDialog.Title, {
+                      panels ? jsxD5.jsx("div", {
+                        "data-cds-part": "band",
+                        "data-cds-alert": "",
+                        className: dialogAlertBandClasses,
+                        children: jsxD5.jsx(runtime2.baseDialog.Title, {
+                          className: `${dialogAlertBandTitleClasses} break-words text-primary`,
+                          children: title
+                        })
+                      }) : jsxD5.jsx(runtime2.baseDialog.Title, {
                         className: (0, runtime2.clsx)(
                           dialogDescriptionSmallSpacing,
                           dialogTitleClasses,
@@ -92292,10 +92121,13 @@ function installUiDialog(runtime2) {
                         children: title
                       }),
                       description && jsxD5.jsx(runtime2.baseDialog.Description, {
-                        className: dialogDescriptionClasses,
+                        className: panels ? dialogAlertBandDescriptionClasses : dialogDescriptionClasses,
                         children: description
                       }),
-                      children,
+                      jsxD5.jsx(dialogPanelsContext.Provider, {
+                        value: panels,
+                        children
+                      }),
                       jsxD5.jsxs(DialogFooter, {
                         children: [
                           jsxD5.jsx(runtime2.baseDialog.Close, {
@@ -93174,10 +93006,16 @@ function installUiDialog(runtime2) {
   return () => {
     DIALOG_MAX_HEIGHT_CLASS = "max-h-[calc(100dvh_-_max(2rem,2*var(--desktop-titlebar-inset,0px))_-_2*max(env(safe-area-inset-top,0px),env(safe-area-inset-bottom,0px)))]";
     dialogPopupPositionClasses = "isolate flex min-h-0 flex-1 flex-col overflow-y-auto scroll-fade-y rounded-[inherit] p-xl break-words";
+    DIALOG_PANELS_PAD_CLASS = "[--cds-pad-xl:var(--cds-pad-lg)]";
     dialogPopupTransitionClasses = "transition-[opacity,scale,filter] duration-base ease-out motion-reduce:transition-none data-[starting-style]:opacity-0 data-[starting-style]:scale-[0.98] starting:opacity-0 starting:scale-[0.98] motion-reduce:data-[starting-style]:scale-100 data-[ending-style]:opacity-0 data-[ending-style]:scale-[0.98]";
     dialogBackdropBaseClasses = "fixed inset-0 bg-backdrop transition-opacity duration-base ease-out motion-reduce:transition-none data-[starting-style]:opacity-0 data-[ending-style]:opacity-0 has-[~[data-nested]]:bg-transparent has-[~[data-nested]]:backdrop-blur-none";
     dialogBackdropClasses = `draggable-none ${dialogBackdropBaseClasses}`;
     TALL_WINDOW_QUERY = "(min-height: 30rem)";
+    dialogBandClasses = "-mx-pad-xl first:-mt-pad-xl mb-1 flex shrink-0 items-center gap-1 min-h-[calc(var(--cds-h-control)_+_2_*_var(--cds-toolbar-pad-block))] ps-xl pe-[var(--cds-toolbar-pad-block)] py-[var(--cds-toolbar-pad-block)]";
+    dialogBandTitleClasses = "pointer-events-auto min-w-0 flex-1 last:me-[calc(var(--cds-pad-xl)_-_var(--cds-toolbar-pad-block))] text-heading font-semibold font-header";
+    dialogBandSlotClasses = "pointer-events-auto self-start";
+    dialogBandDescriptionClasses = "text-body font-normal text-secondary break-words";
+    dialogAfterBandDescriptionClasses = "[[data-cds-part=band]+&]:mt-0 [[data-cds-part=band][data-cds-alert]+&]:-mt-[calc(var(--cds-toolbar-pad-block)_+_(var(--cds-h-control)_-_var(--cds-leading-heading))_/_2)]";
     isDialogActivationKey = (event) => {
       if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229 || event.key !== "Enter" && event.key !== " ") {
         return false;
@@ -93209,12 +93047,16 @@ function installUiDialog(runtime2) {
       (0, runtime2.initializeLayers)();
       (0, runtime2.initializeOverlaySelector)();
       (0, runtime2.initializeCloseOnActivityHide)();
+      (0, runtime2.initializeOutsidePressWrappers)();
       (0, runtime2.initializeMergedRefs)();
       (0, runtime2.initializePortalRoot)();
       (0, runtime2.initializeUiDisclosure9)();
       (0, runtime2.initializeSurfaces)();
+      (0, runtime2.initializeStablePopupPlacement)();
       (0, runtime2.initializeOverlayActions)();
+      (0, runtime2.initializeOverlayOwners)();
       (0, runtime2.initializeOverlayFocus)();
+      (0, runtime2.initializeSheetTreeAnnouncements)();
       (0, runtime2.initializeUiInputs10)();
       (0, runtime2.initializeNpmDependency)();
       (0, runtime2.initializeNpmDependency)();
@@ -93229,6 +93071,13 @@ function installUiDialog(runtime2) {
       );
       DIALOG_POPUP_CLASS = `${(0, runtime2.getSurfaceClasses)("popover")} shadow-panel-lg`;
       dialogFullHeightClasses = `fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col w-[calc(100vw_-_2rem_-_2*max(env(safe-area-inset-left,0px),env(safe-area-inset-right,0px)))] ${DIALOG_MAX_HEIGHT_CLASS} ${DIALOG_POPUP_CLASS} cds-reset text-body font-normal text-primary outline-none focus-visible:outline-hidden`;
+      dialogPanelsBodyClasses = `${dialogPopupPositionClasses} m-[var(--cds-ring-inner)]`;
+      dialogPanelsScrollBodyClasses = `${dialogPanelsBodyClasses} [:where([data-cds-tall-window])_&]:has-[[data-cds-part=band]]:scroll-fade-hide-top [scroll-timeline:--cds-dialog-scroll_block] [:where([data-cds-tall-window])_&]:scroll-pt-[calc(var(--cds-h-control)_+_3_*_var(--cds-toolbar-pad-block))]`;
+      dialogStickyBandClasses = `${dialogBandClasses} sticky [:where([data-cds-tall-window])_&]:top-[calc(-1_*_var(--cds-pad-xl))] z-[calc(var(--cds-layer-base,0)_+_1000)] bg-[var(--cds-scroll-fade-strip-color,var(--cds-page-bg))] after:pointer-events-none after:absolute after:inset-x-0 after:bottom-0 [:where([data-cds-tall-window])_&]:after:border-b-[length:var(--cds-toolbar-line)] after:border-[color:var(--cds-border-line,var(--cds-border))] supports-[animation-timeline:scroll()]:after:opacity-[calc(var(--cds-sticky-edge-start)_*_var(--cds-sticky-edge-active))] supports-[animation-timeline:scroll()]:after:[animation-name:cds-sticky-edge-start,cds-sticky-edge-active] after:[animation-timing-function:linear] after:[animation-fill-mode:both,none] after:[animation-duration:auto] after:[animation-timeline:--cds-dialog-scroll] after:[animation-range:0px_var(--spacing),0px_101%]`;
+      dialogAlertBandClasses = `${dialogBandClasses} pointer-events-none`;
+      dialogAlertBandTitleClasses = `${dialogBandTitleClasses} py-[calc((var(--cds-h-control)_-_1lh)_/_2)]`;
+      dialogAlertBandDescriptionClasses = `${dialogBandDescriptionClasses} -mt-[calc(var(--cds-toolbar-pad-block)_+_(var(--cds-h-control)_-_var(--cds-leading-heading))_/_2)]`;
+      dialogPanelsContext = reactI5.createContext(false);
       desktopWindowDragStripStyle = {
         height: "var(--desktop-titlebar-inset, 0px)",
         WebkitAppRegion: "drag"
@@ -93334,7 +93183,7 @@ function installUiDialog(runtime2) {
           children,
           ...props
         }, options) => {
-          let value = unstyled ? "" : `${dialogFullHeightClasses} ${dialogPopupTransitionClasses} ${nestedDialogBlurClasses} ${dialogSizeClasses[size4]} ${fullHeight ? "h-dvh" : ""}`, value2 = (0, runtime2.useDefaultOverlayLayer)("modal");
+          let panels = (0, runtime2.useFeatureFlagPart)("panels") && !unstyled, confirm = reactI5.useContext(confirmationDialogContext), value = unstyled ? "" : `${dialogFullHeightClasses} ${dialogPopupTransitionClasses} ${nestedDialogBlurClasses} ${dialogSizeClasses[size4]} ${fullHeight ? "h-dvh" : ""} ${panels ? DIALOG_PANELS_PAD_CLASS : ""}`, value2 = (0, runtime2.useDefaultOverlayLayer)("modal");
           useDialogStyleDebug(portalClassName);
           let value3 = reactI5.useContext(dialogStateContext), value4 = reactI5.useContext(dialogInitialFocusContext), value5 = value3 === void 0 || value3 === true, nonModal = value3 === false;
           return jsxD5.jsx(runtime2.baseAlertDialog.Portal, {
@@ -93371,6 +93220,7 @@ function installUiDialog(runtime2) {
                   !nonModal && jsxD5.jsx(DesktopWindowDragStrip, {}),
                   jsxD5.jsx(DialogPopupInner, {
                     "data-cds": "Dialog",
+                    "data-cds-fizzy": panels ? "" : void 0,
                     ref: options,
                     ...props,
                     fitVisualViewport: !unstyled,
@@ -93380,16 +93230,22 @@ function installUiDialog(runtime2) {
                       value,
                       className
                     ),
-                    children: jsxD5.jsx(
-                      runtime2.outsidePressWrappersContext.Provider,
-                      {
-                        value: value4,
-                        children: unstyled ? children : jsxD5.jsx("div", {
-                          className: dialogPopupPositionClasses,
-                          children
-                        })
-                      }
-                    )
+                    children: jsxD5.jsx(dialogPanelsContext.Provider, {
+                      value: panels,
+                      children: jsxD5.jsx(
+                        runtime2.outsidePressWrappersContext.Provider,
+                        {
+                          value: value4,
+                          children: unstyled ? children : panels ? jsxD5.jsx("div", {
+                            className: confirm ? dialogPanelsBodyClasses : dialogPanelsScrollBodyClasses,
+                            children
+                          }) : jsxD5.jsx("div", {
+                            className: dialogPopupPositionClasses,
+                            children
+                          })
+                        }
+                      )
+                    })
                   })
                 ]
               })
@@ -93416,11 +93272,18 @@ function installUiDialog(runtime2) {
       DialogCloseButton.displayName = "Dialog.CloseButton";
       DialogHeader.displayName = "Dialog.Header";
       DialogDescription3 = reactI5.forwardRef(
-        ({ className, ...props }, options) => jsxD5.jsx(runtime2.baseAlertDialog.Description, {
-          ref: options,
-          ...props,
-          className: (0, runtime2.cn)(dialogDescriptionClasses, className)
-        })
+        ({ className, ...props }, options) => {
+          let panels = reactI5.useContext(dialogPanelsContext);
+          return jsxD5.jsx(runtime2.baseAlertDialog.Description, {
+            ref: options,
+            ...props,
+            className: (0, runtime2.cn)(
+              dialogDescriptionClasses,
+              panels && dialogAfterBandDescriptionClasses,
+              className
+            )
+          });
+        }
       );
       DialogDescription3.displayName = "Dialog.Description";
       dialogFooterAlignmentClasses = {
@@ -100965,6 +100828,7 @@ function installUiInputs2(runtime2) {
       (0, runtime2.initializeUiMenu9)();
       (0, runtime2.initializeUiMenu11)();
       (0, runtime2.initializeUiMenu12)();
+      initializeUiInputs22();
       (0, runtime2.initializeUiInputs3)();
       (0, runtime2.initializeUiInputs6)();
       (0, runtime2.initializeUiInputs9)();
@@ -102524,7 +102388,7 @@ function installUiKitFieldUndo(runtime2) {
       to: element ?? null,
       start,
       end,
-      way: way === "forward" || way === "backward" || way === "none" ? way : null
+      way
     };
   }
   function restoreFieldSelection({
@@ -103710,7 +103574,8 @@ function installUiColorPicker(runtime2) {
       [345, "pink"],
       [Infinity, "red"]
     ];
-    COLOR_ALPHA_CHECKERBOARD = "repeating-conic-gradient(#ccc 0% 25%, #fff 0% 50%) 0 / 8px 8px";
+    const COLOR_ALPHA_CHECKER_PATTERN = "repeating-conic-gradient(#ccc 0% 25%, #fff 0% 50%)";
+    COLOR_ALPHA_CHECKERBOARD = COLOR_ALPHA_CHECKER_PATTERN + " 0 / 8px 8px";
     COLOR_SWATCH_BUTTON_CLASS = "flex h-8 w-full min-w-0 shrink-0 items-center gap-2 rounded-md px-2 text-left outline-none pointer-coarse:h-10";
     COLOR_PICKER_POPOVER_HEIGHT = 440;
     COLOR_PICKER_POPOVER_CLASS = "w-64 p-4";
@@ -131791,7 +131656,7 @@ function installCompilerHtml(runtime2) {
         if (artifactAttr !== void 0 && artifact === void 0) {
           this.warnAt(
             input,
-            'data-artifact="' + (0, runtime2.compactDiagnosticValue)(artifactAttr) + `" dropped: it takes one artifact's address (https://claude.ai/artifact/\u2026), on a <div> that holds something, is not a grid and has no position:absolute children`
+            'data-artifact="' + (0, runtime2.compactDiagnosticValue)(artifactAttr) + `" dropped: it takes one Claude artifact's address (https://claude.ai/artifact/\u2026), on a <div> that holds something, is not a grid and has no position:absolute children`
           );
         }
         let value15, hasPositiveGrow = (place) => typeof place === "object" && place !== null && "grow" in place && typeof place.grow === "number" && place.grow > 0, isEmptyFiller = (node) => node.kind === "spacer" ? !hasPositiveGrow(node.place) : node.kind === "stack" && node.style === void 0 && Array.isArray(node.children) && node.children.every(isEmptyFiller);
@@ -143198,7 +143063,22 @@ function installEmbedsRuntimeBridge(runtime2) {
             return this[options];
           };
         }
-      }, value9 = callback(KeyboardEvent.prototype, "key"), value10 = callback(KeyboardEvent.prototype, "repeat"), value11 = callback(KeyboardEvent.prototype, "isComposing"), value12 = callback(Event.prototype, "defaultPrevented"), value13 = callback(MouseEvent.prototype, "ctrlKey"), value14 = callback(MouseEvent.prototype, "metaKey"), value15 = callback(MouseEvent.prototype, "clientX"), value16 = callback(MouseEvent.prototype, "clientY"), value17 = callback(WheelEvent.prototype, "deltaX"), value18 = callback(WheelEvent.prototype, "deltaY"), value19 = callback(WheelEvent.prototype, "deltaMode"), value20 = callback(Element.prototype, "shadowRoot"), value21 = callback(
+      }, value9 = callback(KeyboardEvent.prototype, "key"), value10 = callback(KeyboardEvent.prototype, "repeat"), value11 = callback(KeyboardEvent.prototype, "isComposing"), keyCtrlKey = callback(KeyboardEvent.prototype, "ctrlKey"), keyMetaKey = callback(KeyboardEvent.prototype, "metaKey"), keyAltKey = callback(KeyboardEvent.prototype, "altKey"), value12 = callback(Event.prototype, "defaultPrevented"), value22 = callback(Event.prototype, "timeStamp"), eventTarget = callback(Event.prototype, "target"), eventCurrentTarget = callback(Event.prototype, "currentTarget"), clockNow = performance.now.bind(performance), eventTime = function(input) {
+        return apply(value22, input, []);
+      };
+      value6({
+        kind: "clock",
+        now: clockNow()
+      });
+      var messageData = callback(MessageEvent.prototype, "data");
+      value5.port1.onmessage = function(input) {
+        value6({
+          kind: "echo",
+          of: apply(messageData, input, []),
+          now: clockNow()
+        });
+      };
+      var value13 = callback(MouseEvent.prototype, "ctrlKey"), value14 = callback(MouseEvent.prototype, "metaKey"), value15 = callback(MouseEvent.prototype, "clientX"), value16 = callback(MouseEvent.prototype, "clientY"), value17 = callback(WheelEvent.prototype, "deltaX"), value18 = callback(WheelEvent.prototype, "deltaY"), value19 = callback(WheelEvent.prototype, "deltaMode"), value20 = callback(Element.prototype, "shadowRoot"), value21 = callback(
         typeof ShadowRoot === "undefined" ? {} : ShadowRoot.prototype,
         "activeElement"
       ), callback2 = function() {
@@ -143257,21 +143137,73 @@ function installEmbedsRuntimeBridge(runtime2) {
           if (apply(value12, input, []) === true) {
             value6({
               kind: "press",
-              cancelled: true
+              cancelled: true,
+              t: eventTime(input),
+              now: clockNow()
             });
           }
         }, 0);
-      };
+      }, pointerPressed = false, pendingKeys = 0;
       window.addEventListener(
         "pointerdown",
         function(input) {
           if (!input.isTrusted) {
             return;
           }
+          pointerPressed = true;
           value6({
-            kind: "press"
+            kind: "press",
+            t: eventTime(input),
+            now: clockNow()
           });
           callback5(input);
+        },
+        true
+      );
+      var releasePointer = function(input) {
+        if (input.isTrusted) {
+          value8(function() {
+            pointerPressed = false;
+          }, 0);
+        }
+      };
+      window.addEventListener("pointerup", releasePointer, true);
+      window.addEventListener("pointercancel", releasePointer, true);
+      window.addEventListener(
+        "click",
+        function(input) {
+          if (input.isTrusted && !pointerPressed && pendingKeys === 0) {
+            value6({
+              kind: "press",
+              t: eventTime(input),
+              now: clockNow()
+            });
+          }
+        },
+        true
+      );
+      var countKey = function(input) {
+        if (!input.isTrusted) {
+          return;
+        }
+        pendingKeys++;
+        value8(function() {
+          pendingKeys--;
+        }, 0);
+      };
+      window.addEventListener("keydown", countKey, true);
+      window.addEventListener("keypress", countKey, true);
+      window.addEventListener("keyup", countKey, true);
+      window.addEventListener(
+        "blur",
+        function(input) {
+          if (input.isTrusted && apply(eventTarget, input, []) === apply(eventCurrentTarget, input, [])) {
+            value6({
+              kind: "blur",
+              t: eventTime(input),
+              now: clockNow()
+            });
+          }
         },
         true
       );
@@ -143294,7 +143226,9 @@ function installEmbedsRuntimeBridge(runtime2) {
           if (value26 === "Escape") {
             value6({
               kind: "key",
-              key: "Escape"
+              key: "Escape",
+              t: eventTime(input),
+              now: clockNow()
             });
           } else if ((value26 === "Delete" || value26 === "Backspace") && !callback2()) {
             value8(function() {
@@ -143305,11 +143239,17 @@ function installEmbedsRuntimeBridge(runtime2) {
                 });
               }
             }, 0);
+          } else if ((value26 === " " || value26 === "Enter" || value26 === "ArrowUp" || value26 === "ArrowDown" || value26 === "ArrowLeft" || value26 === "ArrowRight" || value26 === "Home" || value26 === "End" || value26 === "PageUp" || value26 === "PageDown") && apply(keyCtrlKey, input, []) !== true && apply(keyMetaKey, input, []) !== true && apply(keyAltKey, input, []) !== true) {
+            value6({
+              kind: "keypress",
+              t: eventTime(input),
+              now: clockNow()
+            });
           }
         },
         true
       );
-      var value22 = callback(Event.prototype, "timeStamp"), index22 = 0, value23 = -1 / 0, flag = false, index32 = 0;
+      var index22 = 0, value23 = -1 / 0, flag = false, index32 = 0;
       window.addEventListener(
         "wheel",
         function(event) {
@@ -144836,15 +144776,36 @@ function installEmbedsFrameHost(runtime2) {
       renderTimeoutMs: options.renderTimeoutMs,
       onNavigating: value2,
       input: options.interactive,
+      onReplaced: () => {
+        if (flag || flag3) {
+          return;
+        }
+        if (!options.onRelocated) {
+          return value2();
+        }
+        flag3 = true;
+        options.onRelocated();
+      },
       ...options.onSave ? {
         onSave: options.onSave
       } : {}
     });
+    let unmountKeyboard;
+    try {
+      unmountKeyboard = options.interactive?.keyboard.mount(
+        options.interactive.id,
+        value
+      );
+    } catch (error) {
+      value5.dispose();
+      throw error;
+    }
     return {
       iframe: value,
       host: value5,
       refused: flag2,
       dispose: () => {
+        unmountKeyboard?.();
         value5.dispose();
         value.remove();
       }
@@ -144909,6 +144870,7 @@ function installEmbedsFrameHost(runtime2) {
       navigated = false;
       onNavigating;
       input;
+      onReplaced;
       onSave;
       waitingState = null;
       sent = 0;
@@ -144918,6 +144880,14 @@ function installEmbedsFrameHost(runtime2) {
       }
       port = null;
       portFrom = null;
+      /** True once a second document claimed the input port. */
+      replaced = false;
+      /** Upper bound on (host clock minus embed clock), from message send times. */
+      atMost = 1 / 0;
+      /** Lower bound on (host clock minus embed clock), from answered pings. */
+      atLeast = performance.now();
+      /** Host times of pings still waiting for an echo. */
+      pings = /* @__PURE__ */ new Set();
       wheel = null;
       lastUpdate = null;
       constructor(input) {
@@ -144925,6 +144895,7 @@ function installEmbedsFrameHost(runtime2) {
         this.hostWindow = input.hostWindow ?? window;
         this.onNavigating = input.onNavigating;
         this.input = input.input;
+        this.onReplaced = input.onReplaced;
         this.onSave = input.onSave;
         this.renderTimeoutMs = input.renderTimeoutMs ?? 1500;
         this.onMessage = (input2) => this.receive(input2);
@@ -144933,6 +144904,14 @@ function installEmbedsFrameHost(runtime2) {
       get ready() {
         return this._ready;
       }
+      ping() {
+        if (this.port === null) {
+          return;
+        }
+        let value = performance.now();
+        this.pings.add(value);
+        this.port.postMessage(value);
+      }
       closePort() {
         if (this.port === null) {
           return;
@@ -144940,6 +144919,7 @@ function installEmbedsFrameHost(runtime2) {
         this.port.onmessage = null;
         this.port.close();
         this.port = null;
+        this.pings.clear();
       }
       receiveInput(input) {
         if (this.disposed || this.navigated || this.input === void 0) {
@@ -144948,10 +144928,36 @@ function installEmbedsFrameHost(runtime2) {
         if (typeof input !== "object" || input === null) {
           return;
         }
-        let value = input;
+        let value = input, { keyboard: keyboard2, id } = this.input, [at, sentAt, now] = [
+          Number(value.t),
+          Number(value.now),
+          performance.now()
+        ];
+        if (Number.isFinite(sentAt)) {
+          this.atMost = Math.min(this.atMost, now - sentAt);
+        }
+        let hostAt = at + Math.min(this.atMost, this.atLeast), placedAt = sentAt >= at && hostAt <= now ? hostAt : NaN;
         if (value.kind === "press") {
-          this.input.onPress(value.cancelled === true);
+          if (keyboard2.reported(id, placedAt, now - placedAt)) {
+            this.input.onPress(value.cancelled === true);
+          }
+          this.ping();
+        } else if (value.kind === "echo") {
+          if (this.pings.delete(Number(value.of)) && Number.isFinite(sentAt)) {
+            this.atLeast = Math.max(this.atLeast, Number(value.of) - sentAt);
+          }
+        } else if (value.kind === "keypress") {
+          if (keyboard2.keyed(id, placedAt, now - placedAt)) {
+            this.input.onKeyPress?.();
+          }
+          this.ping();
+        } else if (value.kind === "blur") {
+          keyboard2.blurred(id);
+          this.input.onBlur?.(placedAt);
         } else if (value.kind === "key" && (value.key === "Delete" || value.key === "Escape")) {
+          if (value.key === "Escape") {
+            keyboard2.pressedElsewhere(placedAt);
+          }
           this.input.onKey(value.key);
         } else if (value.kind === "wheel") {
           let value2 = value.pinch === true;
@@ -145116,11 +145122,19 @@ function installEmbedsFrameHost(runtime2) {
           return;
         }
         if (data.type === "appifact-embed:port") {
-          let value = dataset.ports?.[0], value2 = this.port === null ? !this._ready : dataset.source !== this.portFrom;
-          if (this.input === void 0 || value === void 0 || !value2) {
+          let value = dataset.ports?.[0];
+          if (this.input === void 0 || value === void 0) {
             return;
           }
-          this.closePort();
+          if (this.port !== null && dataset.source !== this.portFrom) {
+            this.closePort();
+            this.replaced = true;
+            this.onReplaced?.();
+            return;
+          }
+          if (this.port !== null || this._ready || this.replaced) {
+            return;
+          }
           this.port = value;
           this.portFrom = dataset.source;
           value.onmessage = (input) => this.receiveInput(input.data);
@@ -145133,6 +145147,7 @@ function installEmbedsFrameHost(runtime2) {
             if (this.readyFrom === null) {
               this.readyFrom = dataset.source;
             }
+            this.ping();
             if (this.lastUpdate !== null) {
               this.post({
                 type: "appifact-embed:update",
@@ -145240,7 +145255,7 @@ function installEmbedsReactFrame(runtime2) {
       ref4.current = state;
       ref6.current?.state(state);
     }, [state]);
-    let value3 = interactive !== void 0, value4 = onSave !== void 0, ref7 = EmbedFrameReact.useRef(title);
+    let value3 = interactive !== void 0, keyboard2 = interactive?.keyboard, id = interactive?.id, value4 = onSave !== void 0, ref7 = EmbedFrameReact.useRef(title);
     ref7.current = title;
     let ref8 = EmbedFrameReact.useRef(null);
     EmbedFrameReact.useEffect(() => {
@@ -145265,11 +145280,15 @@ function installEmbedsReactFrame(runtime2) {
             ref3.current.onSave?.(input);
           }
         } : {},
-        ...value3 ? {
+        ...keyboard2 !== void 0 && id !== void 0 ? {
           interactive: {
+            keyboard: keyboard2,
+            id,
             onPress: (input) => ref3.current.interactive?.onPress(input),
             onKey: (input) => ref3.current.interactive?.onKey(input),
-            onWheel: (input) => ref3.current.interactive?.onWheel(input)
+            onWheel: (input) => ref3.current.interactive?.onWheel(input),
+            onKeyPress: () => ref3.current.interactive?.onKeyPress?.(),
+            onBlur: (input) => ref3.current.interactive?.onBlur?.(input)
           }
         } : {}
       });
@@ -145286,7 +145305,7 @@ function installEmbedsReactFrame(runtime2) {
         ref6.current = null;
         value5.dispose();
       };
-    }, [value, allowScripts, markerAttr, value3, value4]);
+    }, [value, allowScripts, markerAttr, keyboard2, id, value4]);
     EmbedFrameReact.useEffect(() => {
       if (ref8.current !== null) {
         ref8.current.title = title;
@@ -160109,6 +160128,8 @@ function installExportPdfCapture(runtime2) {
   var fontFetchFallbackWarning;
   var fontInliningBudgetWarning;
   var localFontSourcePattern;
+  var runtimeFontPathSource = "_runtime/[A-Za-z0-9_-]{1,64}\\.[0-9a-f]{16}\\.woff2";
+  var frameFontFallbackPattern;
   var fetchLocalFontDataUrl;
   var uncapturedEmbedWarning;
   var textRunBaselineDescentFactor;
@@ -160400,15 +160421,15 @@ function installExportPdfCapture(runtime2) {
     );
   }
   async function inlineLocalFonts(css, warnings, fetchDataUrl = fetchLocalFontDataUrl, options = {}, ignoredFamilies = []) {
-    let urls = /* @__PURE__ */ new Set();
-    for (let value of css.matchAll(localFontSourcePattern))
+    let source = css.replace(frameFontFallbackPattern, ""), urls = /* @__PURE__ */ new Set();
+    for (let value of source.matchAll(localFontSourcePattern))
       urls.add(value[3]);
     if (urls.size === 0) {
-      return css;
+      return source;
     }
     let ignored = new Set(
       ignoredFamilies.map((input) => input.toLowerCase())
-    ), faces = css.match(/@font-face\s*\{[^}]*\}/g) ?? [], callback = (input) => /font-family\s*:\s*["']?([^"';}]+)/.exec(
+    ), faces = source.match(/@font-face\s*\{[^}]*\}/g) ?? [], callback = (input) => /font-family\s*:\s*["']?([^"';}]+)/.exec(
       faces.find((input2) => input2.includes(input)) ?? ""
     )?.[1]?.trim().toLowerCase(), entries = /* @__PURE__ */ new Map(), flag = false;
     await Promise.all(
@@ -160428,7 +160449,7 @@ function installExportPdfCapture(runtime2) {
       );
       options.missing = options.missingFileFetch = true;
     }
-    return css.replace(
+    return source.replace(
       localFontSourcePattern,
       (input, options2, context, value) => {
         let entry = entries.get(value);
@@ -161805,6 +161826,10 @@ function installExportPdfCapture(runtime2) {
       ];
       localFontSourcePattern = new RegExp(
         `url\\((["']?)([^"')\\s]*?(_blob/[0-9a-f]{32}|` + runtime2.designSystemFontPathSource + "))\\1\\)",
+        "g"
+      );
+      frameFontFallbackPattern = new RegExp(
+        `url\\((["']?)https://fonts\\.frame\\.claudeusercontent\\.com/` + runtimeFontPathSource + "\\1\\)(?:\\s*format\\([^)]*\\))?\\s*,\\s*",
         "g"
       );
       pdfMaximumTextCoordinate = 4 * pdfMaximumTextRunFontSize;
@@ -180607,7 +180632,6 @@ function installUiToasts(runtime2) {
 function installUiToolbarPopover(runtime2) {
   var reactv4;
   var jsxeQ;
-  var jsx_T;
   var TOOLBAR_SPLIT_TRIGGER_CLASS;
   var TOOLBAR_SPLIT_TRIGGER_FIZZY_CLASS;
   function ToolbarPopover(props) {
@@ -180847,57 +180871,6 @@ function installUiToolbarPopover(runtime2) {
       ]
     });
   }
-  function ToolbarMenuItem({
-    glyph,
-    label,
-    shortcut,
-    pressed: pressed3,
-    checked: checked5,
-    "aria-describedby": ariaDescribedby,
-    "aria-keyshortcuts": ariaKeyshortcuts,
-    ...remainingProps
-  }) {
-    let value = checked5 ?? pressed3, value2 = (0, runtime2.useButtonAccessibility)({
-      disabled: remainingProps.disabled === true,
-      name: label,
-      tip: shortcut !== void 0 ? remainingProps.title ?? "" : "",
-      shortcut,
-      describedBy: ariaDescribedby
-    });
-    return jsx_T.jsxs("button", {
-      type: "button",
-      ...checked5 === void 0 ? {
-        "aria-pressed": pressed3
-      } : {
-        role: "radio",
-        "aria-checked": checked5
-      },
-      ...remainingProps,
-      "aria-describedby": value2.describedBy,
-      "aria-keyshortcuts": ariaKeyshortcuts ?? value2.keyShortcuts,
-      className: (0, runtime2.joinClassNames)(
-        "flex h-7 w-full cursor-default select-none items-center gap-2 rounded-md px-2 text-left text-xs text-fg",
-        "enabled:hover:bg-wash-1 enabled:active:bg-wash-2 disabled:cursor-not-allowed disabled:opacity-50 pointer-coarse:h-10 pointer-coarse:text-sm",
-        value && "bg-wash-1"
-      ),
-      children: [
-        jsx_T.jsx("span", {
-          className: "flex h-4 w-4 shrink-0 items-center justify-center text-fg-secondary pointer-coarse:h-5 pointer-coarse:w-5",
-          children: glyph
-        }),
-        jsx_T.jsx("span", {
-          className: "min-w-0 flex-1 truncate",
-          children: label
-        }),
-        shortcut !== void 0 ? jsx_T.jsx("span", {
-          "aria-hidden": "true",
-          className: "ml-3 shrink-0 text-fg-muted pointer-coarse:hidden",
-          children: (0, runtime2.shortcutSymbols)(shortcut)
-        }) : null,
-        value2.mirror
-      ]
-    });
-  }
   bindRuntimeValue(
     runtime2,
     "reactv4",
@@ -180931,15 +180904,6 @@ function installUiToolbarPopover(runtime2) {
       TOOLBAR_SPLIT_TRIGGER_FIZZY_CLASS = value;
     }
   );
-  bindRuntimeValue(
-    runtime2,
-    "jsx_T",
-    () => jsx_T,
-    (value) => {
-      jsx_T = value;
-    }
-  );
-  bindRuntimeValue(runtime2, "ToolbarMenuItem", () => ToolbarMenuItem);
   return () => {
     (0, runtime2.initializeUiInputs210)();
     (0, runtime2.initializeFrameFootInset)();
@@ -180971,7 +180935,6 @@ function installUiToolbarPopover(runtime2) {
       '[[data-cds-fizzy-lake~="icons"]_&:not([data-disabled])_button:hover:not([aria-pressed=true])_[data-cds-part=paint]]:[background-image:linear-gradient(var(--cds-fill-button-layer,var(--cds-fill-ghost-hover))_0_0)]',
       '[[data-cds-fizzy-lake~="icons"]_&>[data-cds-segment]:last-child_button[aria-expanded=true]_[data-cds-part=paint]]:[background-image:linear-gradient(var(--cds-fill-button-layer,var(--cds-fill-ghost-hover))_0_0)]'
     ].join(" ");
-    jsx_T = (0, runtime2.toModuleNamespace)((0, runtime2.loadJsxNamespace)(), 1);
   };
 }
 
@@ -183553,6 +183516,9 @@ function installHostClipboardText(runtime2) {
 function installHostRoomPresence(runtime2) {
   var roomApiOwner;
   var roomApiPromise;
+  var ownWhoPresence;
+  var currentWhoPresence;
+  var rememberWhoPresence;
   var EMPTY_ROOM_PEERS;
   var roomPeers;
   var roomPeerSubscribers;
@@ -183614,6 +183580,24 @@ function installHostRoomPresence(runtime2) {
       }
       return "off";
     }
+  }
+  function publishWhoPresence(patch) {
+    let callback = (input) => Object.fromEntries(
+      Object.entries({ ...input, ...patch }).filter(
+        ([, input2]) => input2 !== null
+      )
+    );
+    ownWhoPresence = callback(ownWhoPresence);
+    return reportRoomPresence((input) => {
+      let who = normalizeRoomPeers(input.peers?.()).find(
+        (input2) => input2.sameTab
+      )?.presence.who;
+      return {
+        who: ownWhoPresence = callback(
+          typeof who === "object" && who !== null ? who : ownWhoPresence
+        )
+      };
+    });
   }
   function cachedHostRoom() {
     let slidesHost = globalThis.slidesHost;
@@ -183700,6 +183684,31 @@ function installHostRoomPresence(runtime2) {
   bindRuntimeValue(runtime2, "cachedHostRoom", () => cachedHostRoom);
   bindRuntimeValue(
     runtime2,
+    "ownWhoPresence",
+    () => ownWhoPresence,
+    (value) => {
+      ownWhoPresence = value;
+    }
+  );
+  bindRuntimeValue(runtime2, "publishWhoPresence", () => publishWhoPresence);
+  bindRuntimeValue(
+    runtime2,
+    "currentWhoPresence",
+    () => currentWhoPresence,
+    (value) => {
+      currentWhoPresence = value;
+    }
+  );
+  bindRuntimeValue(
+    runtime2,
+    "rememberWhoPresence",
+    () => rememberWhoPresence,
+    (value) => {
+      rememberWhoPresence = value;
+    }
+  );
+  bindRuntimeValue(
+    runtime2,
     "EMPTY_ROOM_PEERS",
     () => EMPTY_ROOM_PEERS,
     (value) => {
@@ -183769,6 +183778,9 @@ function installHostRoomPresence(runtime2) {
     }
   );
   return () => {
+    ownWhoPresence = {};
+    currentWhoPresence = () => ownWhoPresence;
+    rememberWhoPresence = (input) => void (ownWhoPresence = { ...ownWhoPresence, ...input });
     EMPTY_ROOM_PEERS = Object.freeze([]);
     roomPeers = EMPTY_ROOM_PEERS;
     roomPeerSubscribers = /* @__PURE__ */ new Set();
@@ -185428,6 +185440,7 @@ function installHostArtifactPresence(runtime2) {
   var MAX_PRESENCE_FIELDS;
   var MAX_PRESENCE_OBJECTS;
   var MAX_PRESENCE_LABEL_LENGTH;
+  var MAX_PEER_NAME_LENGTH;
   var MAX_PRESENCE_TEXT_LENGTH;
   var MAX_PRESENCE_ID_LENGTH;
   var PRESENCE_FIELD_PATTERN;
@@ -185462,6 +185475,10 @@ function installHostArtifactPresence(runtime2) {
   }
   function isDisallowedPresenceCodepoint(codepoint) {
     return codepoint >= 55296 && codepoint <= 57343 || (codepoint & 65534) === 65534 || codepoint >= 64976 && codepoint <= 65007 || codepoint >= 65520 && codepoint <= 65528 || codepoint >= 917504 && codepoint <= 921599;
+  }
+  function isDroppedPeerNameCharacter(character) {
+    let value = character.codePointAt(0) ?? 0;
+    return isDisallowedPresenceCodepoint(value) && !(value >= 917760 && value <= 917999) || UNSAFE_PRESENCE_LABEL_CHARACTERS.test(character) && !/[<>"`\\]/.test(character);
   }
   function sanitizePresenceLabel(text, maxLength = MAX_PRESENCE_LABEL_LENGTH) {
     let text2 = "", index4 = 0, flag = false, callback = (input, options) => {
@@ -185735,6 +185752,14 @@ function installHostArtifactPresence(runtime2) {
   );
   bindRuntimeValue(
     runtime2,
+    "MAX_PEER_NAME_LENGTH",
+    () => MAX_PEER_NAME_LENGTH,
+    (value) => {
+      MAX_PEER_NAME_LENGTH = value;
+    }
+  );
+  bindRuntimeValue(
+    runtime2,
     "MAX_PRESENCE_TEXT_LENGTH",
     () => MAX_PRESENCE_TEXT_LENGTH,
     (value) => {
@@ -185819,6 +185844,11 @@ function installHostArtifactPresence(runtime2) {
   );
   bindRuntimeValue(
     runtime2,
+    "isDroppedPeerNameCharacter",
+    () => isDroppedPeerNameCharacter
+  );
+  bindRuntimeValue(
+    runtime2,
     "sanitizePresenceLabel",
     () => sanitizePresenceLabel
   );
@@ -185842,6 +185872,7 @@ function installHostArtifactPresence(runtime2) {
     MAX_PRESENCE_FIELDS = 20;
     MAX_PRESENCE_OBJECTS = 5;
     MAX_PRESENCE_LABEL_LENGTH = 60;
+    MAX_PEER_NAME_LENGTH = 40;
     MAX_PRESENCE_TEXT_LENGTH = 400;
     MAX_PRESENCE_ID_LENGTH = 256;
     PRESENCE_FIELD_PATTERN = /^[A-Za-z_][A-Za-z0-9_-]{0,63}$/;
@@ -186059,13 +186090,22 @@ function installHostUserApi(runtime2) {
 }
 
 function installUiPeerCursors(runtime2) {
+  var PEER_COLORS;
+  var RESERVED_PEER_COLORS;
+  var LEGACY_PEER_COLORS;
+  var rotatePeerColors;
+  var peerNameCache;
+  var knownPeerColor;
+  var peerWho;
+  var peerColorClaims;
+  var peerClaimPrecedes;
+  var sortPeerColorClaims;
   var jsxGY;
   var PEER_CURSOR_IDLE_TIMEOUT_MS;
   var PEER_CURSOR_STALE_MS;
   var PEER_CURSOR_GLIDE_MS;
-  var PEER_CURSOR_COLORS;
+  var PEER_CURSOR_FOCUS_LOOK_MS;
   var PEER_COLOR_PATTERN;
-  var PEER_COLOR_INDEXES;
   var MAX_PEER_CHAT_LENGTH;
   var MAX_PEER_CHAT_DISPLAY_LENGTH;
   var PEER_CHAT_HOLD_MS;
@@ -186074,17 +186114,273 @@ function installUiPeerCursors(runtime2) {
   var PEER_CHAT_CSS_TIMINGS;
   var PeerCursorTag;
   var peerProfileCache;
+  var INTERACTIVE_TARGET_SELECTOR;
+  function normalizePeerName(name) {
+    if (typeof name !== "string") {
+      return "";
+    }
+    let maxLength = runtime2.MAX_PEER_NAME_LENGTH, key = name.slice(0, maxLength * 4), value = peerNameCache.get(key);
+    if (value === void 0) {
+      let characters = Array.from(
+        Array.from(key.replace(/[\p{Cc}\p{Zl}\p{Zp}\s]+/gu, " ")).filter(
+          (input) => !(0, runtime2.isDroppedPeerNameCharacter)(input)
+        ).join("").trim()
+      );
+      value = characters.length > maxLength ? characters.slice(0, maxLength - 1).join("").trimEnd() + "\u2026" : characters.join("");
+      if (runtime2.EMPTY_PRESENCE_LABEL_PATTERN.test(value)) {
+        value = "";
+      }
+      if (peerNameCache.size >= 200) {
+        peerNameCache.clear();
+      }
+      peerNameCache.set(key, value);
+    }
+    return value;
+  }
   function peerColorFromId(id) {
     let index4 = 0;
     for (let index22 = 0; index22 < id.length; index22++)
       index4 = index4 * 31 + id.charCodeAt(index22) >>> 0;
-    return PEER_CURSOR_COLORS[index4 % PEER_CURSOR_COLORS.length] ?? "#788c5d";
+    return rotatePeerColors(
+      PEER_COLORS[index4 % PEER_COLORS.length] ?? "",
+      RESERVED_PEER_COLORS
+    )[0] ?? "#785ee8";
   }
-  function peerColorIndex(color, peerId) {
-    return (typeof color === "string" && PEER_COLOR_PATTERN.test(color) ? PEER_COLOR_INDEXES.get(color.toLowerCase()) : void 0) ?? PEER_COLOR_INDEXES.get(peerColorFromId(peerId)) ?? 1;
+  function peerColor(color, id) {
+    return knownPeerColor(color) ?? peerColorFromId(id);
   }
-  function peerColorCssVariable(index4) {
-    return runtime2.designTokens.editor.collaborator[index4]?.cssVar ?? runtime2.designTokens.editor.collaborator[1].cssVar;
+  function peerInkColor(background) {
+    let [red = 0, green = 0, blue = 0] = [1, 3, 5].map((input) => {
+      let value = parseInt(background.slice(input, input + 2), 16) / 255;
+      return value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+    });
+    return 1.05 / (0.2126 * red + 0.7152 * green + 0.0722 * blue + 0.05) < 3 ? "#0b0b0b" : "#ffffff";
+  }
+  function leastUsedPeerColor(color, taken, reserved = RESERVED_PEER_COLORS) {
+    if (!reserved.includes(color) && !taken.includes(color)) {
+      return color;
+    }
+    let colors = rotatePeerColors(color, reserved), countOf = (input) => taken.filter((input2) => input2 === input).length;
+    return colors.reduce(
+      (input, input2) => countOf(input2) < countOf(input) ? input2 : input
+    );
+  }
+  function peerColorClaim(peer) {
+    let { c, t } = peerWho(peer), value = knownPeerColor(c);
+    return value !== void 0 && typeof t === "number" && Number.isFinite(t) ? {
+      key: peer.by ?? peer.peer,
+      peer: peer.peer,
+      own: peer.isMe,
+      c: value,
+      t
+    } : void 0;
+  }
+  function takenPeerColors(peers) {
+    let legacy = peers.flatMap((input) => {
+      let { c, t } = peerWho(input);
+      return !input.isMe && input.agent !== true && t === void 0 && typeof c === "string" && Object.hasOwn(LEGACY_PEER_COLORS, c.toLowerCase()) ? [LEGACY_PEER_COLORS[c.toLowerCase()] ?? ""] : [];
+    });
+    return [
+      ...peerColorClaims(peers).filter((input) => !input.own).map((input) => input.c),
+      ...legacy
+    ];
+  }
+  function createPeerColorPicker(options, onChange = () => {
+    return;
+  }) {
+    let { publish, peers, kept, now } = options, reserved = options.neverGiven ?? RESERVED_PEER_COLORS, allowed = (input) => input === void 0 || reserved.includes(input.c) ? void 0 : input, keptColor = knownPeerColor(kept.read()), worn = leastUsedPeerColor(
+      keptColor !== void 0 && !reserved.includes(keptColor) ? keptColor : peerColor(options.usual, options.name),
+      [],
+      reserved
+    ), claimedAt = null, [retries, lastRetryAt] = [0, -1 / 0], cancelSettle, awayState, [lastTickAt, wokeAt] = [now(), -1 / 0], checkWake = () => {
+      let value = now(), woke = value - lastTickAt > 1e4;
+      if (woke) {
+        wokeAt = value;
+      }
+      lastTickAt = value;
+      return woke;
+    }, publishedKey, wear = (color, at) => {
+      let changed = color !== worn;
+      [worn, claimedAt] = [color, at];
+      if (at !== null) {
+        kept.write(worn);
+      }
+      if (publishedKey !== (publishedKey = worn + String(claimedAt))) {
+        publish({
+          n: options.name,
+          c: worn,
+          t: claimedAt
+        });
+      }
+      if (changed) {
+        onChange();
+      }
+    }, release = () => {
+      awayState?.cancel();
+      awayState = void 0;
+      wear(worn, null);
+    }, earliestPerKey = (input) => input.filter(
+      (input2) => !input.some(
+        (input3) => input3.key === input2.key && input3.own === input2.own && peerClaimPrecedes(input3, input3.peer, input2, input2.peer)
+      )
+    ), liveClaims = (input) => earliestPerKey(
+      peerColorClaims(input).filter(
+        (input2) => allowed(input2) !== void 0
+      )
+    ), contested = (input, color, claim) => {
+      let self2 = input.find((input2) => input2.sameTab);
+      return liveClaims(input).some(
+        (input2) => !input2.own && input2.c === color && peerClaimPrecedes(
+          input2,
+          input2.key,
+          claim,
+          self2?.by ?? self2?.peer ?? ""
+        )
+      );
+    }, yieldColor = (input, color, claim) => {
+      let self2 = input.find((input2) => input2.sameTab), mine = {
+        key: self2?.by ?? self2?.peer ?? "",
+        peer: self2?.peer ?? "",
+        own: true,
+        c: color,
+        t: claim.t
+      }, ordered = sortPeerColorClaims([
+        ...liveClaims(input).filter((input2) => !input2.own),
+        mine
+      ]), losers = ordered.filter(
+        (input2) => input2 === mine || ordered.some(
+          (input3) => input3 !== input2 && input3.c === input2.c && peerClaimPrecedes(input3, input3.key, input2, input2.key)
+        )
+      ), used = /* @__PURE__ */ new Set([color, ...takenPeerColors(input)]);
+      for (let value of losers) {
+        let next = rotatePeerColors(value.c, reserved).find(
+          (input2) => !used.has(input2)
+        );
+        if (next === void 0 || value === mine) {
+          return next;
+        }
+        used.add(next);
+      }
+      return;
+    }, ownClaim = (input) => liveClaims(input).find((input2) => input2.own), settle = () => {
+      cancelSettle = void 0;
+      let value = peers(), claim = ownClaim(value);
+      if (claim === void 0) {
+        wear(
+          leastUsedPeerColor(worn, takenPeerColors(value), reserved),
+          now()
+        );
+      } else {
+        wear(
+          (contested(value, claim.c, claim) ? yieldColor(value, claim.c, claim) : void 0) ?? claim.c,
+          claim.t
+        );
+      }
+    }, heard = () => {
+      if (awayState !== void 0) {
+        return;
+      }
+      let value = peers(), claim = ownClaim(value);
+      if (claimedAt === null) {
+        if (claim !== void 0 && claim.c !== worn) {
+          wear(claim.c, null);
+        }
+        return;
+      }
+      let current = {
+        t: claimedAt
+      };
+      if (claim !== void 0 && peerClaimPrecedes(
+        claim,
+        claim.peer,
+        current,
+        value.find((input) => input.sameTab)?.peer ?? ""
+      ) && !(contested(value, claim.c, claim) && yieldColor(value, claim.c, claim) !== void 0)) {
+        if (claim.c !== worn || claim.t !== claimedAt) {
+          wear(claim.c, claim.t);
+        }
+        return;
+      }
+      if (now() - lastRetryAt > 6e4) {
+        retries = 0;
+      }
+      let next = contested(value, worn, current) && retries < rotatePeerColors(worn, reserved).length ? yieldColor(value, worn, current) : void 0;
+      if (next === void 0) {
+        return;
+      }
+      [retries, lastRetryAt] = [retries + 1, now()];
+      wear(next, claimedAt);
+    }, stopTicking = options.every(() => {
+      if (checkWake() && awayState !== void 0) {
+        release();
+      }
+      heard();
+    }, 2e3), selfClaim = () => ((input) => input === void 0 ? void 0 : peerColorClaim(input))(
+      peers().find((input) => input.sameTab)
+    ), allowedSelfClaim = () => allowed(selfClaim());
+    if (allowedSelfClaim() === void 0) {
+      publishedKey = worn + String(null);
+      let value = selfClaim() !== void 0 || (keptColor === void 0 ? reserved.length > 0 : reserved.includes(keptColor));
+      publish(
+        value ? {
+          n: options.name,
+          c: worn,
+          t: null
+        } : {
+          n: options.name,
+          c: worn
+        }
+      );
+    }
+    return {
+      worn: () => worn,
+      heard,
+      here() {
+        let value = awayState;
+        awayState = void 0;
+        value?.cancel();
+        let expired = value !== void 0 && now() - value.at >= 8e3;
+        if (expired) {
+          wear(worn, null);
+        }
+        if (value !== void 0 && !expired) {
+          return heard();
+        }
+        if (cancelSettle !== void 0 || claimedAt !== null) {
+          return;
+        }
+        let claim = expired ? void 0 : allowedSelfClaim();
+        if (claim !== void 0) {
+          return wear(claim.c, claim.t);
+        }
+        retries = 0;
+        wear(worn, null);
+        cancelSettle = options.after(settle, 1500);
+      },
+      away() {
+        cancelSettle?.();
+        cancelSettle = void 0;
+        if (claimedAt === null || awayState !== void 0) {
+          return;
+        }
+        checkWake();
+        if (now() - wokeAt < 6e4) {
+          return wear(worn, null);
+        }
+        awayState = {
+          at: now(),
+          cancel: options.after(release, 8e3)
+        };
+      },
+      dispose() {
+        if (awayState !== void 0) {
+          release();
+        }
+        cancelSettle?.();
+        stopTicking();
+        cancelSettle = void 0;
+      }
+    };
   }
   function prefersReducedCursorMotion() {
     return typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -186162,143 +186458,206 @@ function installUiPeerCursors(runtime2) {
       return value;
     }
   }
+  function watchCursorLeave(onLeave, staysWithoutMouse) {
+    if (typeof document === "undefined") {
+      return () => {
+        return;
+      };
+    }
+    let root = document.documentElement, onPointerLeave = (event) => void (event.pointerType === "mouse" && !(staysWithoutMouse && document.hasFocus()) && onLeave()), onVisibilityChange = () => void (document.hidden && onLeave());
+    root.addEventListener("pointerleave", onPointerLeave);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      root.removeEventListener("pointerleave", onPointerLeave);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }
   function createCursorPresence(options = {}) {
-    let value = options.now ?? (() => Date.now()), value2 = options.minDelta ?? 2e-3, value3 = options.idleNullMs ?? PEER_CURSOR_IDLE_TIMEOUT_MS, value4 = !(0, runtime2.hasHostRoomApi)(), value5, value6, value7, value8, value9, flag = false, text = "";
-    async function value10(input) {
-      if (value4) {
+    let now = options.now ?? (() => Date.now()), minDelta = options.minDelta ?? 2e-3, idleNullMs = options.idleNullMs ?? PEER_CURSOR_IDLE_TIMEOUT_MS, off = !(0, runtime2.hasHostRoomApi)(), disposed = false, stopWho = () => {
+      return;
+    }, published, latest, glideTimer, pending, idleTimer, shown = false, text = "", pointer2 = "off", focusTimer, hadFocus = false;
+    async function send(input) {
+      if (off) {
         return;
       }
-      let value13 = await (0, runtime2.cachedHostRoom)();
-      if (typeof value13?.presence !== "function") {
-        value4 = true;
+      let room = await (0, runtime2.cachedHostRoom)();
+      if (typeof room?.presence !== "function") {
+        off = true;
         return;
       }
       try {
-        await value13.presence.call(value13, input);
-      } catch (value14) {
-        let value15 = typeof value14 === "object" && value14 !== null ? value14.code : "";
-        if (value15 !== "upstream_error" && value15 !== "invalid_argument") {
-          value4 = true;
+        await room.presence.call(room, input);
+      } catch (error) {
+        let code = typeof error === "object" && error !== null ? error.code : "";
+        if (code !== "upstream_error" && code !== "invalid_argument") {
+          off = true;
         }
       }
     }
-    function value11() {
-      if (value9 !== void 0) {
-        clearTimeout(value9);
-      }
-      value9 = void 0;
-      value8 = void 0;
-      value5 = void 0;
-      if (!flag) {
+    function lookForFocus() {
+      focusTimer = void 0;
+      if (off) {
         return;
       }
-      flag = false;
-      value10({
+      let lost = hadFocus && !document.hasFocus();
+      hadFocus = document.hasFocus();
+      if (lost) {
+        return leave();
+      }
+      focusTimer = setTimeout(
+        lookForFocus,
+        options.focusLookMs ?? PEER_CURSOR_FOCUS_LOOK_MS
+      );
+    }
+    function withdraw() {
+      if (idleTimer !== void 0) {
+        clearTimeout(idleTimer);
+      }
+      idleTimer = void 0;
+      clearTimeout(focusTimer);
+      focusTimer = void 0;
+      hadFocus = false;
+      pending = void 0;
+      published = void 0;
+      if (!shown) {
+        return;
+      }
+      shown = false;
+      send({
         cursor: null
       });
     }
-    function value12(input, options2, context) {
-      let value13 = value();
-      value5 = {
-        s: input,
-        x: options2,
-        y: context,
-        at: value13
+    function publish(surface, x, y) {
+      let at = now();
+      published = {
+        s: surface,
+        x,
+        y,
+        at
       };
-      value6 = {
-        s: input,
-        x: options2,
-        y: context
+      latest = {
+        s: surface,
+        x,
+        y
       };
-      flag = true;
-      let callback2 = (input2) => Math.round(input2 * 1e4) / 1e4;
-      value10({
+      shown = true;
+      let round2 = (input) => Math.round(input * 1e4) / 1e4;
+      send({
         cursor: {
-          s: input.slice(0, MAX_PEER_CHAT_LENGTH),
-          x: callback2(options2),
-          y: callback2(context),
-          t: value13,
+          s: surface.slice(0, MAX_PEER_CHAT_LENGTH),
+          x: round2(x),
+          y: round2(y),
+          t: at,
           ...text === "" ? {} : {
             m: text
           }
         }
       });
-      if (value9 !== void 0) {
-        clearTimeout(value9);
+      if (idleTimer !== void 0) {
+        clearTimeout(idleTimer);
       }
-      value9 = setTimeout(value11, value3);
+      idleTimer = setTimeout(() => leave(true), idleNullMs);
+      if (focusTimer === void 0 && typeof document !== "undefined") {
+        lookForFocus();
+      }
     }
-    let callback = () => state.clear();
+    function leave(force = false) {
+      pointer2 = "gone";
+      if (force || text === "") {
+        withdraw();
+      }
+    }
+    let onPageHide = () => {
+      text = "";
+      leave(true);
+    };
     if (typeof addEventListener === "function") {
-      addEventListener("pagehide", callback);
+      addEventListener("pagehide", onPageHide);
     }
-    let state = {
-      move(input, options2, context) {
-        if (value4 || !Number.isFinite(options2) || !Number.isFinite(context)) {
+    let stopWatching = watchCursorLeave(
+      leave,
+      options.staysWithoutMouse === true
+    );
+    return {
+      move(surface, x, y, unlessGone = false) {
+        if (off || unlessGone && pointer2 === "gone" || !Number.isFinite(x) || !Number.isFinite(y)) {
           return;
         }
-        if (value5 && value5.s === input && Math.abs(value5.x - options2) < value2 && Math.abs(value5.y - context) < value2) {
+        if (typeof document !== "undefined" && document.hidden) {
           return;
         }
-        let value13 = value();
-        if (value5 && value5.s === input && value13 - value5.at < PEER_CURSOR_GLIDE_MS) {
-          value8 = {
-            s: input,
-            x: options2,
-            y: context
+        pointer2 = "on";
+        if (published && published.s === surface && Math.abs(published.x - x) < minDelta && Math.abs(published.y - y) < minDelta) {
+          return;
+        }
+        let at = now();
+        if (published && published.s === surface && at - published.at < PEER_CURSOR_GLIDE_MS) {
+          pending = {
+            s: surface,
+            x,
+            y
           };
-          value7 ??= setTimeout(() => {
-            value7 = void 0;
-            let value14 = value8;
-            value8 = void 0;
-            if (value14) {
-              value12(value14.s, value14.x, value14.y);
+          glideTimer ??= setTimeout(() => {
+            glideTimer = void 0;
+            let value = pending;
+            pending = void 0;
+            if (value) {
+              publish(value.s, value.x, value.y);
             }
           }, PEER_CURSOR_GLIDE_MS);
           return;
         }
-        value8 = void 0;
-        value12(input, options2, context);
+        pending = void 0;
+        publish(surface, x, y);
       },
-      say(input) {
-        let value13 = sanitizePeerChatMessage(input);
-        if (value4 || value13 === text || !value6) {
+      say(message) {
+        let value = sanitizePeerChatMessage(message);
+        if (off || value === text || !latest) {
           return false;
         }
-        text = value13;
-        let value14 = value8 ?? value6;
-        value8 = void 0;
-        value12(value14.s, value14.x, value14.y);
+        text = value;
+        if (pointer2 !== "on" && text === "") {
+          withdraw();
+          return true;
+        }
+        let value2 = pending ?? latest;
+        pending = void 0;
+        publish(value2.s, value2.x, value2.y);
         return true;
       },
-      live: () => !value4 && value6 !== void 0,
+      live: () => !off && latest !== void 0,
+      shown: () => shown ? latest : void 0,
       clear() {
-        value11();
+        if (pointer2 === "on") {
+          pointer2 = "off";
+        }
+        text = "";
+        withdraw();
       },
-      setWho(input, options2) {
-        let value13 = Array.from(input).slice(0, 40).join(""), value14 = PEER_COLOR_PATTERN.test(options2) ? options2 : "";
-        if (value13 === "" && value14 === "") {
+      setWho(name, color) {
+        let value = normalizePeerName(name), value2 = PEER_COLOR_PATTERN.test(color) ? color : "";
+        if (value === "" && value2 === "") {
           return;
         }
-        value10({
-          who: {
-            n: value13,
-            c: value14
-          }
-        });
+        if (disposed) {
+          return;
+        }
+        stopWho();
+        stopWho = (0, runtime2.startPeopleColor)(value, value2);
       },
       dispose() {
-        value11();
-        value4 = true;
-        if (value7 !== void 0) {
-          clearTimeout(value7);
+        withdraw();
+        off = disposed = true;
+        if (glideTimer !== void 0) {
+          clearTimeout(glideTimer);
         }
         if (typeof removeEventListener === "function") {
-          removeEventListener("pagehide", callback);
+          removeEventListener("pagehide", onPageHide);
         }
+        stopWatching();
+        stopWho();
       }
     };
-    return state;
   }
   function visiblePeerCursors(peers, surface, now, profiles = peerProfileCache) {
     let items = [];
@@ -186322,13 +186681,15 @@ function installUiPeerCursors(runtime2) {
       if (typeof value5 !== "number" || typeof value6 !== "number" || !Number.isFinite(value5) || !Number.isFinite(value6)) {
         continue;
       }
-      let who = value.presence.who, value7 = typeof who === "object" && who !== null ? who : {}, value8 = (value.by !== null && profiles.get(value.by) || (typeof value7.n === "string" ? value7.n : "")).slice(0, 40), value9 = peerColorIndex(value7.c, value.peer), value10 = value.updatedAt > 0 ? now - value.updatedAt : value4, value11 = typeof value2.m === "string" && value10 < PEER_CHAT_HOLD_MS + PEER_CHAT_FADE_MS ? sanitizePeerChatMessage(value2.m).trim() : "";
+      let who = value.presence.who, value7 = typeof who === "object" && who !== null ? who : {}, value8 = normalizePeerName(
+        (value.by !== null ? profiles.get(value.by) : void 0) ?? value7.n
+      ), value9 = peerColor(value7.c, value.by ?? value.peer), value10 = value.updatedAt > 0 ? now - value.updatedAt : value4, value11 = typeof value2.m === "string" && value10 < PEER_CHAT_HOLD_MS + PEER_CHAT_FADE_MS ? sanitizePeerChatMessage(value2.m).trim() : "";
       items.push({
         peer: value.peer,
         x: value5,
         y: value6,
         name: value8,
-        collaborator: value9,
+        color: value9,
         idleMs: Math.max(0, value4),
         message: value11
       });
@@ -186383,8 +186744,7 @@ function installUiPeerCursors(runtime2) {
     toLocal,
     glyphScale,
     className,
-    now,
-    working
+    now
   }) {
     let value = usePeerCursors(surface, now), value2 = glyphScale !== void 0 && Number.isFinite(glyphScale) && glyphScale > 0 ? glyphScale : 1;
     return jsxGY.jsx("div", {
@@ -186395,7 +186755,7 @@ function installUiPeerCursors(runtime2) {
         if (value3 === null) {
           return null;
         }
-        let value4 = input.idleMs >= PEER_CURSOR_STALE_MS, value5 = peerColorCssVariable(input.collaborator);
+        let value4 = input.idleMs >= PEER_CURSOR_STALE_MS;
         return jsxGY.jsxs(
           "div",
           {
@@ -186407,14 +186767,13 @@ function installUiPeerCursors(runtime2) {
             },
             children: [
               jsxGY.jsx(runtime2.PeerCursorArrow, {
-                color: value5
+                color: input.color
               }),
               jsxGY.jsx(PeerCursorTag, {
                 name: input.name,
-                color: value5,
+                color: input.color,
                 message: input.message,
-                dim: value4,
-                working: working?.has(input.peer) === true
+                dim: value4
               })
             ]
           },
@@ -186423,6 +186782,98 @@ function installUiPeerCursors(runtime2) {
       })
     });
   }
+  bindRuntimeValue(
+    runtime2,
+    "PEER_COLORS",
+    () => PEER_COLORS,
+    (value) => {
+      PEER_COLORS = value;
+    }
+  );
+  bindRuntimeValue(
+    runtime2,
+    "RESERVED_PEER_COLORS",
+    () => RESERVED_PEER_COLORS,
+    (value) => {
+      RESERVED_PEER_COLORS = value;
+    }
+  );
+  bindRuntimeValue(
+    runtime2,
+    "LEGACY_PEER_COLORS",
+    () => LEGACY_PEER_COLORS,
+    (value) => {
+      LEGACY_PEER_COLORS = value;
+    }
+  );
+  bindRuntimeValue(
+    runtime2,
+    "rotatePeerColors",
+    () => rotatePeerColors,
+    (value) => {
+      rotatePeerColors = value;
+    }
+  );
+  bindRuntimeValue(
+    runtime2,
+    "peerNameCache",
+    () => peerNameCache,
+    (value) => {
+      peerNameCache = value;
+    }
+  );
+  bindRuntimeValue(runtime2, "normalizePeerName", () => normalizePeerName);
+  bindRuntimeValue(runtime2, "peerColorFromId", () => peerColorFromId);
+  bindRuntimeValue(
+    runtime2,
+    "knownPeerColor",
+    () => knownPeerColor,
+    (value) => {
+      knownPeerColor = value;
+    }
+  );
+  bindRuntimeValue(runtime2, "peerColor", () => peerColor);
+  bindRuntimeValue(runtime2, "peerInkColor", () => peerInkColor);
+  bindRuntimeValue(runtime2, "leastUsedPeerColor", () => leastUsedPeerColor);
+  bindRuntimeValue(
+    runtime2,
+    "peerWho",
+    () => peerWho,
+    (value) => {
+      peerWho = value;
+    }
+  );
+  bindRuntimeValue(runtime2, "peerColorClaim", () => peerColorClaim);
+  bindRuntimeValue(
+    runtime2,
+    "peerColorClaims",
+    () => peerColorClaims,
+    (value) => {
+      peerColorClaims = value;
+    }
+  );
+  bindRuntimeValue(runtime2, "takenPeerColors", () => takenPeerColors);
+  bindRuntimeValue(
+    runtime2,
+    "peerClaimPrecedes",
+    () => peerClaimPrecedes,
+    (value) => {
+      peerClaimPrecedes = value;
+    }
+  );
+  bindRuntimeValue(
+    runtime2,
+    "sortPeerColorClaims",
+    () => sortPeerColorClaims,
+    (value) => {
+      sortPeerColorClaims = value;
+    }
+  );
+  bindRuntimeValue(
+    runtime2,
+    "createPeerColorPicker",
+    () => createPeerColorPicker
+  );
   bindRuntimeValue(
     runtime2,
     "jsxGY",
@@ -186457,13 +186908,12 @@ function installUiPeerCursors(runtime2) {
   );
   bindRuntimeValue(
     runtime2,
-    "PEER_CURSOR_COLORS",
-    () => PEER_CURSOR_COLORS,
+    "PEER_CURSOR_FOCUS_LOOK_MS",
+    () => PEER_CURSOR_FOCUS_LOOK_MS,
     (value) => {
-      PEER_CURSOR_COLORS = value;
+      PEER_CURSOR_FOCUS_LOOK_MS = value;
     }
   );
-  bindRuntimeValue(runtime2, "peerColorFromId", () => peerColorFromId);
   bindRuntimeValue(
     runtime2,
     "PEER_COLOR_PATTERN",
@@ -186472,16 +186922,6 @@ function installUiPeerCursors(runtime2) {
       PEER_COLOR_PATTERN = value;
     }
   );
-  bindRuntimeValue(
-    runtime2,
-    "PEER_COLOR_INDEXES",
-    () => PEER_COLOR_INDEXES,
-    (value) => {
-      PEER_COLOR_INDEXES = value;
-    }
-  );
-  bindRuntimeValue(runtime2, "peerColorIndex", () => peerColorIndex);
-  bindRuntimeValue(runtime2, "peerColorCssVariable", () => peerColorCssVariable);
   bindRuntimeValue(
     runtime2,
     "MAX_PEER_CHAT_LENGTH",
@@ -186549,6 +186989,7 @@ function installUiPeerCursors(runtime2) {
     "sanitizePeerChatMessage",
     () => sanitizePeerChatMessage
   );
+  bindRuntimeValue(runtime2, "watchCursorLeave", () => watchCursorLeave);
   bindRuntimeValue(runtime2, "createCursorPresence", () => createCursorPresence);
   bindRuntimeValue(
     runtime2,
@@ -186562,30 +187003,70 @@ function installUiPeerCursors(runtime2) {
   bindRuntimeValue(runtime2, "usePeerProfiles", () => usePeerProfiles);
   bindRuntimeValue(runtime2, "usePeerCursors", () => usePeerCursors);
   bindRuntimeValue(runtime2, "PeerCursors", () => PeerCursors);
+  bindRuntimeValue(
+    runtime2,
+    "INTERACTIVE_TARGET_SELECTOR",
+    () => INTERACTIVE_TARGET_SELECTOR,
+    (value) => {
+      INTERACTIVE_TARGET_SELECTOR = value;
+    }
+  );
   return () => {
     (0, runtime2.initializeUiPropertyFocus)();
+    PEER_COLORS = [
+      "#785ee8",
+      "#dc3c3d",
+      "#019c7f",
+      "#fbb315",
+      "#ce447d",
+      "#10a122",
+      "#257de0",
+      "#d25f25"
+    ];
+    RESERVED_PEER_COLORS = ["#d25f25"];
+    LEGACY_PEER_COLORS = {
+      "#7a6ba8": "#785ee8",
+      "#b04e72": "#ce447d",
+      "#3f7a75": "#019c7f",
+      "#62744c": "#10a122",
+      "#a3651f": "#fbb315",
+      "#5b7596": "#257de0"
+    };
+    rotatePeerColors = (input, excluded) => {
+      let start = Math.max(0, PEER_COLORS.indexOf(input));
+      return PEER_COLORS.map(
+        (_color, index4) => PEER_COLORS[(start + index4) % PEER_COLORS.length] ?? input
+      ).filter((input2) => !excluded.includes(input2));
+    };
+    peerNameCache = /* @__PURE__ */ new Map();
+    knownPeerColor = (input) => {
+      let value = typeof input === "string" ? input.toLowerCase() : "";
+      return PEER_COLORS.includes(value) ? value : Object.hasOwn(LEGACY_PEER_COLORS, value) ? LEGACY_PEER_COLORS[value] : void 0;
+    };
+    peerWho = (input) => {
+      let who = input.presence.who;
+      return typeof who === "object" && who !== null ? who : {};
+    };
+    peerColorClaims = (input) => input.flatMap(
+      (input2) => input2.sameTab || input2.agent === true ? [] : peerColorClaim(input2) ?? []
+    );
+    peerClaimPrecedes = (a, aKey, b, bKey) => a.t < b.t || a.t === b.t && aKey < bKey;
+    sortPeerColorClaims = (input) => {
+      let items = [];
+      for (let value of input) {
+        let index4 = items.findIndex(
+          (input2) => peerClaimPrecedes(value, value.key, input2, input2.key)
+        );
+        items.splice(index4 < 0 ? items.length : index4, 0, value);
+      }
+      return items;
+    };
     jsxGY = (0, runtime2.toModuleNamespace)((0, runtime2.loadJsxNamespace)(), 1);
     PEER_CURSOR_IDLE_TIMEOUT_MS = 9e5;
     PEER_CURSOR_STALE_MS = 6e4;
     PEER_CURSOR_GLIDE_MS = 33;
-    PEER_CURSOR_COLORS = [
-      "#62744c",
-      "#b04e72",
-      "#5b7596",
-      "#a3651f",
-      "#7a6ba8",
-      "#3f7a75"
-    ];
+    PEER_CURSOR_FOCUS_LOOK_MS = 500;
     PEER_COLOR_PATTERN = /^#[0-9a-f]{6}$/i;
-    PEER_COLOR_INDEXES = /* @__PURE__ */ new Map([
-      ["#7a6ba8", 1],
-      ["#b04e72", 2],
-      ["#3f7a75", 3],
-      ["#62744c", 4],
-      ["#a3651f", 5],
-      ["#5b7596", 6],
-      ["#c7c9d1", 6]
-    ]);
     MAX_PEER_CHAT_LENGTH = 128;
     MAX_PEER_CHAT_DISPLAY_LENGTH = 50;
     PEER_CHAT_HOLD_MS = 5e3;
@@ -186600,8 +187081,7 @@ function installUiPeerCursors(runtime2) {
       name,
       color,
       message,
-      dim,
-      working
+      dim
     }) {
       let ref = runtime2.reactx4.useRef({
         m: "",
@@ -186614,17 +187094,17 @@ function installUiPeerCursors(runtime2) {
         };
       }
       let [value, value2] = runtime2.reactx4.useState(0), value3 = message !== "" && value !== ref.current.n ? "line" : "name", value4 = usePeerMessageFade(value3);
-      if (dim && value3 === "name" && !working) {
+      if (dim && value3 === "name") {
         return null;
       }
-      return jsxGY.jsxs("span", {
+      return jsxGY.jsx("span", {
         ref: value4,
         className: "mc-peer-tag " + (value3 === "name" ? "mc-peer-cursor-label" : "mc-cursor-chat"),
         "data-mode": value3,
-        "data-working": working && value3 === "name" ? "true" : void 0,
         "data-beat": value3 === "line" ? ref.current.n % 2 : void 0,
         style: {
           background: color,
+          color: peerInkColor(color),
           ...PEER_CHAT_CSS_TIMINGS
         },
         onAnimationEnd: (event) => {
@@ -186632,34 +187112,37 @@ function installUiPeerCursors(runtime2) {
             value2(ref.current.n);
           }
         },
-        children: [
-          value3 === "name" ? jsxGY.jsx(
-            "span",
-            {
-              className: "mc-peer-tag-name",
-              children: (name || "Someone").slice(0, 16)
-            },
-            "name"
-          ) : jsxGY.jsx(
-            "span",
-            {
-              className: "mc-peer-tag-line",
-              children: message
-            },
-            "line"
-          ),
-          working && value3 === "name" ? jsxGY.jsxs("span", {
-            className: "mc-peer-tag-dots",
-            children: [
-              jsxGY.jsx("i", {}),
-              jsxGY.jsx("i", {}),
-              jsxGY.jsx("i", {})
-            ]
-          }) : null
-        ]
+        children: value3 === "name" ? jsxGY.jsx(
+          "span",
+          {
+            className: "mc-peer-tag-name",
+            dir: "auto",
+            children: name || "Someone"
+          },
+          "name"
+        ) : jsxGY.jsx(
+          "span",
+          {
+            className: "mc-peer-tag-line",
+            children: message
+          },
+          "line"
+        )
       });
     });
     peerProfileCache = /* @__PURE__ */ new Map();
+    INTERACTIVE_TARGET_SELECTOR = "button,a[href],summary," + [
+      "button",
+      "link",
+      "checkbox",
+      "radio",
+      "switch",
+      "tab",
+      "option",
+      "menuitem",
+      "menuitemradio",
+      "menuitemcheckbox"
+    ].map((input) => '[role="' + input + '"]').join();
   };
 }
 
@@ -206653,9 +207136,7 @@ function installCollaborationSlidePresence(runtime2) {
             key: value4,
             by: value.by,
             name: typeof value3.n === "string" ? truncatePresenceName(value3.n) : "",
-            color: (0, runtime2.peerColorCssVariable)(
-              (0, runtime2.peerColorIndex)(value3.c, value.peer)
-            )
+            color: (0, runtime2.peerColor)(value3.c, value.by ?? value.peer)
           }
         ]);
       }
@@ -206803,7 +207284,7 @@ function installCollaborationSlidePresence(runtime2) {
                     name: input.name,
                     style: {
                       backgroundColor: input.color,
-                      color: runtime2.designTokens.on.accent.cssVar
+                      color: (0, runtime2.peerInkColor)(input.color)
                     }
                   })
                 },
@@ -239514,7 +239995,7 @@ function installCollaborationSelectionRings(runtime2) {
       let who = value.presence.who, value5 = typeof who === "object" && who !== null ? who : {};
       items.push({
         peer: value.peer,
-        collaborator: (0, runtime2.peerColorIndex)(value5.c, value.peer),
+        color: (0, runtime2.peerColor)(value5.c, value.by ?? value.peer),
         selected: value3,
         lists: state
       });
@@ -239555,7 +240036,10 @@ function installCollaborationSelectionRings(runtime2) {
             },
             scale: value,
             rotation: input.rotation,
-            collaborator: input.collaborator
+            collaborator: 1,
+            style: {
+              "--cds-editor-collaborator-1": input.color
+            }
           },
           input.key
         )
@@ -239650,7 +240134,7 @@ function installCollaborationSlideSelection(runtime2) {
       value.map(
         (input) => [
           input.peer,
-          input.collaborator,
+          input.color,
           input.selected
         ]
       )
@@ -239670,7 +240154,7 @@ function installCollaborationSlideSelection(runtime2) {
               w: value8.w,
               h: value8.h,
               rotation: value8.rotation,
-              collaborator: value5.collaborator
+              color: value5.color
             });
           }
         }
@@ -242145,6 +242629,15 @@ function installDocumentsArtifactDocument(runtime2) {
   var READ_ONLY_ARTIFACT_MESSAGE;
   var ARTIFACT_STASH_PREFIX;
   var ARTIFACT_READ_ONLY_PREFIX;
+  var ReactPeopleColor;
+  var peerColorPicker;
+  var peerColorListeners;
+  var notifyPeerColorListeners;
+  var runAfterDelay;
+  var runEveryInterval;
+  var wornPeerColor;
+  var subscribePeerColor;
+  var useWornPeerColor;
   function normalizeArtifactTitle(title) {
     if (typeof title === "string" && title.length > 0) {
       return (0, runtime2.truncateUtf16Safely)(title, MAX_ARTIFACT_TITLE_CHARS);
@@ -242454,6 +242947,65 @@ function installDocumentsArtifactDocument(runtime2) {
   }
   function currentArtifactStash() {
     return createSessionStorageSlot(artifactStashKey(location.pathname));
+  }
+  function artifactSessionSlot(name) {
+    if (typeof location === "undefined") {
+      return {
+        read: () => null,
+        write: () => false,
+        clear: () => {
+          return;
+        }
+      };
+    }
+    return createSessionStorageSlot(
+      "appifact-" + name + "/" + (0, runtime2.normalizeArtifactSessionPath)(location.pathname)
+    );
+  }
+  function startPeopleColor(name, usual) {
+    let stopped = false, cleanups = [];
+    (0, runtime2.cachedHostRoom)().then((room) => {
+      if (stopped) {
+        return;
+      }
+      if (room === null) {
+        return (0, runtime2.rememberWhoPresence)({
+          n: name,
+          c: (0, runtime2.leastUsedPeerColor)(
+            (0, runtime2.peerColor)(usual, name),
+            []
+          )
+        });
+      }
+      let peers = typeof room.peers === "function" ? () => (0, runtime2.normalizeRoomPeers)(room.peers?.()) : runtime2.roomPeerStore.getSnapshot, picker = (0, runtime2.createPeerColorPicker)(
+        {
+          name,
+          usual,
+          publish: runtime2.publishWhoPresence,
+          peers,
+          kept: artifactSessionSlot("people-color"),
+          now: Date.now,
+          after: runAfterDelay,
+          every: runEveryInterval
+        },
+        notifyPeerColorListeners
+      );
+      peerColorPicker = picker;
+      let stopConnection = typeof room.onConnection === "function" ? room.onConnection.call(
+        room,
+        (input) => input ? picker.here() : picker.away()
+      ) : picker.here();
+      cleanups = [
+        runtime2.roomPeerStore.subscribe(() => picker.heard()),
+        () => typeof stopConnection === "function" && stopConnection(),
+        () => picker.dispose()
+      ];
+      notifyPeerColorListeners();
+    });
+    return () => {
+      stopped = true;
+      cleanups.forEach((input) => input());
+    };
   }
   function readCurrentArtifactReadOnlyReason() {
     let value = currentArtifactReadOnlySlot().read();
@@ -243310,6 +243862,7 @@ function installDocumentsArtifactDocument(runtime2) {
     () => createSessionStorageSlot
   );
   bindRuntimeValue(runtime2, "currentArtifactStash", () => currentArtifactStash);
+  bindRuntimeValue(runtime2, "artifactSessionSlot", () => artifactSessionSlot);
   bindRuntimeValue(
     runtime2,
     "readCurrentArtifactReadOnlyReason",
@@ -243332,6 +243885,79 @@ function installDocumentsArtifactDocument(runtime2) {
     "createArtifactDocument",
     () => createArtifactDocument
   );
+  bindRuntimeValue(
+    runtime2,
+    "ReactPeopleColor",
+    () => ReactPeopleColor,
+    (value) => {
+      ReactPeopleColor = value;
+    }
+  );
+  bindRuntimeValue(
+    runtime2,
+    "peerColorPicker",
+    () => peerColorPicker,
+    (value) => {
+      peerColorPicker = value;
+    }
+  );
+  bindRuntimeValue(
+    runtime2,
+    "peerColorListeners",
+    () => peerColorListeners,
+    (value) => {
+      peerColorListeners = value;
+    }
+  );
+  bindRuntimeValue(
+    runtime2,
+    "notifyPeerColorListeners",
+    () => notifyPeerColorListeners,
+    (value) => {
+      notifyPeerColorListeners = value;
+    }
+  );
+  bindRuntimeValue(
+    runtime2,
+    "runAfterDelay",
+    () => runAfterDelay,
+    (value) => {
+      runAfterDelay = value;
+    }
+  );
+  bindRuntimeValue(
+    runtime2,
+    "runEveryInterval",
+    () => runEveryInterval,
+    (value) => {
+      runEveryInterval = value;
+    }
+  );
+  bindRuntimeValue(runtime2, "startPeopleColor", () => startPeopleColor);
+  bindRuntimeValue(
+    runtime2,
+    "wornPeerColor",
+    () => wornPeerColor,
+    (value) => {
+      wornPeerColor = value;
+    }
+  );
+  bindRuntimeValue(
+    runtime2,
+    "subscribePeerColor",
+    () => subscribePeerColor,
+    (value) => {
+      subscribePeerColor = value;
+    }
+  );
+  bindRuntimeValue(
+    runtime2,
+    "useWornPeerColor",
+    () => useWornPeerColor,
+    (value) => {
+      useWornPeerColor = value;
+    }
+  );
   return () => {
     (0, runtime2.initializeCompiledPage)();
     (0, runtime2.initializeAssetStorage)();
@@ -243339,6 +243965,21 @@ function installDocumentsArtifactDocument(runtime2) {
     READ_ONLY_ARTIFACT_MESSAGE = "You can view this artifact but not edit it. Saving needs write access from an owner.";
     ARTIFACT_STASH_PREFIX = "appifact-stash/";
     ARTIFACT_READ_ONLY_PREFIX = "appifact-ro/";
+    ReactPeopleColor = (0, runtime2.toModuleNamespace)(
+      (0, runtime2.loadReactNamespace)(),
+      1
+    );
+    peerColorListeners = /* @__PURE__ */ new Set();
+    notifyPeerColorListeners = () => peerColorListeners.forEach((input) => input());
+    runAfterDelay = (callback, ms) => /* @__PURE__ */ ((timer) => () => clearTimeout(timer))(setTimeout(callback, ms));
+    runEveryInterval = (callback, ms) => /* @__PURE__ */ ((timer) => () => clearInterval(timer))(setInterval(callback, ms));
+    wornPeerColor = () => peerColorPicker?.worn() ?? "";
+    subscribePeerColor = (input) => (peerColorListeners.add(input), () => peerColorListeners.delete(input));
+    useWornPeerColor = () => ReactPeopleColor.useSyncExternalStore(
+      subscribePeerColor,
+      wornPeerColor,
+      wornPeerColor
+    );
   };
 }
 
@@ -246122,7 +246763,7 @@ function installDeliveryDialog(runtime2) {
                 className: "text-xs text-fg-muted",
                 children: richMessage(
                   {
-                    // Upstream says "Or ask Claude in chat for the file."; this port keeps its agent wording.
+                    // BaoCut: upstream says "Or ask Claude in chat for the file."; here it names the agent.
                     defaultMessage: "<strong>Drag the chip</strong> onto your desktop or a folder to save it (Chrome and Edge; may not work in the desktop app). Or ask the agent for the file.",
                     id: "qWwldSj2x6"
                   },
@@ -246219,6 +246860,472 @@ function installDeliveryDialog(runtime2) {
   };
 }
 
+function installEditorRailPlacement(runtime2) {
+  var ReactRailPlacement;
+  var RAIL_LEFT_MIN_VIEWPORT_WIDTH;
+  var RAIL_LEFT_COLUMN_WIDTH;
+  var RAIL_FOOT_GAP;
+  var RAIL_BOTTOM_HEIGHT;
+  var RAIL_PLACEMENT_FOOT_HEIGHT;
+  var RAIL_PLACEMENT_SIDE_PAD;
+  var RAIL_PLACEMENT_TOP_HEIGHT;
+  var RAIL_PLACEMENT_HYSTERESIS;
+  var fittedSlideWidth;
+  var subscribeViewportResize;
+  function slideWidthForRailPlacement(placement, width, height2) {
+    return placement === "left" ? fittedSlideWidth(
+      width - RAIL_LEFT_COLUMN_WIDTH,
+      height2 - RAIL_PLACEMENT_TOP_HEIGHT - RAIL_PLACEMENT_FOOT_HEIGHT
+    ) : fittedSlideWidth(
+      width,
+      height2 - RAIL_PLACEMENT_TOP_HEIGHT - RAIL_BOTTOM_HEIGHT - RAIL_PLACEMENT_FOOT_HEIGHT
+    );
+  }
+  function railPlacementAdvantage(width, height2) {
+    return slideWidthForRailPlacement("left", width, height2) - slideWidthForRailPlacement("bottom", width, height2);
+  }
+  function chooseRailPlacement(previous, width, height2) {
+    if (width < RAIL_LEFT_MIN_VIEWPORT_WIDTH) {
+      return "bottom";
+    }
+    let advantage = railPlacementAdvantage(width, height2);
+    if (advantage >= RAIL_PLACEMENT_HYSTERESIS) {
+      return "left";
+    }
+    if (advantage <= -RAIL_PLACEMENT_HYSTERESIS) {
+      return "bottom";
+    }
+    return previous ?? (advantage >= 0 ? "left" : "bottom");
+  }
+  function useRailPlacement(forceBottom) {
+    let previousRef = ReactRailPlacement.useRef(null), getSnapshot2 = ReactRailPlacement.useCallback(
+      () => forceBottom ? "bottom" : previousRef.current = chooseRailPlacement(
+        previousRef.current,
+        window.innerWidth,
+        window.innerHeight
+      ),
+      [forceBottom]
+    );
+    return ReactRailPlacement.useSyncExternalStore(
+      subscribeViewportResize,
+      getSnapshot2,
+      () => "bottom"
+    );
+  }
+  bindRuntimeValue(
+    runtime2,
+    "ReactRailPlacement",
+    () => ReactRailPlacement,
+    (value) => {
+      ReactRailPlacement = value;
+    }
+  );
+  bindRuntimeValue(
+    runtime2,
+    "RAIL_LEFT_MIN_VIEWPORT_WIDTH",
+    () => RAIL_LEFT_MIN_VIEWPORT_WIDTH,
+    (value) => {
+      RAIL_LEFT_MIN_VIEWPORT_WIDTH = value;
+    }
+  );
+  bindRuntimeValue(
+    runtime2,
+    "RAIL_LEFT_COLUMN_WIDTH",
+    () => RAIL_LEFT_COLUMN_WIDTH,
+    (value) => {
+      RAIL_LEFT_COLUMN_WIDTH = value;
+    }
+  );
+  bindRuntimeValue(
+    runtime2,
+    "RAIL_FOOT_GAP",
+    () => RAIL_FOOT_GAP,
+    (value) => {
+      RAIL_FOOT_GAP = value;
+    }
+  );
+  bindRuntimeValue(
+    runtime2,
+    "RAIL_BOTTOM_HEIGHT",
+    () => RAIL_BOTTOM_HEIGHT,
+    (value) => {
+      RAIL_BOTTOM_HEIGHT = value;
+    }
+  );
+  bindRuntimeValue(
+    runtime2,
+    "RAIL_PLACEMENT_FOOT_HEIGHT",
+    () => RAIL_PLACEMENT_FOOT_HEIGHT,
+    (value) => {
+      RAIL_PLACEMENT_FOOT_HEIGHT = value;
+    }
+  );
+  bindRuntimeValue(
+    runtime2,
+    "RAIL_PLACEMENT_SIDE_PAD",
+    () => RAIL_PLACEMENT_SIDE_PAD,
+    (value) => {
+      RAIL_PLACEMENT_SIDE_PAD = value;
+    }
+  );
+  bindRuntimeValue(
+    runtime2,
+    "RAIL_PLACEMENT_TOP_HEIGHT",
+    () => RAIL_PLACEMENT_TOP_HEIGHT,
+    (value) => {
+      RAIL_PLACEMENT_TOP_HEIGHT = value;
+    }
+  );
+  bindRuntimeValue(
+    runtime2,
+    "RAIL_PLACEMENT_HYSTERESIS",
+    () => RAIL_PLACEMENT_HYSTERESIS,
+    (value) => {
+      RAIL_PLACEMENT_HYSTERESIS = value;
+    }
+  );
+  bindRuntimeValue(
+    runtime2,
+    "fittedSlideWidth",
+    () => fittedSlideWidth,
+    (value) => {
+      fittedSlideWidth = value;
+    }
+  );
+  bindRuntimeValue(
+    runtime2,
+    "slideWidthForRailPlacement",
+    () => slideWidthForRailPlacement
+  );
+  bindRuntimeValue(
+    runtime2,
+    "railPlacementAdvantage",
+    () => railPlacementAdvantage
+  );
+  bindRuntimeValue(runtime2, "chooseRailPlacement", () => chooseRailPlacement);
+  bindRuntimeValue(
+    runtime2,
+    "subscribeViewportResize",
+    () => subscribeViewportResize,
+    (value) => {
+      subscribeViewportResize = value;
+    }
+  );
+  bindRuntimeValue(runtime2, "useRailPlacement", () => useRailPlacement);
+  return () => {
+    ReactRailPlacement = (0, runtime2.toModuleNamespace)(
+      (0, runtime2.loadReactNamespace)(),
+      1
+    );
+    (0, runtime2.initializeSlideModel)();
+    RAIL_LEFT_MIN_VIEWPORT_WIDTH = 640;
+    RAIL_LEFT_COLUMN_WIDTH = 4 * Number(runtime2.RAIL_COLUMN_WIDTH_CLASS.slice(2));
+    RAIL_FOOT_GAP = 24;
+    RAIL_BOTTOM_HEIGHT = 67 + runtime2.MIN_RAIL_THUMB_WIDTH * runtime2.SLIDE_HEIGHT / runtime2.SLIDE_WIDTH;
+    RAIL_PLACEMENT_FOOT_HEIGHT = 60;
+    RAIL_PLACEMENT_SIDE_PAD = 12;
+    RAIL_PLACEMENT_TOP_HEIGHT = 60;
+    RAIL_PLACEMENT_HYSTERESIS = 16;
+    fittedSlideWidth = (width, height2) => Math.min(
+      (0, runtime2.fitSlideEditorViewport)({
+        w: width,
+        h: height2,
+        sidePad: RAIL_PLACEMENT_SIDE_PAD
+      }).scale * runtime2.SLIDE_WIDTH,
+      Math.max(0, height2 * runtime2.SLIDE_WIDTH / runtime2.SLIDE_HEIGHT)
+    );
+    subscribeViewportResize = (listener) => {
+      window.addEventListener("resize", listener);
+      return () => window.removeEventListener("resize", listener);
+    };
+  };
+}
+
+function installEditorRailPeek(runtime2) {
+  var ReactRailPeek;
+  var RAIL_PEEK_CLOSE_DELAY_MS;
+  var RAIL_PEEK_ATTRIBUTE;
+  var RAIL_PEEK_SELECTOR;
+  var RAIL_PEEK_HOVER_SELECTOR;
+  function useRailPeek(enabled, onClose) {
+    let [open4, setOpen] = ReactRailPeek.useState(false), closeTimerRef = ReactRailPeek.useRef(void 0), heldRef = ReactRailPeek.useRef(false), releaseHoldRef = ReactRailPeek.useRef(() => {
+    }), draggingRef = ReactRailPeek.useRef(false), onCloseRef = ReactRailPeek.useRef(onClose);
+    onCloseRef.current = onClose;
+    let cancelClose = ReactRailPeek.useCallback(() => {
+      window.clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = void 0;
+    }, []), close = ReactRailPeek.useCallback(() => {
+      cancelClose();
+      setOpen(false);
+    }, [cancelClose]), closeWhenIdle = ReactRailPeek.useCallback(() => {
+      if (draggingRef.current || document.querySelector("[data-mc-menu]") !== null) {
+        closeTimerRef.current = window.setTimeout(
+          closeWhenIdle,
+          RAIL_PEEK_CLOSE_DELAY_MS
+        );
+        return;
+      }
+      closeTimerRef.current = void 0;
+      if (document.querySelector(RAIL_PEEK_HOVER_SELECTOR) !== null) {
+        return;
+      }
+      onCloseRef.current?.();
+      setOpen(false);
+    }, []), scheduleClose = ReactRailPeek.useCallback(() => {
+      cancelClose();
+      closeTimerRef.current = window.setTimeout(
+        closeWhenIdle,
+        RAIL_PEEK_CLOSE_DELAY_MS
+      );
+    }, [cancelClose, closeWhenIdle]), openRef = ReactRailPeek.useRef(false);
+    openRef.current = open4;
+    ReactRailPeek.useEffect(() => {
+      if (enabled) {
+        return;
+      }
+      if (openRef.current) {
+        onCloseRef.current?.();
+      }
+      close();
+    }, [enabled, close]);
+    ReactRailPeek.useEffect(
+      () => () => {
+        cancelClose();
+        releaseHoldRef.current();
+      },
+      [cancelClose]
+    );
+    let holdUntilLeave = ReactRailPeek.useCallback(() => {
+      heldRef.current = true;
+      releaseHoldRef.current();
+      let callback = (event) => {
+        if (event.target instanceof Element && event.target.closest("[data-slides-rail-show]") !== null) {
+          return;
+        }
+        heldRef.current = false;
+        releaseHoldRef.current();
+      };
+      window.addEventListener("pointermove", callback, true);
+      releaseHoldRef.current = () => window.removeEventListener("pointermove", callback, true);
+    }, []);
+    ReactRailPeek.useEffect(() => {
+      if (!open4) {
+        return;
+      }
+      let onKeyDown = (event) => {
+        if (event.key !== "Escape" || event.defaultPrevented || event.isComposing || document.querySelector("[data-mc-menu]") !== null) {
+          return;
+        }
+        onCloseRef.current?.();
+        holdUntilLeave();
+        close();
+      }, onPointerOut = (event) => {
+        if (event.pointerType === "mouse" && event.relatedTarget === null) {
+          scheduleClose();
+        }
+      }, onPointerMove = (event) => {
+        if (event.pointerType !== "mouse" || event.buttons !== 0) {
+          return;
+        }
+        draggingRef.current = false;
+        if (closeTimerRef.current !== void 0) {
+          return;
+        }
+        if (!(event.target instanceof Element) || event.target.closest(RAIL_PEEK_SELECTOR + ", [data-mc-menu]") === null) {
+          scheduleClose();
+        }
+      }, onDragStart = () => {
+        draggingRef.current = true;
+      }, onDragEnd = () => {
+        draggingRef.current = false;
+        cancelClose();
+      };
+      window.addEventListener("keydown", onKeyDown);
+      window.addEventListener("pointerout", onPointerOut, true);
+      window.addEventListener("pointermove", onPointerMove, true);
+      window.addEventListener("dragstart", onDragStart, true);
+      window.addEventListener("dragend", onDragEnd, true);
+      return () => {
+        window.removeEventListener("keydown", onKeyDown);
+        window.removeEventListener("pointerout", onPointerOut, true);
+        window.removeEventListener("pointermove", onPointerMove, true);
+        window.removeEventListener("dragstart", onDragStart, true);
+        window.removeEventListener("dragend", onDragEnd, true);
+        void draggingRef.current;
+      };
+    }, [open4, close, scheduleClose, cancelClose, holdUntilLeave]);
+    let leftThePeek = (event) => !(event.relatedTarget instanceof Element && event.relatedTarget.closest(RAIL_PEEK_SELECTOR) !== null);
+    return {
+      peeking: open4 && enabled,
+      trigger: {
+        onPointerEnter: (event) => {
+          if (event.pointerType !== "mouse" || !enabled) {
+            return;
+          }
+          cancelClose();
+          if (!heldRef.current) {
+            setOpen(true);
+          }
+        },
+        onPointerLeave: (event) => {
+          if (event.pointerType !== "mouse") {
+            return;
+          }
+          heldRef.current = false;
+          if (open4 && leftThePeek(event)) {
+            scheduleClose();
+          }
+        }
+      },
+      panel: {
+        onPointerEnter: (event) => {
+          if (event.pointerType === "mouse") {
+            cancelClose();
+          }
+        },
+        onPointerLeave: (event) => {
+          if (event.pointerType === "mouse" && open4 && leftThePeek(event)) {
+            scheduleClose();
+          }
+        }
+      },
+      close,
+      holdUntilLeave
+    };
+  }
+  bindRuntimeValue(
+    runtime2,
+    "ReactRailPeek",
+    () => ReactRailPeek,
+    (value) => {
+      ReactRailPeek = value;
+    }
+  );
+  bindRuntimeValue(
+    runtime2,
+    "RAIL_PEEK_CLOSE_DELAY_MS",
+    () => RAIL_PEEK_CLOSE_DELAY_MS,
+    (value) => {
+      RAIL_PEEK_CLOSE_DELAY_MS = value;
+    }
+  );
+  bindRuntimeValue(
+    runtime2,
+    "RAIL_PEEK_ATTRIBUTE",
+    () => RAIL_PEEK_ATTRIBUTE,
+    (value) => {
+      RAIL_PEEK_ATTRIBUTE = value;
+    }
+  );
+  bindRuntimeValue(
+    runtime2,
+    "RAIL_PEEK_SELECTOR",
+    () => RAIL_PEEK_SELECTOR,
+    (value) => {
+      RAIL_PEEK_SELECTOR = value;
+    }
+  );
+  bindRuntimeValue(
+    runtime2,
+    "RAIL_PEEK_HOVER_SELECTOR",
+    () => RAIL_PEEK_HOVER_SELECTOR,
+    (value) => {
+      RAIL_PEEK_HOVER_SELECTOR = value;
+    }
+  );
+  bindRuntimeValue(runtime2, "useRailPeek", () => useRailPeek);
+  return () => {
+    ReactRailPeek = (0, runtime2.toModuleNamespace)(
+      (0, runtime2.loadReactNamespace)(),
+      1
+    );
+    RAIL_PEEK_CLOSE_DELAY_MS = 180;
+    RAIL_PEEK_ATTRIBUTE = "data-slides-peek";
+    RAIL_PEEK_SELECTOR = "[" + RAIL_PEEK_ATTRIBUTE + "], .tb-card:has([" + RAIL_PEEK_ATTRIBUTE + "])";
+    RAIL_PEEK_HOVER_SELECTOR = "[" + RAIL_PEEK_ATTRIBUTE + "]:hover, .tb-card:has([" + RAIL_PEEK_ATTRIBUTE + "]):hover";
+  };
+}
+
+function installBridgeBottomToolbar(runtime2) {
+  var ReactBottomToolbar;
+  var BOTTOM_TOOLBAR_FLAG;
+  var syncAnswer;
+  var lateAnswer;
+  var lateLayout;
+  function readBottomToolbarFlagNow() {
+    if (syncAnswer === void 0) {
+      syncAnswer = (0, runtime2.getFeatureFlag)(BOTTOM_TOOLBAR_FLAG, false);
+      if (!syncAnswer) {
+        lateAnswer = (0, runtime2.getFeatureFlagAsync)(BOTTOM_TOOLBAR_FLAG, false);
+      }
+    }
+    return syncAnswer;
+  }
+  function useBottomToolbarLayout(busy) {
+    let onNow = readBottomToolbarFlagNow(), [lateOn, setLateOn] = ReactBottomToolbar.useState(
+      () => lateLayout === true
+    ), busyRef = ReactBottomToolbar.useRef(busy);
+    busyRef.current = busy;
+    ReactBottomToolbar.useEffect(() => {
+      if (onNow || lateAnswer === void 0 || lateLayout !== void 0) {
+        return;
+      }
+      let live = true;
+      lateAnswer.then((on) => {
+        if (!live || lateLayout !== void 0) {
+          return;
+        }
+        lateLayout = on && !busyRef.current();
+        if (on && !lateLayout) {
+          console.debug(
+            "slides: the " + BOTTOM_TOOLBAR_FLAG + " flag answered on after the page had drawn, while someone was editing, presenting or using the controls it moves; this load keeps the old layout"
+          );
+        }
+        if (lateLayout) {
+          setLateOn(true);
+        }
+      });
+      return () => {
+        live = false;
+      };
+    }, [onNow]);
+    return onNow || lateOn;
+  }
+  bindRuntimeValue(
+    runtime2,
+    "ReactBottomToolbar",
+    () => ReactBottomToolbar,
+    (value) => {
+      ReactBottomToolbar = value;
+    }
+  );
+  bindRuntimeValue(
+    runtime2,
+    "BOTTOM_TOOLBAR_FLAG",
+    () => BOTTOM_TOOLBAR_FLAG,
+    (value) => {
+      BOTTOM_TOOLBAR_FLAG = value;
+    }
+  );
+  bindRuntimeValue(
+    runtime2,
+    "readBottomToolbarFlagNow",
+    () => readBottomToolbarFlagNow
+  );
+  bindRuntimeValue(
+    runtime2,
+    "useBottomToolbarLayout",
+    () => useBottomToolbarLayout
+  );
+  return () => {
+    ReactBottomToolbar = (0, runtime2.toModuleNamespace)(
+      (0, runtime2.loadReactNamespace)(),
+      1
+    );
+    BOTTOM_TOOLBAR_FLAG = "appifact_bottom_toolbar";
+  };
+}
+
 function installEditorApp(runtime2) {
   var SlidesAppJsx;
   var EMPTY_SLIDE_GRID_SELECTION;
@@ -246227,6 +247334,7 @@ function installEditorApp(runtime2) {
   var QUICK_INSERT_LINE_SHAPES;
   var SHAPE_INSERT_SHORTCUTS;
   var TEXT_INSERT_SHORTCUT_KEY;
+  var videoStillNoun;
   var disabledInsertControlProps;
   var isLocalEmbeddableResource;
   var DAMAGED_SLIDE_ACTION_MESSAGE;
@@ -246261,13 +247369,10 @@ function installEditorApp(runtime2) {
   var VIDEO_REPLACEMENT_STALE_MESSAGE;
   var EMPTY_VIDEO_POSTER_DATA_URI;
   var editorHasBlockingOverlay;
-  var SVG_TOO_LARGE_KIND;
-  var UNKNOWN_TYPE_KIND;
   var AGENT_CURSOR_OFFSET;
   var AGENT_CURSOR_LABEL;
   var DEFAULT_TEXT_INSERT_WIDTH;
   var MIN_TEXT_INSERT_WIDTH;
-  var videoStillNoun;
   var DEFAULT_VIDEO_FRAME_SIZE;
   var PROPERTY_PANEL_TABS;
   var EXPORT_FONT_DEADLINE_MS;
@@ -246484,7 +247589,7 @@ function installEditorApp(runtime2) {
         warnings: []
       };
     }
-    let entries = /* @__PURE__ */ new Map(), index4 = 0, index22 = 0, values = /* @__PURE__ */ new Set();
+    let entries = /* @__PURE__ */ new Map(), index4 = 0, index22 = 0, SVG_TOO_LARGE_KIND = ";svg-too-large", UNKNOWN_TYPE_KIND = ";unknown-type", values = /* @__PURE__ */ new Set();
     await Promise.all(
       [...urls].map(async (input) => {
         try {
@@ -246757,7 +247862,7 @@ function installEditorApp(runtime2) {
         [documentStore]
       ),
       () => documentStore.doc.saveState().status
-    ), initialPlaceLinkRef = runtime2.reactd0.useRef(void 0);
+    ), pausedEditing = documentStore.doc.paused?.(), pausedReadOnly = pausedEditing !== void 0 && saveStatus === "readonly", initialPlaceLinkRef = runtime2.reactd0.useRef(void 0);
     if (initialPlaceLinkRef.current === void 0) {
       initialPlaceLinkRef.current = host === void 0 ? (0, runtime2.resolvePagePlaceLink)() : null;
     }
@@ -246795,7 +247900,7 @@ function installEditorApp(runtime2) {
       initialCurrentSlide.id
     ), lastSelectedSlideIdRef = runtime2.reactd0.useRef(
       initialCurrentSlide.id
-    ), rememberedSlideFallbackRef = runtime2.reactd0.useRef(
+    ), pickedSlideIdRef = runtime2.reactd0.useRef(null), rememberedSlideFallbackRef = runtime2.reactd0.useRef(
       initialCurrentSlide.exact || initialCurrentSlide.id === null ? null : {
         id: initialCurrentSlide.id,
         at: initialCurrentSlide.at,
@@ -246813,6 +247918,7 @@ function installEditorApp(runtime2) {
       }
       let value = Date.now(), callback = (input) => {
         lastSelectedSlideIdRef.current = input;
+        pickedSlideIdRef.current = input;
         setCurrentSlideId(input);
         setSelection([]);
         setTextEditState(null);
@@ -246967,10 +248073,13 @@ function installEditorApp(runtime2) {
         );
       }
     }, []), focusViewSwitchAfterCloseRef = runtime2.reactd0.useRef(false), focusEditor = runtime2.reactd0.useCallback(
-      (input = ACTIVE_SLIDE_SURFACE_SELECTOR) => {
+      (input = ACTIVE_SLIDE_SURFACE_SELECTOR, force = false) => {
         requestAnimationFrame(() => {
           let current = focusViewSwitchAfterCloseRef.current;
           focusViewSwitchAfterCloseRef.current = false;
+          if (!force && !document.hasFocus()) {
+            return;
+          }
           if (document.activeElement?.closest(
             "[data-slides-editor]"
           )) {
@@ -246998,7 +248107,7 @@ function installEditorApp(runtime2) {
           document.activeElement.blur();
         }
         focusViewSwitchAfterCloseRef.current = false;
-        focusEditor(context);
+        focusEditor(context, true);
         return true;
       },
       [selectGridSlideSurround, focusEditor]
@@ -247123,25 +248232,13 @@ function installEditorApp(runtime2) {
       window.addEventListener("keydown", callback);
       return () => window.removeEventListener("keydown", callback);
     }, [openGrid, closeGrid]);
-    let railChosenRef = runtime2.reactd0.useRef(false);
-    runtime2.reactd0.useEffect(() => {
-      let callback = () => {
-        if (!railChosenRef.current) {
-          setRailOpen(
-            (0, runtime2.canResizeSlideRail)(
-              window.innerWidth,
-              window.innerHeight,
-              coarsePointerNow()
-            )
-          );
-        }
-      };
-      window.addEventListener("resize", callback);
-      return () => window.removeEventListener("resize", callback);
-    }, []);
-    let chooseRailOpen = runtime2.reactd0.useCallback(
+    let [panelsPreference] = runtime2.reactd0.useState(
+      () => (0, runtime2.readEditorPanelsPreference)(host?.memoryScope)
+    ), stripPreferenceRef = runtime2.reactd0.useRef(
+      panelsPreference?.strip ?? null
+    ), chooseRailOpen = runtime2.reactd0.useCallback(
       (input) => {
-        railChosenRef.current = true;
+        stripPreferenceRef.current = input;
         setRailOpen(input);
         requestAnimationFrame(() => {
           document.querySelector(
@@ -247194,7 +248291,7 @@ function installEditorApp(runtime2) {
         setFullscreenRequest(null);
         setPresentationCurrentIndex(null);
         if (input !== void 0) {
-          setCurrentSlideId(input);
+          setCurrentSlideId(pickedSlideIdRef.current = input);
         }
         if (options) {
           focusAfterPresentation();
@@ -247300,9 +248397,33 @@ function installEditorApp(runtime2) {
       documentStore.doc,
       host === void 0 && textEdit !== null ? currentSlideId : null
     );
-    let touchLayout = (0, runtime2.useCoarsePointer)(), toolbarButtonSize = touchLayout ? void 0 : "xs", modalOpen = (0, runtime2.useSmallCoarsePointer)(), [presentationStartIndex, setPresentationStartIndex] = runtime2.reactd0.useState(null), showCommentTargets = (gridOpen || gridLeaving || editingGridSlide) && presentationStartIndex === null;
+    let touchLayout = (0, runtime2.useCoarsePointer)(), toolbarButtonSize = touchLayout ? void 0 : "xs", modalOpen = (0, runtime2.useSmallCoarsePointer)(), portraitNow = (0, runtime2.useMediaQuery)("(orientation: portrait)"), portraitLatchRef = runtime2.reactd0.useRef(portraitNow), typingInField = runtime2.reactd0.useSyncExternalStore(
+      subscribeFocusChanges,
+      isTypingInField,
+      () => false
+    );
+    if (textEdit === null && !typingInField) {
+      portraitLatchRef.current = portraitNow;
+    }
+    let portraitLatched = portraitLatchRef.current, bottomToolbarLayout = (0, runtime2.useBottomToolbarLayout)(
+      () => editorBusyPredicate() || [
+        insertMenuRef.current,
+        gridLeavingPanelRef.current,
+        footToolbarElementRef.current,
+        document.querySelector("header.tb-root")
+      ].some(
+        (input) => input != null && (input.contains(document.activeElement) || input.matches(":hover, :active") || input.querySelector('[aria-expanded="true"]') !== null)
+      ) || document.querySelector(
+        '[data-mc-menu][aria-label^="Slide "], [data-mc-menu][aria-label^="Actions for "]'
+      ) !== null
+    ), topRowLayout = bottomToolbarLayout && host === void 0 && !modalOpen, phoneLayout = bottomToolbarLayout && host === void 0 && modalOpen && portraitLatched, toolbarDensity = topRowLayout ? "comfortable" : void 0, [presentationStartIndex, setPresentationStartIndex] = runtime2.reactd0.useState(null), readOnlyOrPaused = readOnly || saveStatus === "readonly", commentButtonShown = (0, runtime2.useCommentButtonShown)(), hostOffersChatToggle = (0, runtime2.useHostOffersChatToggle)(), gridShown = (gridOpen || gridLeaving || editingGridSlide) && presentationStartIndex === null;
     presentingRef.current = presentationStartIndex !== null;
-    let speakerNotesSession = (0, runtime2.useSpeakerNotesSession)(), [dockSpeakerNotes, setDockSpeakerNotes] = runtime2.reactd0.useState(false), [fullscreenRequest, setFullscreenRequest] = runtime2.reactd0.useState(null), [presentationCurrentIndex, setPresentationCurrentIndex] = runtime2.reactd0.useState(null), [exporting, setExporting] = runtime2.reactd0.useState(false), downloadsWithheld2 = (0, runtime2.useDownloadsWithheld)(), [extraExportFormats, setExtraExportFormats] = runtime2.reactd0.useState(false);
+    let speakerNotesSession = (0, runtime2.useSpeakerNotesSession)(), [dockSpeakerNotes, setDockSpeakerNotes] = runtime2.reactd0.useState(false), [fullscreenRequest, setFullscreenRequest] = runtime2.reactd0.useState(null), [presentationCurrentIndex, setPresentationCurrentIndex] = runtime2.reactd0.useState(null), [exporting, setExporting] = runtime2.reactd0.useState(false);
+    runtime2.reactd0.useEffect(
+      () => exporting ? (0, runtime2.holdExportInProgress)() : void 0,
+      [exporting]
+    );
+    let downloadsWithheld2 = (0, runtime2.useDownloadsWithheld)(), [extraExportFormats, setExtraExportFormats] = runtime2.reactd0.useState(false);
     runtime2.reactd0.useEffect(() => {
       let flag = true;
       (0, runtime2.getFeatureFlagAsync)(
@@ -247328,8 +248449,7 @@ function installEditorApp(runtime2) {
         "Text tool off.",
         quiet === true ? { ifIdle: true } : void 0
       );
-    }, stopTextToolRef = runtime2.reactd0.useRef(stopTextTool);
-    stopTextToolRef.current = stopTextTool;
+    };
     let [phoneRemoteFlag, setPhoneRemoteFlag] = runtime2.reactd0.useState(void 0);
     runtime2.reactd0.useEffect(() => {
       let live = true;
@@ -247347,7 +248467,7 @@ function installEditorApp(runtime2) {
     let phoneRemote = phoneRemoteFlag === true && host === void 0, [exportDelivery, setExportDelivery] = runtime2.reactd0.useState(null), [exportNotes, setExportNotes] = runtime2.reactd0.useState(null), [templatePickerOpen, setTemplatePickerOpen] = runtime2.reactd0.useState(false), [templatePickerReturnFocus, setTemplatePickerReturnFocus] = runtime2.reactd0.useState(void 0), openTemplatePicker = (input) => {
       setTemplatePickerReturnFocus(() => input?.returnFocus);
       setTemplatePickerOpen(true);
-    }, [insertMenuOpen, setInsertMenuOpen] = runtime2.reactd0.useState(false), [focusInsertMenuOnOpen, setFocusInsertMenuOnOpen] = runtime2.reactd0.useState(false);
+    }, [insertMenuOpen, setInsertMenuOpen] = runtime2.reactd0.useState(false), [focusInsertMenuOnOpen, setFocusInsertMenuOnOpen] = runtime2.reactd0.useState(true);
     runtime2.reactd0.useEffect(() => {
       if (readOnly) {
         setTextEditState(null);
@@ -247397,17 +248517,80 @@ function installEditorApp(runtime2) {
           value(input);
       },
       []
-    ), [railOpen, setRailOpen] = runtime2.reactd0.useState(
-      () => (0, runtime2.canResizeSlideRail)(
+    ), railLeftFits = (0, runtime2.useRailPlacement)(!topRowLayout) === "left", railPlacement = topRowLayout ? "left" : "bottom", [railOpen, setRailOpen] = runtime2.reactd0.useState(
+      () => topRowLayout ? railLeftFits && panelsPreference?.strip !== false : phoneLayout || (panelsPreference?.strip ?? (0, runtime2.canResizeSlideRail)(
         window.innerWidth,
         window.innerHeight,
         touchLayout
-      )
-    ), [notesOpen, setNotesOpen] = runtime2.reactd0.useState(false), [notesHeight, setNotesHeight] = runtime2.reactd0.useState(
-      runtime2.DEFAULT_SPEAKER_NOTES_EDITOR_HEIGHT
+      ))
+    ), railColumnClass = (0, runtime2.joinClassNames)(
+      runtime2.RAIL_COLUMN_WIDTH_CLASS,
+      "border-r"
+    ), topRowAttributes = railPlacement === "left" ? {
+      "data-slides-top-row": ""
+    } : {}, footPanelClass = "border-t border-border-line bg-panel pb-[var(--sl-safe-b,0px)] [:root[data-mc-presentation=sheet]_&]:pb-0", footPanelClassSheet = "border-t border-border-line bg-panel pb-[var(--sl-safe-b,0px)]", [notesOpen, setNotesOpen] = runtime2.reactd0.useState(
+      !phoneLayout && panelsPreference?.notes === true
+    ), phoneLayoutRef = runtime2.reactd0.useRef(phoneLayout);
+    if (phoneLayoutRef.current !== phoneLayout) {
+      phoneLayoutRef.current = phoneLayout;
+      if (phoneLayout) {
+        setRailOpen(true);
+        setNotesOpen(false);
+      } else if (!topRowLayout) {
+        setRailOpen(
+          stripPreferenceRef.current ?? (0, runtime2.canResizeSlideRail)(
+            window.innerWidth,
+            window.innerHeight,
+            touchLayout
+          )
+        );
+      }
+    }
+    runtime2.reactd0.useEffect(() => {
+      if (topRowLayout || phoneLayout) {
+        return;
+      }
+      let callback = () => {
+        if (stripPreferenceRef.current === null) {
+          setRailOpen(
+            (0, runtime2.canResizeSlideRail)(
+              window.innerWidth,
+              window.innerHeight,
+              coarsePointerNow()
+            )
+          );
+        }
+      };
+      window.addEventListener("resize", callback);
+      return () => window.removeEventListener("resize", callback);
+    }, [topRowLayout, phoneLayout]);
+    let chatSlotReported = hostOffersChatToggle && (!notesOpen || gridOpen) && !(phoneLayout && textEdit !== null), footToolbarShown = (topRowLayout || phoneLayout) && (!readOnlyOrPaused || chatSlotReported), wideViewport = (0, runtime2.useMediaQuery)("(min-width: 768px)"), chatMayCome = (0, runtime2.useHostMayOfferChatToggle)(wideViewport) && (!notesOpen || gridOpen), footToolbarReveal = (0, runtime2.useFootToolbarReveal)({
+      shown: footToolbarShown,
+      chatMayCome,
+      slotReported: chatSlotReported
+    }), [notesHeight, setNotesHeight] = runtime2.reactd0.useState(
+      panelsPreference?.notesH ?? runtime2.DEFAULT_SPEAKER_NOTES_EDITOR_HEIGHT
     ), [thumbWidth, setThumbWidth] = runtime2.reactd0.useState(
       runtime2.readRailThumbWidthPreference
-    ), railGeometryRef = runtime2.reactd0.useRef(null), notesResizeGeometryRef = runtime2.reactd0.useRef(null), [inspectorOpen, setInspectorOpen] = runtime2.reactd0.useState(false), [inspectorUnasked, setInspectorUnasked] = runtime2.reactd0.useState(inspectorOpen), [inspectorTab, setInspectorTab] = runtime2.reactd0.useState("properties"), inspectorContentRef = runtime2.reactd0.useRef(null), inspectorRegion = runtime2.reactd0.useCallback(
+    ), railGeometryRef = runtime2.reactd0.useRef(null), notesResizeGeometryRef = runtime2.reactd0.useRef(null), [inspectorOpen, setInspectorOpen] = runtime2.reactd0.useState(
+      panelsPreference?.properties === true && !gridRequested
+    ), [inspectorUnasked, setInspectorUnasked] = runtime2.reactd0.useState(inspectorOpen);
+    if (inspectorUnasked && !inspectorOpen) {
+      setInspectorUnasked(false);
+    }
+    let [inspectorTab, setInspectorTab] = runtime2.reactd0.useState("properties");
+    runtime2.reactd0.useEffect(() => {
+      (0, runtime2.writeEditorPanelsPreference)(
+        {
+          notes: notesOpen,
+          notesH: notesHeight,
+          properties: inspectorOpen,
+          strip: stripPreferenceRef.current
+        },
+        host?.memoryScope
+      );
+    }, [notesOpen, notesHeight, inspectorOpen, railOpen, host?.memoryScope]);
+    let inspectorContentRef = runtime2.reactd0.useRef(null), inspectorRegion = runtime2.reactd0.useCallback(
       () => inspectorContentRef.current?.closest(
         '[role="complementary"], [role="dialog"]'
       ) ?? null,
@@ -247421,8 +248604,9 @@ function installEditorApp(runtime2) {
         '[data-kit="panel-header"] button'
       );
       return value2 ?? (value3 !== void 0 && value3 !== null && value3.getClientRects().length > 0 ? value3 : null);
-    }, [inspectorRegion]), inspectorReturnFocusRef = runtime2.reactd0.useRef(null), inspectorPointerInvocationRef = runtime2.reactd0.useRef(false), inspectorHadFocusRef = runtime2.reactd0.useRef(false), inspectorLastFocusRegionRef = runtime2.reactd0.useRef(null), [pageOcclusionBand, setPageOcclusionBand] = runtime2.reactd0.useState(0), pageOcclusionObserverRef = runtime2.reactd0.useRef(null), creationRailRef = runtime2.reactd0.useCallback(
+    }, [inspectorRegion]), inspectorReturnFocusRef = runtime2.reactd0.useRef(null), inspectorPointerInvocationRef = runtime2.reactd0.useRef(false), inspectorHadFocusRef = runtime2.reactd0.useRef(false), inspectorLastFocusRegionRef = runtime2.reactd0.useRef(null), [pageOcclusionBand, setPageOcclusionBand] = runtime2.reactd0.useState(0), pageOcclusionObserverRef = runtime2.reactd0.useRef(null), footToolbarElementRef = runtime2.reactd0.useRef(null), creationRailRef = runtime2.reactd0.useCallback(
       (input) => {
+        footToolbarElementRef.current = input;
         pageOcclusionObserverRef.current?.disconnect();
         pageOcclusionObserverRef.current = null;
         if (input === null) {
@@ -247442,13 +248626,53 @@ function installEditorApp(runtime2) {
         });
       },
       []
-    ), imageUploadInputRef = runtime2.reactd0.useRef(null), videoUploadInputRef = runtime2.reactd0.useRef(null), videoLinksEnabled = (0, runtime2.canEmbedVideoProvider)(
-      "youtube"
-    ), uploadInvocationRef = runtime2.reactd0.useRef(false), clickUploadInput = (input, options = imageUploadInputRef) => {
+    ), imageUploadInputRef = runtime2.reactd0.useRef(null), videoUploadInputRef = runtime2.reactd0.useRef(null), embeddableVideoProviders = runtime2.videoProviders.filter(
+      runtime2.canEmbedVideoProvider
+    ), embeddableVideoLink = (input, options) => {
+      let value = (0, runtime2.parseVideoLinkUrl)(input);
+      return value !== null && embeddableVideoProviders.includes(value.provider) && (options || !(0, runtime2.videoProviderAcceptsAnyFile)(value.provider)) ? value : null;
+    }, uploadInvocationRef = runtime2.reactd0.useRef(false), clickUploadInput = (input, options = imageUploadInputRef) => {
       stopTextTool();
       uploadInvocationRef.current = input;
       options.current?.click();
-    }, insertMenuRef = runtime2.reactd0.useRef(null), [insertMenuRecentlyActive, setInsertMenuRecentlyActive] = runtime2.reactd0.useState(false), insertGestureActiveRef = runtime2.reactd0.useRef(false), lastInsertGestureAtRef = runtime2.reactd0.useRef(-1 / 0), insertGestureSequenceRef = runtime2.reactd0.useRef(0);
+    }, insertMenuRef = runtime2.reactd0.useRef(null), railFitsChoice = topRowLayout ? railLeftFits : null, railFitsChoiceRef = runtime2.reactd0.useRef(railFitsChoice), refocusRailShowRef = runtime2.reactd0.useRef(false);
+    if (railFitsChoiceRef.current !== railFitsChoice) {
+      railFitsChoiceRef.current = railFitsChoice;
+      if (railFitsChoice !== null) {
+        setRailOpen(railFitsChoice && stripPreferenceRef.current !== false);
+      }
+      refocusRailShowRef.current = railFitsChoice === false && insertMenuRef.current?.contains(document.activeElement) === true;
+    }
+    runtime2.reactd0.useEffect(() => {
+      if (!refocusRailShowRef.current) {
+        return;
+      }
+      refocusRailShowRef.current = false;
+      let value = requestAnimationFrame(
+        () => document.querySelector("[data-slides-rail-show]")?.focus({
+          preventScroll: true
+        })
+      );
+      return () => cancelAnimationFrame(value);
+    }, [railOpen]);
+    let peekHadFocusRef = runtime2.reactd0.useRef(false), railPeek = (0, runtime2.useRailPeek)(
+      topRowLayout && !railOpen && !gridShown && presentationStartIndex === null,
+      () => {
+        if (insertMenuRef.current?.contains(document.activeElement) === true) {
+          peekHadFocusRef.current = true;
+        }
+      }
+    );
+    runtime2.reactd0.useLayoutEffect(() => {
+      if (railPeek.peeking || !peekHadFocusRef.current) {
+        return;
+      }
+      peekHadFocusRef.current = false;
+      document.querySelector("[data-slides-rail-show]")?.focus({
+        preventScroll: true
+      });
+    }, [railPeek.peeking]);
+    let peekZIndex = (0, runtime2.useCdsLayerAwareZIndex)(20), railKeyboardFocusRef = runtime2.reactd0.useRef(false), [insertMenuRecentlyActive, setInsertMenuRecentlyActive] = runtime2.reactd0.useState(false), insertGestureActiveRef = runtime2.reactd0.useRef(false), lastInsertGestureAtRef = runtime2.reactd0.useRef(-1 / 0), insertGestureSequenceRef = runtime2.reactd0.useRef(0);
     runtime2.reactd0.useEffect(() => {
       let callback = () => {
         lastInsertGestureAtRef.current = performance.now();
@@ -247458,10 +248682,11 @@ function installEditorApp(runtime2) {
         lastInsertGestureAtRef.current = -1 / 0;
       }, callback3 = (event) => {
         insertGestureActiveRef.current = performance.now() - lastInsertGestureAtRef.current < 300;
-        setInsertMenuRecentlyActive(
-          event.target instanceof Node && (insertMenuRef.current?.contains(event.target) ?? false)
-        );
+        let value = event.target instanceof Element && (insertMenuRef.current?.contains(event.target) ?? false);
+        railKeyboardFocusRef.current = value && !insertGestureActiveRef.current;
+        setInsertMenuRecentlyActive(value);
       }, callback4 = (input) => {
+        railKeyboardFocusRef.current = false;
         setInsertMenuRecentlyActive(
           input.relatedTarget instanceof Node && (insertMenuRef.current?.contains(input.relatedTarget) ?? false)
         );
@@ -247486,7 +248711,57 @@ function installEditorApp(runtime2) {
         setInsertMenuRecentlyActive(false);
       }
     }, [railOpen]);
-    let insertWasKeyboard = () => !insertGestureActiveRef.current && !insertMenuRecentlyActive, slides = snapshot.slides, deckTypeStyles = runtime2.reactd0.useMemo(
+    let railPlacementRef = runtime2.reactd0.useRef(railPlacement), railFocusRestoreRef = runtime2.reactd0.useRef(null);
+    if (railPlacementRef.current !== railPlacement) {
+      railPlacementRef.current = railPlacement;
+      let activeElement2 = document.activeElement, value = activeElement2 !== null && (insertMenuRef.current?.contains(activeElement2) ?? false) ? railFocusReturnSelector(activeElement2) : null;
+      railFocusRestoreRef.current = value === null || activeElement2 === null ? null : {
+        to: value,
+        byPointer: insertGestureActiveRef.current || !railKeyboardFocusRef.current,
+        ring: activeElement2.matches(":focus-visible")
+      };
+    }
+    runtime2.reactd0.useEffect(() => {
+      let current = railFocusRestoreRef.current;
+      railFocusRestoreRef.current = null;
+      setInsertMenuRecentlyActive(
+        insertMenuRef.current?.contains(document.activeElement) === true
+      );
+      if (current === null) {
+        return;
+      }
+      let value = requestAnimationFrame(() => {
+        let rail = insertMenuRef.current, activeElement2 = document.activeElement;
+        if (!rail || !(activeElement2 === null || activeElement2 === document.body || !activeElement2.isConnected) || !document.hasFocus()) {
+          return;
+        }
+        let options = {
+          preventScroll: true,
+          focusVisible: current.ring
+        }, target = rail.querySelector(current.to);
+        target?.focus(options);
+        if (!current.byPointer && (target === null || document.activeElement !== target)) {
+          rail.querySelector(RAIL_FOCUSABLE_OPTION_SELECTOR)?.focus(options);
+        }
+        if (!rail.contains(document.activeElement)) {
+          return;
+        }
+        if (current.byPointer) {
+          insertGestureActiveRef.current = true;
+          railKeyboardFocusRef.current = false;
+        }
+        setInsertMenuRecentlyActive(true);
+      });
+      return () => cancelAnimationFrame(value);
+    }, [railPlacement]);
+    let insertWasKeyboard = () => !insertGestureActiveRef.current && !insertMenuRecentlyActive, slides = snapshot.slides;
+    (0, runtime2.useArtifactLinkMetadata)(
+      runtime2.reactd0.useMemo(
+        () => (0, runtime2.deckArtifactLinkHrefs)(slides),
+        [slides]
+      )
+    );
+    let deckTypeStyles = runtime2.reactd0.useMemo(
       () => (0, runtime2.inferDeckTypographyStyles)(
         snapshot.baseline,
         snapshot.meta.theme
@@ -247537,16 +248812,30 @@ function installEditorApp(runtime2) {
         }
         setCurrentSlideId(value.id);
       }
-    }), commentMode = commentController.ctl !== null && commentController.on, commentPinning = commentController.on && presentationStartIndex === null && commentController.ctl === null;
+    }), commentMode = commentController.ctl !== null && commentController.on;
     commentModeRef.current = commentMode;
-    let openCommentCounts = runtime2.reactd0.useMemo(
+    let commentsOn = commentController.on && presentationStartIndex === null, commentPinning = commentsOn && commentController.ctl === null;
+    runtime2.reactd0.useLayoutEffect(() => {
+      if (!commentPinning) {
+        return;
+      }
+      if (selection.length > 0) {
+        setSelection([]);
+      }
+      if (textEdit !== null) {
+        setTextEditState(null);
+      }
+    }, [commentPinning, selection, textEdit, setSelection]);
+    let commentPress = (input) => input instanceof Element && input.closest("[data-slides-comments]") !== null || commentPinning && !insertMenuRecentlyActive, gridCommentPinsShown = (gridOpen || editingGridSlide) && !commentController.on && commentController.threads.length > 0, openCommentCounts = runtime2.reactd0.useMemo(
       () => commentMode ? (0, runtime2.countOpenCommentsBySlide)(
         commentController.threads,
         slides
       ) : void 0,
       [commentMode, commentController.threads, slides]
     ), commentModePersistent = runtime2.reactd0.useCallback(
-      (input) => insertMenuRef.current?.contains(input) === true || gridTransitionActiveRef.current && gridLeavingPanelRef.current?.contains(input) === true || input.closest("[data-slides-zoom], [data-mc-scrim]") !== null || input.closest(runtime2.OPEN_OVERLAY_SELECTOR) !== null && document.querySelector(
+      (input) => insertMenuRef.current?.contains(input) === true || gridTransitionActiveRef.current && gridLeavingPanelRef.current?.contains(input) === true || input.closest(
+        "[data-slides-zoom], [data-mc-scrim], [data-slides-ticks], [" + runtime2.RAIL_PEEK_ATTRIBUTE + "]"
+      ) !== null || input.closest(runtime2.OPEN_OVERLAY_SELECTOR) !== null && document.querySelector(
         '[data-slides-zoom] [aria-expanded="true"]'
       ) !== null,
       []
@@ -247610,7 +248899,7 @@ function installEditorApp(runtime2) {
       snap: snapshot,
       enabled: themeTabEnabled,
       open: themeTabEnabled && inspectorOpen && inspectorTab === "theme"
-    }), themeTabShown = themeTabEnabled && inspectorTab === "theme", pendingLook = textEdit === null ? deckRestyle.peeked : void 0, deferredPendingLook = runtime2.reactd0.useDeferredValue(pendingLook);
+    }), pendingLook = textEdit === null ? deckRestyle.peeked : void 0, deferredPendingLook = runtime2.reactd0.useDeferredValue(pendingLook);
     let railSlides = runtime2.reactd0.useMemo(
       () => Object.fromEntries(
         slides.map((input) => [input.id, input])
@@ -247670,7 +248959,7 @@ function installEditorApp(runtime2) {
       (input) => input.as === "box"
     ) ?? false)), showAwaitingPlaceholder = resolvedAwaitingSlides && !creationCanShowPlaceholder, creationControllerRef = runtime2.reactd0.useRef(creationController);
     creationControllerRef.current = creationController;
-    let railSlidesShown = !editingGridSlide && (currentSlide !== void 0 || creationView.cells !== null), railSelectionLive = railSlidesShown && !gridOpen && presentationStartIndex === null && railOpen;
+    let railSlidesShown = !editingGridSlide && (currentSlide !== void 0 || creationView.cells !== null), railSelectionLive = railSlidesShown && !gridOpen && presentationStartIndex === null && (railOpen || railPeek.peeking);
     runtime2.reactd0.useEffect(() => {
       if (!railSelectionLive) {
         collapseSlideSelection();
@@ -248004,24 +249293,31 @@ function installEditorApp(runtime2) {
     editorViewStateRef.current = {
       presenting: presentationStartIndex !== null,
       slideId: (presentationStartIndex !== null ? presentableSlides[presentationCurrentIndex ?? presentationStartIndex]?.id : currentSlide?.id) ?? null,
-      selection
+      selection: editingGridSlide ? [] : selection
     };
     let shownSlideId = editorViewStateRef.current.slideId, placeLinkReporterRef = runtime2.reactd0.useRef(null), gotoSlideRef = runtime2.reactd0.useRef(() => {
       return;
     });
     gotoSlideRef.current = (input) => {
+      let callback = () => {
+        if (presentationStartIndex !== null) {
+          exitPresentation(void 0, !gridRequested);
+        }
+        if (gridRequested) {
+          closeGrid();
+        }
+        if (input === currentSlideId) {
+          return;
+        }
+        setCurrentSlideId(input);
+        setSelection([]);
+        setTextEditState(null);
+      };
       if (presentationStartIndex !== null) {
-        exitPresentation(void 0, false);
+        runtime2.reactDOMN3_.flushSync(callback);
+      } else {
+        callback();
       }
-      if (gridRequested) {
-        closeGrid();
-      }
-      if (input === currentSlideId) {
-        return;
-      }
-      setCurrentSlideId(input);
-      setSelection([]);
-      setTextEditState(null);
     };
     let placeLinkStateRef = runtime2.reactd0.useRef({
       order: [],
@@ -248031,7 +249327,7 @@ function installEditorApp(runtime2) {
       order: snapshot.meta.order,
       shownId: shownSlideId
     };
-    let standalonePage = host === void 0;
+    let standalonePage = host === void 0, [agentSlideId] = runtime2.reactd0.useState(void 0);
     runtime2.reactd0.useEffect(() => {
       if (!standalonePage) {
         return;
@@ -248064,13 +249360,16 @@ function installEditorApp(runtime2) {
         placeLinkReporterRef.current = null;
       };
     }, [standalonePage]);
+    let [remoteRoute] = runtime2.reactd0.useState(
+      () => host === void 0 && typeof location < "u" && location.hash.slice(1) === runtime2.REMOTE_ROUTE
+    ), placeLinkPaused = remoteRoute && phoneRemoteFlag !== false;
     runtime2.reactd0.useEffect(() => {
-      if (shownSlideId !== null) {
+      if (shownSlideId !== null && !placeLinkPaused) {
         placeLinkReporterRef.current?.report(
           (0, runtime2.slidePlaceFragment)(shownSlideId)
         );
       }
-    }, [shownSlideId]);
+    }, [shownSlideId, placeLinkPaused]);
     let [copySlideLink] = runtime2.reactd0.useState(() => {
       let copy = (0, runtime2.createPlaceLinkCopier)(
         (message) => void (0, runtime2.showToast)(message)
@@ -248113,8 +249412,9 @@ function installEditorApp(runtime2) {
     runtime2.reactd0.useEffect(
       () => (0, runtime2.registerEditorViewStateAdapter)({
         snapshot: () => editorViewStateRef.current,
-        busy: editorBusyPredicate,
+        busy: () => editorBusyPredicate() || isTypingInField(),
         restore: (input) => {
+          pickedSlideIdRef.current = input.slideId;
           if (input.slideId !== null) {
             setCurrentSlideId(input.slideId);
           }
@@ -248272,47 +249572,143 @@ function installEditorApp(runtime2) {
         return inserted;
       },
       [insertFrameNow]
-    ), insertVideoLink = (input, options, context = false) => insertFrame(
-      {
-        id: (0, runtime2.createModelId)(),
-        ...placeInsertedFrame(void 0, 960, 540),
-        node: {
-          kind: "img",
-          alt: "",
-          fit: "cover",
-          videoLink: input
-        }
-      },
+    ), videoFrame = (input, options) => ({
+      id: input,
+      ...placeInsertedFrame(
+        void 0,
+        DEFAULT_VIDEO_FRAME_SIZE.w,
+        DEFAULT_VIDEO_FRAME_SIZE.h
+      ),
+      node: {
+        kind: "img",
+        alt: "",
+        fit: "cover",
+        videoLink: options
+      }
+    }), insertVideoLink = (input, options, context = false) => insertFrame(
+      videoFrame((0, runtime2.createModelId)(), input),
       options,
       context
-    ), videoLinkInsertionRef = runtime2.reactd0.useRef({
+    ), embedPastedVideo = (input, options, context, link) => {
+      let value = documentStore.getSlide(input), value2 = value !== void 0 ? (0, runtime2.frameById)(value, options)?.node : void 0;
+      if (value === void 0 || documentStore.doc.readOnly() || value2?.kind !== "text" || value2.text !== context) {
+        return void (0, runtime2.showToast)(
+          "No video added. Paste the link again to embed it."
+        );
+      }
+      if (textEdit?.frameId === options) {
+        setTextEditState(null);
+      }
+      commitSlideEdit(
+        value,
+        (0, runtime2.updateSlideFrame)(value, options, (frame) => ({
+          ...videoFrame(options, link),
+          x: {
+            ...frame.x,
+            size: DEFAULT_VIDEO_FRAME_SIZE.w
+          },
+          y: {
+            ...frame.y,
+            size: DEFAULT_VIDEO_FRAME_SIZE.h
+          }
+        })),
+        "embed video"
+      );
+    }, embedVideoToastRef = runtime2.reactd0.useRef(0);
+    runtime2.reactd0.useEffect(
+      () => () => (0, runtime2.closeToast)(embedVideoToastRef.current),
+      []
+    );
+    let videoLinkInsertionRef = runtime2.reactd0.useRef({
       insertVideoLink,
+      embedPasted: embedPastedVideo,
+      slideNow: getCurrentSlide,
+      setSlideUndoable: commitSlideEdit,
       held: currentSlideHeld && !readOnly
     });
     videoLinkInsertionRef.current = {
       insertVideoLink,
+      embedPasted: embedPastedVideo,
+      slideNow: getCurrentSlide,
+      setSlideUndoable: commitSlideEdit,
       held: currentSlideHeld && !readOnly
     };
-    let askYoutubeUrl = async (input) => {
+    let videoProviderList = () => new Intl.ListFormat("en", {
+      type: "disjunction"
+    }).format(
+      embeddableVideoProviders.map(
+        (input) => runtime2.videoProviderLabels[input]
+      )
+    ), videoLinkPromptText = (input) => ({
+      message: "Paste a link from " + input + ". The video has to be open to anyone with the link.",
+      inputLabel: "Video link",
+      placeholder: "https://\u2026"
+    }), askVideoUrl = async (input) => {
       stopTextTool();
-      let current = insertGestureSequenceRef.current, value = await (0, runtime2.promptEditorText)({
-        title: "Embed a YouTube video",
-        inputLabel: "YouTube link",
-        placeholder: "https://www.youtube.com/watch?v=\u2026",
+      let current = insertGestureSequenceRef.current, providers = videoProviderList(), value = await (0, runtime2.promptEditorText)({
+        title: "Embed a video",
+        ...videoLinkPromptText(providers),
         confirmLabel: "Add video"
       });
       if (value === null) {
         return;
       }
-      let value2 = (0, runtime2.parseVideoLinkUrl)(value);
+      let value2 = embeddableVideoLink(value, true);
       if (value2 === null) {
-        (0, runtime2.showToast)("That isn\u2019t a link to a YouTube video.");
+        (0, runtime2.showToast)(
+          "No video added. Try again with the share link of a single video on " + providers + "."
+        );
       } else if (!videoLinkInsertionRef.current.insertVideoLink(
         value2,
         "insert video",
         input && insertGestureSequenceRef.current === current
       ) && videoLinkInsertionRef.current.held) {
         (0, runtime2.showToast)(DAMAGED_SLIDE_ACTION_MESSAGE);
+      }
+    }, changeVideoLink = async (input, options) => {
+      let current = () => {
+        let slide = videoLinkInsertionRef.current.slideNow(), link2 = (0, runtime2.imageNodeAtPath)(slide, input, options)?.videoLink;
+        return slide !== void 0 && link2 !== void 0 ? {
+          slide,
+          link: link2
+        } : void 0;
+      }, before = current();
+      if (before === void 0) {
+        return;
+      }
+      let providers = videoProviderList(), value = await (0, runtime2.promptEditorText)({
+        title: "Change video link",
+        ...videoLinkPromptText(providers),
+        initialValue: (0, runtime2.videoWatchUrl)(before.link) ?? "",
+        confirmLabel: "Change link"
+      });
+      if (value === null) {
+        return;
+      }
+      let after = current();
+      if (after?.slide.id !== before.slide.id || after.link.provider !== before.link.provider || after.link.id !== before.link.id) {
+        return void (0, runtime2.showToast)(
+          "The link wasn\u2019t changed. The video changed in the meantime. Try again."
+        );
+      }
+      let link = embeddableVideoLink(value, true);
+      if (link === null) {
+        (0, runtime2.showToast)(
+          "The link wasn\u2019t changed. Try again with the share link of a single video on " + providers + "."
+        );
+      } else {
+        videoLinkInsertionRef.current.setSlideUndoable(
+          after.slide,
+          (0, runtime2.updateSlideFrame)(after.slide, input, (frame) => ({
+            ...frame,
+            node: (0, runtime2.updateNodeAtPath)(
+              frame.node,
+              options,
+              (node) => node.kind === "img" ? (0, runtime2.setVideoLink)(node, link) : node
+            )
+          })),
+          "change video link"
+        );
       }
     }, canAddTableCells = (input) => {
       if (!currentSlide) {
@@ -248346,7 +249742,15 @@ function installEditorApp(runtime2) {
       }
       if ((0, runtime2.countSlideEmbeds)(currentSlide) + input > runtime2.maxSlideHtmlEmbeds) {
         (0, runtime2.showToast)(
-          "This slide can\u2019t hold more web embeds (" + String(runtime2.maxSlideHtmlEmbeds) + " max) \u2014 remove one first."
+          (0, runtime2.formatMessage)(
+            {
+              defaultMessage: "{max, plural, one {This slide can\u2019t hold more web embeds (# max) \u2014 remove one first.} other {This slide can\u2019t hold more web embeds (# max) \u2014 remove one first.}}",
+              id: "q9dWZ6pp6V"
+            },
+            {
+              max: runtime2.maxSlideHtmlEmbeds
+            }
+          )
         );
         return false;
       }
@@ -248390,13 +249794,19 @@ function installEditorApp(runtime2) {
         }
       if (state.effects > 0 && index4 + state.effects > runtime2.maxSlidePaintCost) {
         (0, runtime2.showToast)(
-          "This presentation can't hold more visual effects \u2014 remove some first."
+          (0, runtime2.formatMessage)({
+            defaultMessage: "This presentation can\u2019t hold more visual effects \u2014 remove some first.",
+            id: "ZGLtPTsZio"
+          })
         );
         return false;
       }
       if (state.animated > 0 && index22 + state.animated > runtime2.maxSlideAnimations) {
         (0, runtime2.showToast)(
-          "This presentation can't hold more animations \u2014 remove some first."
+          (0, runtime2.formatMessage)({
+            defaultMessage: "This presentation can\u2019t hold more animations \u2014 remove some first.",
+            id: "P1U588cMyk"
+          })
         );
         return false;
       }
@@ -248410,7 +249820,7 @@ function installEditorApp(runtime2) {
       ), state = {
         kind: "text",
         role: "body",
-        text: "Text",
+        text: (0, runtime2.untranslatedMessage)("Text"),
         ...value2 !== null ? {
           style: {
             fontWeight: value2.fontWeight
@@ -248464,7 +249874,11 @@ function installEditorApp(runtime2) {
       byKey: input2
     } = {}) => {
       let items = [
-        ["Column", "Column", "Column"],
+        [
+          (0, runtime2.untranslatedMessage)("Column"),
+          (0, runtime2.untranslatedMessage)("Column"),
+          (0, runtime2.untranslatedMessage)("Column")
+        ],
         ["", "", ""],
         ["", "", ""]
       ];
@@ -248528,6 +249942,19 @@ function installEditorApp(runtime2) {
         "insert shape",
         options2
       );
+    }, pickInsertMenuItem = (input) => {
+      setInsertMenuOpen(false);
+      if (input === "text") {
+        if (modalOpen) {
+          insertText();
+        } else {
+          startTextTool();
+        }
+      } else {
+        insertShape(input, {
+          byKey: insertWasKeyboard()
+        });
+      }
     }, imageReductionNoticesRef = runtime2.reactd0.useRef(/* @__PURE__ */ new Set()), prepareImageAsset = async (input, options = "image") => {
       let value = await (0, runtime2.storeImageAsset)(input);
       if (value.kind === "data" && value.reason !== "unsupported_type" && !imageReductionNoticesRef.current.has(value.reason)) {
@@ -248582,7 +250009,10 @@ function installEditorApp(runtime2) {
           (input) => current.has(input.id)
         )) {
           (0, runtime2.showToast)(
-            "The video wasn\u2019t added because its presentation was closed.",
+            (0, runtime2.formatMessage)({
+              defaultMessage: "The video wasn\u2019t added because its presentation was closed.",
+              id: "QPDFyLq8of"
+            }),
             0
           );
         }
@@ -248643,15 +250073,34 @@ function installEditorApp(runtime2) {
       let value = documentStore.getSlide(input);
       if (value === void 0) {
         showUploadWarning(
-          "The video wasn\u2019t " + context + " because its slide was deleted."
+          (0, runtime2.formatMessage)(
+            {
+              defaultMessage: "{done, select, replaced {The video wasn\u2019t replaced because its slide was deleted.} other {The video wasn\u2019t added because its slide was deleted.}}",
+              id: "00Rl2ueHAD"
+            },
+            {
+              done: context
+            }
+          )
         );
       } else if (documentStore.doc.readOnly() || slideHtmlHold2(input) !== void 0) {
         showUploadWarning(
-          "The video wasn\u2019t " + context + " because the presentation can\u2019t be edited right now."
+          (0, runtime2.formatMessage)(
+            {
+              defaultMessage: "{done, select, replaced {The video wasn\u2019t replaced because the presentation can\u2019t be edited right now.} other {The video wasn\u2019t added because the presentation can\u2019t be edited right now.}}",
+              id: "0g75nRB6YY"
+            },
+            {
+              done: context
+            }
+          )
         );
       } else if (options && value.frames.length >= runtime2.maxSlideFrames) {
         showUploadWarning(
-          "The video wasn\u2019t added because its slide is full. Remove an element, then add the video again."
+          (0, runtime2.formatMessage)({
+            defaultMessage: "The video wasn\u2019t added because its slide is full. Remove an element, then add the video again.",
+            id: "MG61/kuK/C"
+          })
         );
       } else {
         return true;
@@ -248730,7 +250179,10 @@ function installEditorApp(runtime2) {
                 input2(true);
                 (0, runtime2.closeToast)(value2);
               },
-              children: "Try again"
+              children: (0, runtime2.formatMessage)({
+                defaultMessage: "Try again",
+                id: "5tL/vYoD+6"
+              })
             }),
             () => {
               ownedUploadUrlsRef.current.delete(value2);
@@ -248742,7 +250194,11 @@ function installEditorApp(runtime2) {
           return null;
         }
       }
-    }, activeReplacementUploadsRef = runtime2.reactd0.useRef(/* @__PURE__ */ new Set()), uploadAndInsertImage = async (input, options, context, value, mode = value !== void 0 ? "video" : "picture") => {
+    }, activeReplacementUploadsRef = runtime2.reactd0.useRef(/* @__PURE__ */ new Set()), uploadAndInsertImage = async (input, options, context, {
+      go: value,
+      // "video": the Video row; "still": resetting a video's cover image; "picture": the image itself.
+      as: mode = value !== void 0 ? "video" : "picture"
+    } = {}) => {
       let value2 = (0, runtime2.isVideoFile)(context) ? context : void 0, value3 = value2 !== void 0 ? "video" : "image", value4 = value?.slideId ?? currentSlide?.id ?? "", value5 = value4 + "/" + input + "/" + options.join("."), value6 = (0, runtime2.createModelId)(), value7, flag = false, value8, callback = () => {
         return;
       }, callback2 = () => {
@@ -248812,9 +250268,11 @@ function installEditorApp(runtime2) {
         if (value2 !== void 0 && value === void 0 && await readImageUpload(
           value2,
           (input2) => void uploadAndInsertImageRef.current(input, options, context, {
-            slideId: value4,
-            clicked: state,
-            ...input2
+            go: {
+              slideId: value4,
+              clicked: state,
+              ...input2
+            }
           })
         )) {
           return;
@@ -248882,7 +250340,7 @@ function installEditorApp(runtime2) {
         }
         let src = (await prepareImageAsset(
           value14,
-          value2 !== void 0 ? "video\u2019s " + (clickToStart ? "cover image" : "picture") : replacesVideo ? "image" : value3
+          value2 !== void 0 ? videoStillNoun() : replacesVideo ? "image" : value3
         )).src;
         if (value16 !== null && !(await confirmVideoReplacement(value16) && canCompleteUpload(value4, false, "replaced"))) {
           return;
@@ -249054,56 +250512,12 @@ function installEditorApp(runtime2) {
             "Couldn\u2019t reset the cover image. The video couldn\u2019t be read. Try again."
           );
         } else {
-          await uploadAndInsertImage(input, options, file, void 0, "still");
+          await uploadAndInsertImage(input, options, file, {
+            as: "still"
+          });
         }
       } finally {
         coverResetsRef.current.delete(key);
-      }
-    }, changeVideoLink = async (input, options) => {
-      let read = () => {
-        let slide = getCurrentSlide(), frame = slide !== void 0 ? (0, runtime2.frameById)(slide, input) : void 0, node = frame !== void 0 ? (0, runtime2.nodeAtPath)(frame.node, options) : void 0, link2 = node?.kind === "img" ? node.videoLink : void 0;
-        return slide !== void 0 && link2 !== void 0 ? { slide, link: link2 } : void 0;
-      }, before = read();
-      if (before === void 0) {
-        return;
-      }
-      let providers = runtime2.videoProviders.filter(runtime2.canEmbedVideoProvider), names = new Intl.ListFormat("en", { type: "disjunction" }).format(
-        providers.map((provider) => runtime2.videoProviderLabels[provider])
-      ), text = await (0, runtime2.promptEditorText)({
-        title: "Change video link",
-        message: "Paste a link from " + names + ". The video has to be open to anyone with the link.",
-        inputLabel: "Video link",
-        placeholder: "https://\u2026",
-        initialValue: (0, runtime2.videoWatchUrl)(before.link) ?? "",
-        confirmLabel: "Change link"
-      });
-      if (text === null) {
-        return;
-      }
-      let now = read();
-      if (now?.slide.id !== before.slide.id || now.link.provider !== before.link.provider || now.link.id !== before.link.id) {
-        return void (0, runtime2.showToast)(
-          "The link wasn\u2019t changed. The video changed in the meantime. Try again."
-        );
-      }
-      let parsed = (0, runtime2.parseVideoLinkUrl)(text), link = parsed !== null && providers.includes(parsed.provider) ? parsed : null;
-      if (link === null) {
-        (0, runtime2.showToast)(
-          "The link wasn\u2019t changed. Try again with the share link of a single video on " + names + "."
-        );
-      } else {
-        commitSlideEdit(
-          now.slide,
-          (0, runtime2.updateSlideFrame)(now.slide, input, (frame) => ({
-            ...frame,
-            node: (0, runtime2.updateNodeAtPath)(
-              frame.node,
-              options,
-              (node) => node.kind === "img" ? (0, runtime2.setVideoLink)(node, link) : node
-            )
-          })),
-          "change video link"
-        );
       }
     }, videoStills = (0, runtime2.useVideoStills)({
       store: documentStore,
@@ -249253,7 +250667,7 @@ function installEditorApp(runtime2) {
         }
         let src = (await prepareImageAsset(
           value9,
-          value3 !== void 0 ? "video\u2019s picture" : "image"
+          value3 !== void 0 ? videoStillNoun() : "image"
         )).src, value15 = await loadImageDimensions(src), value16 = await Promise.race([value11, Promise.resolve(void 0)]) ?? callback(value15);
         if (value13 !== null && !(await confirmVideoReplacement(value13) && callback5())) {
           return;
@@ -249276,8 +250690,16 @@ function installEditorApp(runtime2) {
           )
         }, value18 = documentStore.getSlide(value.id);
         if (!value18 || documentStore.doc.readOnly() || slideHtmlHold2(value18.id) !== void 0) {
-          (0, runtime2.showToast)(
-            "The " + value4 + " was not added: the presentation changed during the upload."
+          say(
+            (0, runtime2.formatMessage)(
+              {
+                defaultMessage: "{what, select, video {The video was not added: the presentation changed during the upload.} other {The image was not added: the presentation changed during the upload.}}",
+                id: "jQ6aupv6Nh"
+              },
+              {
+                what: value4
+              }
+            )
           );
           return;
         }
@@ -249378,7 +250800,10 @@ function installEditorApp(runtime2) {
             detail: value9
           });
           showUploadWarning(
-            "The video couldn\u2019t be added. Try adding it again."
+            (0, runtime2.formatMessage)({
+              defaultMessage: "The video couldn\u2019t be added. Try adding it again.",
+              id: "LfLOoRDbkU"
+            })
           );
         }
       } finally {
@@ -249389,10 +250814,7 @@ function installEditorApp(runtime2) {
     }, insertImageFromInputRef = runtime2.reactd0.useRef(insertImageFromInput);
     insertImageFromInputRef.current = insertImageFromInput;
     let dropFilesOnSlide = (input, x, y) => {
-      let joinSentences = (first, second) => (0, runtime2.formatMessage)(
-        { defaultMessage: "{first} {second}", id: "8U4f+v7Rxv" },
-        { first, second }
-      ), images = input.filter(runtime2.isImageFile), videos = input.filter(
+      let joinSentences = runtime2.joinMessages, images = input.filter(runtime2.isImageFile), videos = input.filter(
         (file) => !(0, runtime2.isImageFile)(file) && (0, runtime2.isVideoFile)(file)
       ), others = input.length - images.length - videos.length, othersNote = others === 0 ? [] : [
         (0, runtime2.formatMessage)(
@@ -249533,7 +250955,14 @@ function installEditorApp(runtime2) {
       }
     }, currentSlideIndex = currentSlide ? slides.findIndex(
       (input) => input.id === currentSlide.id
-    ) : -1;
+    ) : -1, slideNavigationMessage = runtime2.reactd0.useCallback(
+      () => currentSlideId === null ? null : gridZoomApiRef.current?.held() === true ? "" : (0, runtime2.formatPresentationSlideAnnouncement)(
+        currentSlideIndex,
+        slides.length,
+        (0, runtime2.slideTitleSnippet)(currentSlide)
+      ),
+      [currentSlideId, currentSlideIndex, slides.length, currentSlide]
+    );
     runtime2.reactd0.useLayoutEffect(() => {
       if (speakerNotesSession === null || presentationStartIndex !== null) {
         return;
@@ -249773,9 +251202,34 @@ function installEditorApp(runtime2) {
       });
       setCurrentSlideId(value2.id);
       setSelection([]);
+    }, refuseHeldSlideCopy = (input) => {
+      let held = input.find((input2) => slideHtmlHold2(input2) !== void 0);
+      if (held === void 0) {
+        return false;
+      }
+      let index4 = slides.findIndex((input2) => input2.id === held), values = { known: index4 < 0 ? "no" : "yes", n: String(index4 + 1) };
+      (0, runtime2.showToast)(
+        input.length > 1 ? (0, runtime2.formatMessage)(
+          {
+            defaultMessage: "{known, select, yes {Slide {n} can\u2019t be copied until its saved content is fixed, so none were.} other {That slide can\u2019t be copied until its saved content is fixed, so none were.}}",
+            id: "9vNpT/nbFN"
+          },
+          values
+        ) : (0, runtime2.formatMessage)(
+          {
+            defaultMessage: "{known, select, yes {Slide {n} can\u2019t be copied until its saved content is fixed, nor can anything on it.} other {That slide can\u2019t be copied until its saved content is fixed, nor can anything on it.}}",
+            id: "VafBRujuE1"
+          },
+          values
+        )
+      );
+      return true;
     }, duplicateSlide = (input, options) => {
       let value = documentStore.getSlide(input);
       if (readOnly || !value) {
+        return null;
+      }
+      if (refuseHeldSlideCopy([input])) {
         return null;
       }
       if (slides.length + 1 > runtime2.maxDeckSlides) {
@@ -249980,7 +251434,10 @@ function installEditorApp(runtime2) {
       }
       if (slideHtmlHold2(input) !== void 0) {
         (0, runtime2.showToast)(
-          "That slide can\u2019t be edited until its saved content is fixed, so it can\u2019t be deleted yet."
+          (0, runtime2.formatMessage)({
+            defaultMessage: "That slide can\u2019t be edited until its saved content is fixed, so it can\u2019t be deleted yet.",
+            id: "/HzgI7f8GV"
+          })
         );
         return false;
       }
@@ -250004,7 +251461,15 @@ function installEditorApp(runtime2) {
             return true;
           }
           (0, runtime2.showToast)(
-            "This presentation is full (" + String(runtime2.maxDeckSlides) + " slides). Remove one first."
+            (0, runtime2.formatMessage)(
+              {
+                defaultMessage: "{max, plural, one {This presentation is full (# slides). Remove one first.} other {This presentation is full (# slides). Remove one first.}}",
+                id: "5My5w87RA/"
+              },
+              {
+                max: runtime2.maxDeckSlides
+              }
+            )
           );
           return false;
         },
@@ -250231,7 +251696,15 @@ function installEditorApp(runtime2) {
         }
       });
       (0, runtime2.showToast)(
-        "Slide " + String(value) + " is now the thumbnail"
+        (0, runtime2.formatMessage)(
+          {
+            defaultMessage: "Slide {n} is now the thumbnail",
+            id: "H3qqr9z24D"
+          },
+          {
+            n: String(value)
+          }
+        )
       );
     }, toggleSlideSkipped = (input) => {
       let value = documentStore.getSlide(input);
@@ -250240,7 +251713,10 @@ function installEditorApp(runtime2) {
       }
       if (slideHtmlHold2(input) !== void 0) {
         (0, runtime2.showToast)(
-          "That slide can\u2019t be edited until its saved content is fixed, so it can\u2019t be skipped yet."
+          (0, runtime2.formatMessage)({
+            defaultMessage: "That slide can\u2019t be edited until its saved content is fixed, so it can\u2019t be skipped yet.",
+            id: "ABQBiPFPsx"
+          })
         );
         return;
       }
@@ -250257,7 +251733,10 @@ function installEditorApp(runtime2) {
         (input2) => slideHtmlHold2(input2) !== void 0
       )) {
         (0, runtime2.showToast)(
-          "One of those slides can\u2019t be edited until its saved content is fixed, so none were changed."
+          (0, runtime2.formatMessage)({
+            defaultMessage: "One of those slides can\u2019t be edited until its saved content is fixed, so none were changed.",
+            id: "VWmXuNtkAl"
+          })
         );
         return;
       }
@@ -250338,7 +251817,10 @@ function installEditorApp(runtime2) {
         let value10 = (0, runtime2.frameById)(value, value8);
         if (value10 !== void 0 && (0, runtime2.isFlowContainer)(value10.node) && value10.node.children.length + value9 > runtime2.maxSlideFrames) {
           (0, runtime2.showToast)(
-            "This group is full \u2014 remove an element first."
+            (0, runtime2.formatMessage)({
+              defaultMessage: "This group is full \u2014 remove an element first.",
+              id: "fhRvllamgz"
+            })
           );
           return;
         }
@@ -250393,7 +251875,15 @@ function installEditorApp(runtime2) {
           let value13 = entries2.get(value8.frameId + ":")?.indices.length ?? 0;
           if (value9.node.layers.length + value13 >= runtime2.maxTextLineSpacing) {
             (0, runtime2.showToast)(
-              "This overlay already holds its maximum of " + String(runtime2.maxTextLineSpacing) + " layers."
+              (0, runtime2.formatMessage)(
+                {
+                  defaultMessage: "{max, plural, one {This overlay already holds its maximum of # layers.} other {This overlay already holds its maximum of # layers.}}",
+                  id: "t6iPXgx8a5"
+                },
+                {
+                  max: runtime2.maxTextLineSpacing
+                }
+              )
             );
             continue;
           }
@@ -250567,8 +252057,14 @@ function installEditorApp(runtime2) {
           value3 = (0, runtime2.removeSlideFrame)(value3, value5.frameId);
         }
       value3 = removeUnusedFrameAssets(value, value3, value4);
+      let before = documentStore.getSlide(value.id);
       commitSlideEdit(value, value3, "delete");
       setSelection([]);
+      if (documentStore.getSlide(value.id) !== before) {
+        (0, runtime2.announceLiveMessage)(
+          (0, runtime2.deletedObjectsLabel)(value, value2)
+        );
+      }
     }, selectedFrameIds = (input, options) => new Set(
       options.filter((input2) => {
         if (input2.child === void 0) {
@@ -250612,7 +252108,10 @@ function installEditorApp(runtime2) {
         current.groupMeasure
       ), value4 = selectedFrameIds(value, items), callback = (input2) => {
         if (value4.size === 0) {
-          return "Only an object placed directly on the slide can move to the front or back";
+          return (0, runtime2.formatMessage)({
+            defaultMessage: "Only an object placed directly on the slide can move to the front or back",
+            id: "TpzMY1J+PD"
+          });
         }
         let value6 = (0, runtime2.reorderSlideFrames)(
           value,
@@ -250620,12 +252119,23 @@ function installEditorApp(runtime2) {
           input2
         );
         if (value6 === value) {
-          return "The background stays behind everything";
+          return (0, runtime2.formatMessage)({
+            defaultMessage: "The background stays behind everything",
+            id: "hOD8hmfgqK"
+          });
         }
         if (value6.frames.every(
           (input3, options) => input3 === value.frames[options]
         )) {
-          return "Already at the " + input2;
+          return (0, runtime2.formatMessage)(
+            {
+              defaultMessage: "{end, select, front {Already at the front} other {Already at the back}}",
+              id: "/IguO19Jsl"
+            },
+            {
+              end: input2
+            }
+          );
         } else {
           return void 0;
         }
@@ -250729,8 +252239,7 @@ function installEditorApp(runtime2) {
       if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT" || target.isContentEditable) {
         return false;
       }
-      let value = target instanceof Element && target.closest("[data-slides-comments]") !== null;
-      return !readOnly && !currentSlideReadOnly && !insertMenuRecentlyActive && !dragActiveRef.current && !value && getCurrentSlide() !== void 0 && selection.length > 0;
+      return !readOnly && !currentSlideReadOnly && !insertMenuRecentlyActive && !dragActiveRef.current && !commentPress(target) && getCurrentSlide() !== void 0 && selection.length > 0;
     }, clipboardCommandHandlerRef = runtime2.reactd0.useRef(
       handleClipboardCommand
     );
@@ -250738,7 +252247,109 @@ function installEditorApp(runtime2) {
     let handleClipboardShortcut = runtime2.reactd0.useCallback(
       (input) => clipboardCommandHandlerRef.current(input),
       []
-    );
+    ), keyTargetZones = (target) => {
+      let surface = editorElementRef.current?.querySelector("[data-slide-surface]") ?? null, onChrome = surface !== null && target instanceof Element && surface.contains(
+        target.closest(
+          "[data-mc-chrome], button, a[href], a[" + runtime2.videoPlayButtonAttribute + '], [role="button"]'
+        )
+      ), onSlide = surface !== null && !onChrome && (surface.contains(target) || target.contains(surface) || target instanceof Element && target.closest("[data-object-proxies]") !== null), onStrip = target instanceof Element && target.closest("[data-mc-strip]") !== null, onFootBar = target instanceof Element && target.closest("[data-tb-foot]") !== null, onPanel = (0, runtime2.isInspectorFocusTarget)(target) || target instanceof Node && (inspectorRegion()?.contains(target) ?? false), objectKeys = onSlide || insertGestureActiveRef.current && !onStrip && !onPanel && !onChrome;
+      return {
+        onSlide,
+        onStrip,
+        onFootBar,
+        onPanel,
+        objectKeys
+      };
+    }, textChordClaims = (event) => {
+      if (typeof event.key !== "string") {
+        return;
+      }
+      let key = event.key.toLowerCase(), chord = (event.metaKey || event.ctrlKey) && !event.shiftKey && !event.altKey && (key === "b" || key === "i" || key === "u") ? key : void 0;
+      if (event.defaultPrevented || chord === void 0 && !(0, runtime2.isLinkSelectShortcut)(event)) {
+        return;
+      }
+      if (presentationStartIndex !== null || (0, runtime2.hasOpenOverlay)() || gridTransitionActiveRef.current || gridLeavingRef.current || textEdit !== null) {
+        return;
+      }
+      let target = event.target;
+      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT" || target.isContentEditable) {
+        return;
+      }
+      let slide = getCurrentSlide();
+      if (slide === void 0 || readOnly || currentSlideReadOnly || dragActiveRef.current || commentPress(target) || commentPinning) {
+        return;
+      }
+      let units = (0, runtime2.filterValidSelections)(slide, selection);
+      if (units.length === 0 || (0, runtime2.commonSelectedNodeKind)(slide, units) !== "text") {
+        return;
+      }
+      let zones = keyTargetZones(target);
+      if (chord === void 0 && (!(zones.objectKeys || zones.onStrip) || insertMenuRecentlyActive || editorZoomApiRef.current?.canLinkSelection() !== true)) {
+        return;
+      }
+      return {
+        chord: chord ?? "k",
+        slide,
+        units
+      };
+    }, runTextChord = ({
+      chord,
+      slide,
+      units
+    }) => {
+      if (chord === "k") {
+        return void editorZoomApiRef.current?.linkSelection();
+      }
+      let node = (0, runtime2.selectedNode)(slide, units[units.length - 1]);
+      if (node?.kind !== "text") {
+        return;
+      }
+      let theme = snapshot.meta.theme, isOn = (input) => chord === "i" ? (0, runtime2.nodeIsItalic)(input) : chord === "u" ? (0, runtime2.nodeIsUnderlined)(input) : (0, runtime2.nodeIsBold)(input, theme), toggle = (input) => chord === "i" ? (0, runtime2.toggleNodeItalic)(input) : chord === "u" ? (0, runtime2.toggleNodeUnderline)(input) : (0, runtime2.toggleNodeBold)(
+        input,
+        theme,
+        (0, runtime2.resolveTypographyEmphasisVariant)(
+          input,
+          currentTypeStyles,
+          deckTypeStyles,
+          theme
+        )
+      ), sample = chord === "u" ? units.map((input) => (0, runtime2.selectedNode)(slide, input)).find(
+        (input) => input?.kind === "text" && input.style?.textDecorationLine !== "line-through"
+      ) : void 0, turnOn = !isOn(sample?.kind === "text" ? sample : node), next = units.reduce(
+        (input, options) => (0, runtime2.updateSelectedNode)(
+          input,
+          options,
+          (source) => source.kind !== "text" || isOn(source) === turnOn ? source : toggle(source)
+        ),
+        slide
+      );
+      commitSlideEdit(
+        slide,
+        next,
+        chord === "i" ? "italic" : chord === "u" ? "underline" : "bold"
+      );
+    }, textChordRef = runtime2.reactd0.useRef({
+      claims: textChordClaims,
+      run: runTextChord
+    });
+    textChordRef.current = {
+      claims: textChordClaims,
+      run: runTextChord
+    };
+    runtime2.reactd0.useEffect(() => {
+      let callback = (event) => {
+        let claim = textChordRef.current.claims(event);
+        if (claim === void 0) {
+          return;
+        }
+        event.preventDefault();
+        if (!event.repeat) {
+          textChordRef.current.run(claim);
+        }
+      };
+      window.addEventListener("keydown", callback, true);
+      return () => window.removeEventListener("keydown", callback, true);
+    }, []);
     runtime2.reactd0.useEffect(() => {
       let callback = (event) => {
         if (event.defaultPrevented) {
@@ -250759,8 +252370,7 @@ function installEditorApp(runtime2) {
         if (!readOnly && (0, runtime2.isDuplicateShortcut)(event)) {
           event.preventDefault();
         }
-        let value = parseShapeInsertShortcut(event);
-        if ((0, runtime2.hasOpenOverlay)() && !(insertMenuOpen && value !== void 0)) {
+        if ((0, runtime2.hasOpenOverlay)()) {
           return;
         }
         if (gridTransitionActiveRef.current || gridLeavingRef.current) {
@@ -250773,7 +252383,12 @@ function installEditorApp(runtime2) {
         if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT" || target.isContentEditable) {
           return;
         }
-        let value2 = event.metaKey || event.ctrlKey, value3 = editorElementRef.current?.querySelector("[data-slide-surface]") ?? null, value4 = value3 !== null && (value3.contains(target) || target.contains(value3) || target instanceof Element && target.closest("[data-object-proxies]") !== null), value5 = target instanceof Element && target.closest("[data-mc-strip]") !== null, value6 = (0, runtime2.isInspectorFocusTarget)(target) || target instanceof Node && (inspectorRegion()?.contains(target) ?? false), value7 = value4 || insertGestureActiveRef.current && !value5 && !value6;
+        let value2 = event.metaKey || event.ctrlKey, {
+          onStrip: value5,
+          onFootBar,
+          onPanel: value6,
+          objectKeys: value7
+        } = keyTargetZones(target);
         if ((event.key === "c" || event.key === "C") && !value2 && !event.altKey && !event.shiftKey && !event.repeat && !event.isComposing && !dragActiveRef.current && !value6 && !value5) {
           let ctl = commentController.ctl;
           if (ctl?.enterMode) {
@@ -250790,18 +252405,28 @@ function installEditorApp(runtime2) {
         if (!value8) {
           return;
         }
-        let value9 = target instanceof Element && target.closest("[data-slides-comments]") !== null;
-        if ((selection.length === 0 || currentSlideReadOnly || value9) && !value5 && !value6 && (event.key === "ArrowLeft" || event.key === "ArrowRight" || event.key === "PageUp" || event.key === "PageDown")) {
+        let value9 = commentPress(target);
+        if ((selection.length === 0 || currentSlideReadOnly || value9) && !value5 && !value6 && ((event.key === "ArrowLeft" || event.key === "ArrowRight") && !onFootBar || event.key === "PageUp" || event.key === "PageDown")) {
           event.preventDefault();
           pageSlide(
             event.key === "ArrowLeft" || event.key === "PageUp" ? -1 : 1
           );
           return;
         }
+        let enterOnObject = event.key === "Enter" && !event.repeat && !value2 && !event.shiftKey && !event.altKey && !insertMenuRecentlyActive && selection.length === 1 && (target === document.body || target.tabIndex < 0) && !editorHasBlockingOverlay();
+        if (enterOnObject && (0, runtime2.canEmbedAnyVideoProvider)() && (0, runtime2.toggleClipHandle)(
+          (0, runtime2.clipRegistryKey)(
+            selection[0].frameId,
+            (0, runtime2.selectionNodePath)(selection[0]).join(".")
+          )
+        )) {
+          event.preventDefault();
+          return;
+        }
         if (readOnly || currentSlideReadOnly && !insertMenuRecentlyActive || dragActiveRef.current || value9) {
           return;
         }
-        if (event.key === "Enter" && !event.repeat && !value2 && !event.shiftKey && !event.altKey && !insertMenuRecentlyActive && selection.length === 1 && (target === document.body || target.tabIndex < 0) && !editorHasBlockingOverlay()) {
+        if (enterOnObject) {
           let value11 = selection[0], value12 = (0, runtime2.selectedNode)(value8, value11);
           if (value12?.kind === "text" || value12?.kind === "table" && value12.rows.length > 0 && value12.cols > 0) {
             event.preventDefault();
@@ -250842,69 +252467,13 @@ function installEditorApp(runtime2) {
           }
           return;
         }
-        if (currentSlideReadOnly) {
+        if (currentSlideReadOnly || commentPinning) {
           return;
         }
+        let value = parseShapeInsertShortcut(event);
         if (value !== void 0 && !value6 && !value5) {
           event.preventDefault();
-          setInsertMenuOpen(false);
-          if (value === "text") {
-            insertText();
-          } else {
-            insertShape(value, {
-              byKey: insertWasKeyboard()
-            });
-          }
-          return;
-        }
-        let value10 = event.key.toLowerCase();
-        if (value2 && !event.shiftKey && !event.altKey && (value10 === "b" || value10 === "i" || value10 === "u")) {
-          let value11 = (0, runtime2.filterValidSelections)(
-            value8,
-            selection
-          );
-          if (value11.length === 0) {
-            return;
-          }
-          if ((0, runtime2.commonSelectedNodeKind)(value8, value11) !== "text") {
-            return;
-          }
-          event.preventDefault();
-          let value12 = (0, runtime2.selectedNode)(
-            value8,
-            value11[value11.length - 1]
-          );
-          if (value12?.kind !== "text") {
-            return;
-          }
-          let theme = snapshot.meta.theme, callback2 = (input) => value10 === "i" ? (0, runtime2.nodeIsItalic)(input) : value10 === "u" ? (0, runtime2.nodeIsUnderlined)(input) : (0, runtime2.nodeIsBold)(input, theme), callback3 = (input) => value10 === "i" ? (0, runtime2.toggleNodeItalic)(input) : value10 === "u" ? (0, runtime2.toggleNodeUnderline)(input) : (0, runtime2.toggleNodeBold)(
-            input,
-            theme,
-            (0, runtime2.resolveTypographyEmphasisVariant)(
-              input,
-              currentTypeStyles,
-              deckTypeStyles,
-              theme
-            )
-          ), value13 = value10 === "u" ? value11.map(
-            (input) => (0, runtime2.selectedNode)(value8, input)
-          ).find(
-            (input) => input?.kind === "text" && input.style?.textDecorationLine !== "line-through"
-          ) : void 0, value14 = !callback2(
-            value13?.kind === "text" ? value13 : value12
-          ), value15 = value11.reduce(
-            (input, options) => (0, runtime2.updateSelectedNode)(
-              input,
-              options,
-              (source) => source.kind !== "text" || callback2(source) === value14 ? source : callback3(source)
-            ),
-            value8
-          );
-          commitSlideEdit(
-            value8,
-            value15,
-            value10 === "i" ? "italic" : value10 === "u" ? "underline" : "bold"
-          );
+          pickInsertMenuItem(value);
           return;
         }
         if ((0, runtime2.isContextMenuKey)(event) && value7 && !insertMenuRecentlyActive && !commentController.on) {
@@ -250944,20 +252513,31 @@ function installEditorApp(runtime2) {
           if (values.size === 0) {
             return;
           }
-          let value14 = value8, state = {
+          let value14 = value8, measured = new Map(
+            value14.frames.filter((input) => values.has(input.id)).map((input) => [
+              input,
+              editorZoomApiRef.current?.measureUnit({
+                frameId: input.id
+              })
+            ])
+          ), delta = (0, runtime2.clampMoveDeltaToSlide)(
+            [...measured].map(
+              ([input, size4]) => (0, runtime2.rotatedFrameBounds)(input, size4?.w, size4?.h)
+            ),
+            value12,
+            value13
+          ), state = {
             ...value14,
             frames: value14.frames.map(
-              (input) => values.has(input.id) ? {
+              (input) => measured.has(input) ? {
                 ...input,
                 x: (0, runtime2.moveAxisSpecPreservingSize)(
                   input.x,
-                  value12,
-                  (0, runtime2.isTextNode)(input.node) ? editorZoomApiRef.current?.measureUnit({
-                    frameId: input.id
-                  })?.w : void 0,
+                  delta.dx,
+                  (0, runtime2.isTextNode)(input.node) ? measured.get(input)?.w : void 0,
                   runtime2.SLIDE_WIDTH
                 ),
-                y: (0, runtime2.moveAxisSpec)(input.y, value13)
+                y: (0, runtime2.moveAxisSpec)(input.y, delta.dy)
               } : input
             )
           };
@@ -250978,7 +252558,8 @@ function installEditorApp(runtime2) {
       currentSlideIndex,
       readOnly,
       currentSlideReadOnly,
-      insertMenuOpen,
+      textToolOn,
+      modalOpen,
       snapshot.meta.theme,
       deckTypeStyles,
       inspectorRegion,
@@ -251029,6 +252610,15 @@ function installEditorApp(runtime2) {
         if (textToolOnRef.current) {
           return stopTextTool();
         }
+        let playing = selection.length === 1 ? (0, runtime2.clipHandleByKey)(
+          (0, runtime2.clipRegistryKey)(
+            selection[0].frameId,
+            (0, runtime2.selectionNodePath)(selection[0]).join(".")
+          )
+        ) : void 0;
+        if (playing?.started === true) {
+          return playing.stop();
+        }
         if (target instanceof Element && target.closest('[data-object-cursor="keys"]') !== null) {
           editorZoomApiRef.current?.focusSlide();
           setSelection([]);
@@ -251070,7 +252660,7 @@ function installEditorApp(runtime2) {
       return () => window.removeEventListener("keydown", callback, {
         capture: true
       });
-    }, [presentationStartIndex, textEdit, selection, inspectorRegion, textToolOn]);
+    }, [presentationStartIndex, textToolOn, textEdit, selection, inspectorRegion]);
     let insertTextRef = runtime2.reactd0.useRef(insertText);
     insertTextRef.current = insertText;
     runtime2.reactd0.useEffect(() => {
@@ -251217,6 +252807,9 @@ function installEditorApp(runtime2) {
         if (insertMenuRecentlyActive || !currentSlide) {
           return;
         }
+        if (selection.length > 0 && refuseHeldSlideCopy([currentSlide.id])) {
+          return;
+        }
         let value = getCopyableSelection();
         if (value.length === 0) {
           return;
@@ -251257,7 +252850,9 @@ function installEditorApp(runtime2) {
           text: (0, runtime2.framesClipboardText)(value3),
           commit: () => {
             let activeElement2 = document.activeElement;
-            if (activeElement2 instanceof Element && activeElement2.closest("[data-object-proxy]") !== null) {
+            if (activeElement2 instanceof Element && activeElement2.closest(
+              "[data-object-proxy], [data-slides-strip]"
+            ) !== null) {
               editorZoomApiRef.current?.focusSlide();
             }
             let value6 = value4, value7 = value5.filter(
@@ -251282,8 +252877,12 @@ function installEditorApp(runtime2) {
                 );
               }
             value6 = removeUnusedFrameAssets(value4, value6, value7);
+            let before = documentStore.getSlide(value4.id);
             commitSlideEdit(value4, value6, "cut");
             setSelection([]);
+            if (documentStore.getSlide(value4.id) !== before) {
+              (0, runtime2.announceLiveMessage)("Cut");
+            }
           }
         };
       },
@@ -251329,7 +252928,7 @@ function installEditorApp(runtime2) {
             }
             for (let [value6, value7] of value2.addAssets)
               documentStore.setAssetEntry(value6, value7);
-            documentStore.setSlide(state);
+            canChangeSlide(state);
           },
           undo: () => {
             if (!canChangeSlide(value4)) {
@@ -251361,9 +252960,30 @@ function installEditorApp(runtime2) {
         if (currentSlideReadOnly || !currentSlide || dragActiveRef.current) {
           return false;
         }
-        let value = videoLinksEnabled ? (0, runtime2.parseVideoLinkUrl)(input) : null;
+        let value = embeddableVideoLink(input, false);
         if (value !== null) {
           insertVideoLink(value, "paste", insertWasKeyboard());
+          return true;
+        }
+        let artifactHref = host === void 0 ? (0, runtime2.parseArtifactAddress)(input.trim()) : void 0;
+        if (artifactHref !== void 0) {
+          insertFrame(
+            {
+              id: (0, runtime2.createModelId)(),
+              ...placeInsertedFrame(
+                void 0,
+                runtime2.ARTIFACT_LINK_CARD_WIDTH,
+                runtime2.ARTIFACT_LINK_CARD_HEIGHT
+              ),
+              node: (0, runtime2.createArtifactLinkCard)(
+                artifactHref,
+                currentSlide.bg,
+                /#[\w.~:@!$&'()*+,;=%/?-]*$/.exec(input.trim())?.[0]
+              )
+            },
+            "paste",
+            insertWasKeyboard()
+          );
           return true;
         }
         let value2 = (0, runtime2.defaultBodyTypographyStyle)(
@@ -251386,7 +253006,28 @@ function installEditorApp(runtime2) {
             snapshot.meta.theme
           ) : state
         };
-        insertFrame(state2, "paste", insertWasKeyboard());
+        let driveLink = insertFrame(state2, "paste", insertWasKeyboard()) ? embeddableVideoLink(input, true) : null;
+        if (driveLink !== null) {
+          let slideId = currentSlide.id;
+          (0, runtime2.closeToast)(embedVideoToastRef.current);
+          let toast = embedVideoToastRef.current = (0, runtime2.showActionToast)(
+            "Is this Google Drive file a video?",
+            SlidesAppJsx.jsx(runtime2.Button, {
+              size: "sm",
+              variant: "secondary",
+              onClick: () => {
+                (0, runtime2.closeToast)(toast);
+                videoLinkInsertionRef.current.embedPasted(
+                  slideId,
+                  state2.id,
+                  state.text,
+                  driveLink
+                );
+              },
+              children: "Embed as video"
+            })
+          );
+        }
         return true;
       },
       onPasteFiles: (input) => {
@@ -251642,12 +253283,15 @@ function installEditorApp(runtime2) {
       presenting: presentationStartIndex !== null,
       settle: [
         railOpen,
+        railPlacement,
         notesOpen,
         notesHeight,
         thumbWidth,
         gridOpen,
         editingGridSlide,
-        currentSlide === void 0
+        currentSlide === void 0,
+        chatSlotReported,
+        readOnlyOrPaused
       ].join(),
       speaksForPage: host === void 0
     }), { stage: setRailSlidesView, canvasView: setRailGridView } = railLayout, gridViewElementRef = runtime2.reactd0.useRef(null), registerGridElementAndRail = runtime2.reactd0.useCallback(
@@ -251731,18 +253375,21 @@ function installEditorApp(runtime2) {
         setRailSlidesView(input);
       },
       [registerEditorElement, setRailSlidesView]
-    ), getFittedSlideScale = runtime2.reactd0.useCallback(() => {
+    ), railFootGap = railPlacement === "left" && railOpen && !editingGridSlide && !notesOpen && !footToolbarShown ? runtime2.RAIL_FOOT_GAP : 0, stageSideInset = topRowLayout && !railOpen && currentSlide !== void 0 && !editingGridSlide ? Math.max(sideInset, runtime2.SLIDE_TICKS_GUTTER) : sideInset, getFittedSlideScale = runtime2.reactd0.useCallback(() => {
       let value = editorElementRef.current?.getBoundingClientRect();
       if (value === void 0) {
         return;
       }
       return (0, runtime2.fitSlideEditorViewport)({
         w: value.width,
-        h: Math.max(0, value.height - topInset - pageOcclusionBand),
+        h: Math.max(
+          0,
+          value.height - topInset - pageOcclusionBand - railFootGap
+        ),
         top: topInset,
-        sidePad: sideInset > 0 ? sideInset : void 0
+        sidePad: stageSideInset > 0 ? stageSideInset : void 0
       }).scale;
-    }, [topInset, sideInset, pageOcclusionBand]), designPaletteRef = runtime2.reactd0.useRef(
+    }, [topInset, stageSideInset, pageOcclusionBand, railFootGap]), designPaletteRef = runtime2.reactd0.useRef(
       EMPTY_EXTRA_EXPORT_FORMATS
     ), designPalette = runtime2.reactd0.useMemo(() => {
       if (liveGestureRef.current) {
@@ -251856,10 +253503,19 @@ function installEditorApp(runtime2) {
           el: () => document.querySelector("[data-slides-strip]")
         },
         {
+          el: () => document.querySelector("[data-tb-foot]")
+        },
+        {
           el: () => insertMenuRef.current,
           fallback: () => insertMenuRef.current?.querySelector(
-            '[role="option"][aria-selected="true"]'
+            RAIL_FOCUSABLE_OPTION_SELECTOR
           ) ?? null
+        },
+        {
+          el: () => document.querySelector("[data-slides-ticks]"),
+          fallback: () => document.querySelector(
+            '[data-slides-ticks] [role="option"][aria-selected="true"]'
+          )
         },
         {
           el: inspectorRegion,
@@ -251872,7 +253528,27 @@ function installEditorApp(runtime2) {
     (0, runtime2.useCanvasFocusResolver)(
       () => creationControllerRef.current.view.sheet !== "none" ? null : findActiveCommentSlideTarget(currentSlide?.id ?? null)
     );
-    let focusRegionNavigatorRef = runtime2.reactd0.useRef(null);
+    let openTemplatePickerFromRail = () => {
+      let activeElement2 = document.activeElement;
+      openTemplatePicker({
+        returnFocus: () => {
+          if (activeElement2 instanceof HTMLElement && activeElement2 !== document.body && activeElement2.isConnected) {
+            return activeElement2;
+          }
+          if (creationControllerRef.current.view.sheet !== "none") {
+            return null;
+          }
+          if (lastInsertGestureAtRef.current === -1 / 0) {
+            return findActiveCommentSlideTarget(null);
+          }
+          document.querySelector(EDITOR_TAB_TARGET_SELECTOR)?.focus({
+            preventScroll: true
+          });
+          insertGestureActiveRef.current = true;
+          return null;
+        }
+      });
+    }, focusRegionNavigatorRef = runtime2.reactd0.useRef(null);
     runtime2.reactd0.useEffect(() => {
       let current = editorElementRef.current;
       if (!current) {
@@ -251948,7 +253624,10 @@ function installEditorApp(runtime2) {
               })
             );
           },
-          children: "Details"
+          children: (0, runtime2.formatMessage)({
+            defaultMessage: "Details",
+            id: "SgMY+FJsCv"
+          })
         })
       );
       exportNotesToastRef.current = value;
@@ -252019,15 +253698,7 @@ function installEditorApp(runtime2) {
         value.slides,
         snapshot.faces,
         snapshot.fonts,
-        (input2, options) => {
-          value15 = input2;
-          return value2(
-            snapshot.meta.title,
-            input2,
-            value.assets,
-            options
-          );
-        },
+        (input2, options) => value2(snapshot.meta.title, input2, value.assets, options),
         {
           swapped: value13
         }
@@ -252035,7 +253706,10 @@ function installEditorApp(runtime2) {
         fontsReadyMs: Math.max(0, value11 - Date.now())
       }), value17 = extraExportFormats && input !== "google", embedding = await fontEmbedding, embedded = embedding?.embedded, pptxOptions = {
         theme: value17,
-        titlePlaceholders: value17
+        titlePlaceholders: value17,
+        ...input === "google" && {
+          forGoogleSlides: true
+        }
       }, { blob: value18, warnings: value19 } = await value3(value16, {
         ...pptxOptions,
         ...embedded !== void 0 && embedded.fonts.length > 0 && {
@@ -252201,7 +253875,16 @@ function installEditorApp(runtime2) {
               }
             for (let value18 of value8.cut)
               items.push(
-                "slide " + String(value18) + ": its speaker notes run past " + String(value2.NOTES_PAGE.maxPages) + " notes pages, so the last one may be set smaller and not show them all"
+                (0, runtime2.formatMessage)(
+                  {
+                    defaultMessage: "{max, plural, one {slide {n}: its speaker notes run past # notes pages, so the last one may be set smaller and not show them all} other {slide {n}: its speaker notes run past # notes pages, so the last one may be set smaller and not show them all}}",
+                    id: "xyGOxv6iTv"
+                  },
+                  {
+                    max: value2.NOTES_PAGE.maxPages,
+                    n: String(value18)
+                  }
+                )
               );
             copyMs = (copyMs ?? 0) + (value17.copyMs ?? 0);
           }
@@ -252403,7 +254086,7 @@ function installEditorApp(runtime2) {
         await renderAndDownload(
           value === void 0 ? value2 : pdfQualityRenderOptions(value2, value.quality),
           runtime2.PDF_MIME_TYPE,
-          "PDF"
+          (0, runtime2.literalMessage)("PDF")
         );
       } catch (value2) {
         (0, runtime2.showToast)(
@@ -252486,7 +254169,7 @@ function installEditorApp(runtime2) {
         await renderAndDownload(
           await renderPngFile(),
           runtime2.PNG_MIME_TYPE,
-          "PNG"
+          (0, runtime2.literalMessage)("PNG")
         );
       } catch (value) {
         (0, runtime2.showToast)(
@@ -252597,7 +254280,7 @@ function installEditorApp(runtime2) {
       } finally {
         input.signal.removeEventListener("abort", options);
       }
-    }, createExportProducer = (input, options, context) => async (input2) => {
+    }, createExportProducer = (input, context) => async (input2) => {
       let value;
       if (input === "pdf" && extraExportFormats && input2.interactive) {
         value = await askInteractivePdfOptions(
@@ -252619,10 +254302,18 @@ function installEditorApp(runtime2) {
           }
         } else {
           (0, runtime2.showToast)(
-            formatPresentationBuildProgress(
-              slides.length,
-              slides.length + resolvedAwaitedSlideCount
-            ) + "; exporting only " + (presentableSlides.length === 1 ? "that one" : "those " + String(presentableSlides.length)) + "."
+            (0, runtime2.formatMessage)(
+              {
+                // BaoCut: "the agent" instead of "Claude" (upstream id kept).
+                defaultMessage: "{count, plural, =1 {The agent is still adding slides ({here} of {total} so far); exporting only that one.} one {The agent is still adding slides ({here} of {total} so far); exporting only those #.} other {The agent is still adding slides ({here} of {total} so far); exporting only those #.}}",
+                id: "pdSrneWFFQ"
+              },
+              {
+                count: presentableSlides.length,
+                here: String(slides.length),
+                total: String(slides.length + resolvedAwaitedSlideCount)
+              }
+            )
           );
         }
       }
@@ -252697,7 +254388,6 @@ function installEditorApp(runtime2) {
         interactive: true,
         produce: createExportProducer(
           "pdf",
-          "PDF",
           prepareExportWithNotesOption(
             (input) => exportStateRef.current.preparePdfRender(
               input?.notes === true
@@ -252710,7 +254400,6 @@ function installEditorApp(runtime2) {
         variant: "current",
         produce: createExportProducer(
           "pptx",
-          "PPTX",
           () => exportStateRef.current.renderPptxFile("current", {
             maxBytes: runtime2.MAX_SHELL_DOWNLOAD_BYTES
           })
@@ -252721,7 +254410,6 @@ function installEditorApp(runtime2) {
         variant: "basic",
         produce: createExportProducer(
           "pptx",
-          "PPTX",
           () => exportStateRef.current.renderPptxFile("basic")
         )
       },
@@ -252730,7 +254418,6 @@ function installEditorApp(runtime2) {
         variant: "pictures",
         produce: createExportProducer(
           "pptx",
-          "PPTX",
           prepareExportWithNotesOption(
             () => exportStateRef.current.preparePptxPicturesRender()
           )
@@ -252741,7 +254428,6 @@ function installEditorApp(runtime2) {
         available: getSlideToExport() !== void 0,
         produce: createExportProducer(
           "png",
-          "PNG",
           prepareExportWithNotesOption(renderPngFile)
         )
       },
@@ -252749,7 +254435,6 @@ function installEditorApp(runtime2) {
         format: "html",
         produce: createExportProducer(
           "html",
-          "Web page",
           () => exportStateRef.current.renderHtmlFile({
             fit: true,
             deadline: Date.now() + GOOGLE_SLIDES_BUILD_TIMEOUT_MS
@@ -252761,7 +254446,6 @@ function installEditorApp(runtime2) {
         format: "html",
         produce: createExportProducer(
           "html",
-          "Web page",
           () => exportStateRef.current.renderHtmlFile({
             fit: true,
             deadline: Date.now() + GOOGLE_SLIDES_BUILD_TIMEOUT_MS
@@ -252772,7 +254456,6 @@ function installEditorApp(runtime2) {
         format: "pdf",
         produce: createExportProducer(
           "pdf",
-          "PDF",
           prepareExportWithNotesOption(
             (input) => exportStateRef.current.preparePdfRender(
               input?.notes === true
@@ -252784,7 +254467,6 @@ function installEditorApp(runtime2) {
         format: "pptx",
         produce: createExportProducer(
           "pptx",
-          "PPTX",
           () => exportStateRef.current.renderPptxFile("current", {
             maxBytes: runtime2.MAX_SHELL_DOWNLOAD_BYTES
           })
@@ -252829,7 +254511,7 @@ function installEditorApp(runtime2) {
     );
     let speakerNotesAvailable = (0, runtime2.slidesHaveSpeakerNotes)(
       presentableSlides
-    ), presentationButtonLabel = (0, runtime2.fullscreenAvailable)() ? "Present full screen" : "Present", startPresentation = (input) => {
+    ), canPresentFullscreen = (0, runtime2.fullscreenAvailable)(), startPresentation = (input) => {
       if (presentationStartIndex !== null) {
         return;
       }
@@ -252858,14 +254540,26 @@ function installEditorApp(runtime2) {
       setPresentationStartIndex(
         Math.max(0, Math.min(index4, presentableSlides.length - 1))
       );
-    }, presentationDisabledReason = presentableSlides.length === 0 ? "Every slide is skipped \u2014 unskip one to present" : null, toolbarMenus = SlidesAppJsx.jsx("span", {
+    }, presentationDisabledReason = presentableSlides.length === 0 ? (0, runtime2.formatMessage)({
+      defaultMessage: "Every slide is skipped \u2014 unskip one to present",
+      id: "yOevKyX9N9"
+    }) : null, toolbarMenus = SlidesAppJsx.jsx("span", {
       "data-slides-present-entry": "",
       className: "contents",
       children: touchLayout ? SlidesAppJsx.jsx(runtime2.ToolbarButton, {
         iconOnly: true,
         icon: "Play",
         label: "Present",
-        tip: presentationDisabledReason ?? presentationButtonLabel + " from the current slide" + (speakerNotesAvailable ? ", speaker notes below it" : ""),
+        tip: presentationDisabledReason ?? (canPresentFullscreen ? speakerNotesAvailable ? (0, runtime2.formatMessage)({
+          defaultMessage: "Present full screen from the current slide, speaker notes below it",
+          id: "wob5L++8R8"
+        }) : (0, runtime2.formatMessage)({
+          defaultMessage: "Present full screen from the current slide",
+          id: "+k2u/yVe3m"
+        }) : speakerNotesAvailable ? (0, runtime2.formatMessage)({
+          defaultMessage: "Present from the current slide, speaker notes below it",
+          id: "5RTHm6O9Pp"
+        }) : PRESENT_FROM_CURRENT_LABEL),
         disabled: presentableSlides.length === 0,
         onClick: () => startPresentation(speakerNotesAvailable)
       }) : SlidesAppJsx.jsxs(runtime2.ToolbarPopover, {
@@ -252878,46 +254572,31 @@ function installEditorApp(runtime2) {
           SlidesAppJsx.jsx(runtime2.Menu.Item, {
             icon: "Play",
             onClick: () => startPresentation(false),
-            children: "Present"
+            children: (0, runtime2.formatMessage)({
+              defaultMessage: "Present",
+              id: "g+H2/slWuQ"
+            })
           }),
           SlidesAppJsx.jsx(runtime2.Menu.Item, {
             icon: "BookText",
             disabled: !speakerNotesAvailable && speakerNotesSession === null,
-            disabledReason: speakerNotesAvailable || speakerNotesSession !== null ? null : "No speaker notes in this presentation yet\u2014add them under a slide (Speaker notes, by the thumbnails)",
+            disabledReason: speakerNotesAvailable || speakerNotesSession !== null ? null : (0, runtime2.formatMessage)({
+              defaultMessage: "No speaker notes in this presentation yet\u2014add them under a slide (Speaker notes, by the thumbnails)",
+              id: "HBjgRFuqME"
+            }),
             onClick: () => startPresentation(true),
-            children: "Present with speaker notes"
+            children: (0, runtime2.formatMessage)({
+              defaultMessage: "Present with speaker notes",
+              id: "7q5Ue0uTYE"
+            })
           })
         ]
       })
-    }), refuseHeldSlideCopy = (input) => {
-      let held = input.find((input2) => slideHtmlHold2(input2) !== void 0);
-      if (held === void 0) {
-        return false;
-      }
-      let index4 = slides.findIndex((input2) => input2.id === held), values = { known: index4 < 0 ? "no" : "yes", n: String(index4 + 1) };
-      (0, runtime2.showToast)(
-        input.length > 1 ? (0, runtime2.formatMessage)(
-          {
-            defaultMessage: "{known, select, yes {Slide {n} can\u2019t be copied until its saved content is fixed, so none were.} other {That slide can\u2019t be copied until its saved content is fixed, so none were.}}",
-            id: "9vNpT/nbFN"
-          },
-          values
-        ) : (0, runtime2.formatMessage)(
-          {
-            defaultMessage: "{known, select, yes {Slide {n} can\u2019t be copied until its saved content is fixed, nor can anything on it.} other {That slide can\u2019t be copied until its saved content is fixed, nor can anything on it.}}",
-            id: "VafBRujuE1"
-          },
-          values
-        )
-      );
-      return true;
-    }, slideActions = {
+    }), slideActions = {
       onAdd: openTemplatePicker,
       onDuplicate: (input) => duplicateSlide(input),
       onCopy: (input) => {
-        let value = slides.find(
-          (input2) => input2.id === input
-        );
+        let value = slides.find((input2) => input2.id === input);
         if (!value) {
           return;
         }
@@ -252954,10 +254633,16 @@ function installEditorApp(runtime2) {
       if (value.length === 0) {
         return;
       }
-      let copied = (0, runtime2.copyArtifactToClipboard)(runtime2.SLIDE_CLIPBOARD_TYPE, {
-        data: (0, runtime2.createSlidesClipboardPayload)(value, snapshot.assets),
-        text: (0, runtime2.slidesClipboardText)(value)
-      });
+      let copied = (0, runtime2.copyArtifactToClipboard)(
+        runtime2.SLIDE_CLIPBOARD_TYPE,
+        {
+          data: (0, runtime2.createSlidesClipboardPayload)(
+            value,
+            snapshot.assets
+          ),
+          text: (0, runtime2.slidesClipboardText)(value)
+        }
+      );
       (0, runtime2.showToast)(
         copied ? slidesCopiedMessage(value.length) : (0, runtime2.formatMessage)({
           defaultMessage: "Couldn\u2019t copy the slides",
@@ -252973,7 +254658,9 @@ function installEditorApp(runtime2) {
       }
       rememberDuplicatedSelection(input, source);
       slideSelection.set(input);
-      (0, runtime2.announceLiveMessage)(String(input.length) + " slides duplicated");
+      (0, runtime2.announceLiveMessage)(
+        String(input.length) + " slides duplicated"
+      );
     }, railSeveral = {
       selection: slideSelection,
       quiet: !railSelectionLive,
@@ -253033,7 +254720,13 @@ function installEditorApp(runtime2) {
       getFittedSlideScale,
       setToolbarScale
     ]);
-    let fitViewLabel = gridOpen || editingGridSlide ? "Fit all slides" : "Fit the slide", toolbarTrailing = SlidesAppJsx.jsx("span", {
+    let fitViewLabel = gridOpen || editingGridSlide ? (0, runtime2.formatMessage)({
+      defaultMessage: "Fit all slides",
+      id: "+PW8xun8pM"
+    }) : (0, runtime2.formatMessage)({
+      defaultMessage: "Fit the slide",
+      id: "cCcMfNt+2O"
+    }), toolbarTrailing = SlidesAppJsx.jsx("span", {
       "data-slides-zoom": "",
       className: "contents",
       children: SlidesAppJsx.jsx(
@@ -253044,299 +254737,517 @@ function installEditorApp(runtime2) {
           getScale: () => (gridOpen ? gridZoomApiRef.current?.getScale() : editorZoomApiRef.current?.getScale() ?? (creationFitsEmptyStage ? getFittedSlideScale() : void 0)) ?? 1,
           getLimits: () => gridOpen ? {
             ...gridZoomApiRef.current?.getLimits(),
-            minTip: "Every slide is already in view"
+            minTip: (0, runtime2.formatMessage)({
+              defaultMessage: "Every slide is already in view",
+              id: "AamqtTOAyQ"
+            })
           } : {
             ...editorZoomApiRef.current?.getLimits(),
-            minTip: editingGridSlide ? "That's as far out as the Canvas view goes" : "Smaller than the slide fits \u2014 that's as far out as it goes"
+            minTip: editingGridSlide ? (0, runtime2.formatMessage)({
+              defaultMessage: "That\u2019s as far out as the Canvas view goes",
+              id: "D0C2+/rAPW"
+            }) : (0, runtime2.formatMessage)({
+              defaultMessage: "Smaller than the slide fits \u2014 that\u2019s as far out as it goes",
+              id: "tx68w396MZ"
+            })
           },
           onPickScale: (input) => gridOpen ? gridZoomApiRef.current?.setScaleTo(input) : editorZoomApiRef.current?.setScaleTo(input),
           onFit: () => gridOpen ? gridZoomApiRef.current?.fitAll() : editorZoomApiRef.current?.returnToFit(),
           onStepZoom: (input) => (gridOpen ? gridZoomApiRef.current : editorZoomApiRef.current)?.stepZoom(input === 1 ? 1.25 : 0.8),
           undo: readOnly ? void 0 : undoHistory,
           zoomRowsDisabled: stageCanShowSlide,
-          zoomRowsDisabledTip: "No slide to zoom",
+          zoomRowsDisabledTip: (0, runtime2.formatMessage)({
+            defaultMessage: "No slide to zoom",
+            id: "Z755cAUKSw"
+          }),
           fitLabel: fitViewLabel,
-          tip: (gridOpen ? "Zoom the Canvas view (" : "Zoom (") + ZOOM_KEYBOARD_SHORTCUT_LABEL + ")"
+          tip: gridOpen ? (0, runtime2.formatMessage)(
+            {
+              defaultMessage: "Zoom the Canvas view ({keys})",
+              id: "BaVfYpbO4U"
+            },
+            {
+              keys: ZOOM_KEYBOARD_SHORTCUT_LABEL
+            }
+          ) : (0, runtime2.formatMessage)(
+            {
+              defaultMessage: "Zoom ({keys})",
+              id: "M20KUcP/gE"
+            },
+            {
+              keys: ZOOM_KEYBOARD_SHORTCUT_LABEL
+            }
+          )
         },
         gridOpen ? "grid" : "slide"
       )
-    }), insertActionTip = (input, options) => gridOpen && !singleSelectedGridSlide ? gridSelection.slides.length === 0 ? "Select a slide to insert onto it" : "Select one slide to insert onto it" : currentSlideReadOnly ? "This slide can\u2019t be edited until its saved content is fixed, so inserting is paused" : gridOpen ? options : input, insertMenuDisabled = gridOpen && !singleSelectedGridSlide || currentSlideReadOnly;
+    }), insertActionTip = (input, options) => gridOpen && !singleSelectedGridSlide ? gridSelection.slides.length === 0 ? (0, runtime2.formatMessage)({
+      defaultMessage: "Select a slide to insert onto it",
+      id: "1nNB/kaMIj"
+    }) : (0, runtime2.formatMessage)({
+      defaultMessage: "Select one slide to insert onto it",
+      id: "4UbE8poxoZ"
+    }) : currentSlideReadOnly ? (0, runtime2.formatMessage)({
+      defaultMessage: "This slide can\u2019t be edited until its saved content is fixed, so inserting is paused",
+      id: "QzV2IASA2G"
+    }) : gridOpen ? options : input, insertMenuDisabled = gridOpen && !singleSelectedGridSlide || currentSlideReadOnly;
     runtime2.reactd0.useEffect(() => {
       if (insertMenuDisabled || modalOpen) {
         setInsertMenuOpen(false);
       }
     }, [insertMenuDisabled, modalOpen]);
+    let textToolSlideId = currentSlide?.id, stopTextToolRef = runtime2.reactd0.useRef(stopTextTool);
+    stopTextToolRef.current = stopTextTool;
+    runtime2.reactd0.useEffect(
+      () => stopTextToolRef.current(true),
+      [textToolSlideId]
+    );
+    runtime2.reactd0.useEffect(() => {
+      if (gridOpen || modalOpen || presentationStartIndex !== null || commentPinning || insertMenuDisabled || commentsOn || insertMenuOpen) {
+        stopTextToolRef.current(true);
+      }
+    }, [
+      gridOpen,
+      modalOpen,
+      presentationStartIndex,
+      commentPinning,
+      insertMenuDisabled,
+      commentsOn,
+      insertMenuOpen
+    ]);
     let shapeInsertMenuItem = (input) => SlidesAppJsx.jsx(
-      runtime2.ToolbarMenuItem,
+      runtime2.Menu.Item,
       {
-        glyph: SlidesAppJsx.jsx(runtime2.ShapeIcon, {
+        icon: SlidesAppJsx.jsx(runtime2.ShapeIcon, {
           shape: input,
           size: "100%"
         }),
-        label: runtime2.shapeVariantLabels[input],
         shortcut: gridOpen ? void 0 : getShapeInsertShortcut(input),
-        title: gridOpen ? "Click to insert on the selected slide" : "Click to insert, or drag onto the slide",
         draggable: !gridOpen,
         onDragStart: (input2) => input2.dataTransfer.setData(
           "application/x-slides-insert",
           "shape:" + input
         ),
-        onClick: (input2) => {
-          setInsertMenuOpen(false);
-          insertShape(input, {
-            byKey: (0, runtime2.isKeyboardOrPrimaryActivation)(input2)
-          });
-        }
+        onClick: (input2) => insertShape(input, {
+          byKey: (0, runtime2.isKeyboardOrPrimaryActivation)(input2)
+        }),
+        children: runtime2.shapeVariantLabels[input]
       },
       input
-    ), toolbarExtras = SlidesAppJsx.jsx(SlidesAppJsx.Fragment, {
-      children: SlidesAppJsx.jsx(runtime2.ToolbarWhenVisible, {
-        children: modalOpen ? SlidesAppJsx.jsxs(runtime2.ToolbarPopover, {
-          iconOnly: true,
-          caret: true,
-          icon: "Add",
-          label: "Insert",
-          tip: insertActionTip(
-            "Insert text, an image or video, a table, a shape or a line",
-            "Insert onto the selected slide"
-          ),
-          disabled: insertMenuDisabled,
+    ), pointerOutsideMenu = (event) => !(event.target instanceof Element && event.target.closest('[role="menu"]') !== null), onShapesKeyDownCapture = (event) => {
+      if (!insertMenuOpen && pointerOutsideMenu(event)) {
+        setFocusInsertMenuOnOpen(true);
+      }
+      let value = insertMenuOpen && !insertMenuDisabled && !gridOpen && !commentPinning && textEdit === null && !dragActiveRef.current ? parseShapeInsertShortcut(event.nativeEvent) : void 0;
+      if (value === void 0) {
+        return;
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      pickInsertMenuItem(value);
+    }, insertMenuSide = topRowLayout || phoneLayout ? "top" : "bottom", phoneInsertItemProps = phoneLayout ? {
+      disabled: insertMenuDisabled,
+      disabledReason: insertMenuDisabled ? insertActionTip("", "") : null
+    } : {}, quickShapeMenuItems = SlidesAppJsx.jsxs(SlidesAppJsx.Fragment, {
+      children: [
+        QUICK_INSERT_SHAPES.map(
+          (input) => SlidesAppJsx.jsx(
+            runtime2.Menu.Item,
+            {
+              icon: SlidesAppJsx.jsx(runtime2.ShapeIcon, {
+                shape: input,
+                size: 20
+              }),
+              onClick: (input2) => insertShape(input, {
+                byKey: (0, runtime2.isKeyboardOrPrimaryActivation)(input2)
+              }),
+              children: runtime2.shapeVariantLabels[input]
+            },
+            input
+          )
+        ),
+        SlidesAppJsx.jsx(runtime2.Menu.Separator, {}),
+        QUICK_INSERT_LINE_SHAPES.map(
+          (input) => SlidesAppJsx.jsx(
+            runtime2.Menu.Item,
+            {
+              icon: SlidesAppJsx.jsx(runtime2.ShapeIcon, {
+                shape: input,
+                size: 20
+              }),
+              onClick: (input2) => insertShape(input, {
+                byKey: (0, runtime2.isKeyboardOrPrimaryActivation)(input2)
+              }),
+              children: runtime2.shapeVariantLabels[input]
+            },
+            input
+          )
+        )
+      ]
+    }), withCommentTools = (input) => topRowLayout ? SlidesAppJsx.jsx(runtime2.ToolbarCommentTools, {
+      lastTool: input,
+      onScreen: !footToolbarReveal.held && presentationStartIndex === null
+    }) : input, insertControls = modalOpen ? SlidesAppJsx.jsxs(runtime2.ToolbarPopover, {
+      iconOnly: true,
+      caret: true,
+      icon: "Add",
+      label: "Insert",
+      disabled: insertMenuDisabled && !phoneLayout,
+      tip: phoneLayout ? "Add a slide, or insert text, an image or video, a table, a shape or a line" : insertActionTip(
+        "Insert text, an image or video, a table, a shape or a line",
+        "Insert onto the selected slide"
+      ),
+      side: insertMenuSide,
+      children: [
+        phoneLayout ? SlidesAppJsx.jsxs(SlidesAppJsx.Fragment, {
           children: [
             SlidesAppJsx.jsx(runtime2.Menu.Item, {
-              icon: runtime2.textFindResultIcon,
-              onClick: () => insertText(),
-              children: "Text"
+              icon: "Add",
+              onClick: () => slideActions.onAdd(),
+              children: ADD_SLIDE_LABEL
             }),
+            SlidesAppJsx.jsx(runtime2.Menu.Separator, {})
+          ]
+        }) : null,
+        SlidesAppJsx.jsx(runtime2.Menu.Item, {
+          ...phoneInsertItemProps,
+          icon: runtime2.textFindResultIcon,
+          onClick: () => insertText(),
+          children: (0, runtime2.formatMessage)({
+            defaultMessage: "Text",
+            id: "+Qww+Uk0bP"
+          })
+        }),
+        SlidesAppJsx.jsx(runtime2.Menu.Item, {
+          ...phoneInsertItemProps,
+          icon: "Image",
+          onClick: (input) => clickUploadInput(
+            (0, runtime2.isKeyboardOrPrimaryActivation)(input)
+          ),
+          children: (0, runtime2.formatMessage)({
+            defaultMessage: "Image or video\u2026",
+            id: "uBALFfCpva"
+          })
+        }),
+        embeddableVideoProviders.length > 0 ? SlidesAppJsx.jsx(runtime2.Menu.Item, {
+          ...phoneInsertItemProps,
+          icon: "Upload",
+          onClick: (input) => clickUploadInput(
+            (0, runtime2.isKeyboardOrPrimaryActivation)(input),
+            videoUploadInputRef
+          ),
+          children: "Upload video\u2026"
+        }) : null,
+        embeddableVideoProviders.length > 0 ? SlidesAppJsx.jsx(runtime2.Menu.Item, {
+          ...phoneInsertItemProps,
+          icon: "Recording",
+          onClick: (input) => void askVideoUrl(
+            (0, runtime2.isKeyboardOrPrimaryActivation)(input)
+          ),
+          children: "Embed a video link\u2026"
+        }) : null,
+        SlidesAppJsx.jsx(runtime2.Menu.Item, {
+          ...phoneInsertItemProps,
+          icon: "Table",
+          onClick: (input) => insertTable({
+            byKey: (0, runtime2.isKeyboardOrPrimaryActivation)(input)
+          }),
+          children: (0, runtime2.formatMessage)({
+            defaultMessage: "Table",
+            id: "KuVEbmhtsi"
+          })
+        }),
+        phoneLayout ? SlidesAppJsx.jsxs(runtime2.Menu.Submenu, {
+          children: [
+            SlidesAppJsx.jsx(runtime2.Menu.SubmenuTrigger, {
+              disabled: insertMenuDisabled,
+              icon: "Shapes",
+              children: "Shapes"
+            }),
+            SlidesAppJsx.jsx(runtime2.Menu.Popup, {
+              children: quickShapeMenuItems
+            })
+          ]
+        }) : SlidesAppJsx.jsxs(SlidesAppJsx.Fragment, {
+          children: [
+            SlidesAppJsx.jsx(runtime2.Menu.Separator, {}),
+            quickShapeMenuItems
+          ]
+        })
+      ]
+    }) : SlidesAppJsx.jsxs(SlidesAppJsx.Fragment, {
+      children: [
+        SlidesAppJsx.jsx(runtime2.ToolbarButton, {
+          iconOnly: true,
+          glyph: runtime2.textFindResultIcon,
+          label: "Text",
+          shortcut: gridOpen ? void 0 : TEXT_INSERT_SHORTCUT_KEY,
+          disabled: insertMenuDisabled,
+          ref: textButtonRef,
+          pressed: gridOpen || commentPinning ? void 0 : textToolOn,
+          tip: insertActionTip(
+            commentPinning ? (0, runtime2.formatMessage)({
+              defaultMessage: "Add a text box",
+              id: "7bYD9zWd+M"
+            }) : textToolOn ? (0, runtime2.formatMessage)({
+              defaultMessage: "Click the slide where the text should go, then type. Escape cancels",
+              id: "EKjM8J/3Gd"
+            }) : (0, runtime2.formatMessage)({
+              defaultMessage: "Add a text box: click, then click the slide where it goes. Or drag it onto the slide",
+              id: "dExEdQ0mjg"
+            }),
+            (0, runtime2.formatMessage)({
+              defaultMessage: "Add a text box on the selected slide",
+              id: "m9DApAAUwW"
+            })
+          ),
+          descriptionSuffix: gridOpen || commentPinning ? void 0 : ((0, runtime2.isApplePlatform)() ? "Return" : "Enter") + (textToolOn ? " with the slide focused adds a text box in the middle" : " or Space adds one in the middle of the slide"),
+          tipSide: insertMenuSide,
+          draggable: !insertMenuDisabled && !gridOpen,
+          onDragStart: (event) => event.dataTransfer.setData(
+            "application/x-slides-insert",
+            "text"
+          ),
+          onClick: (input) => textToolOn ? stopTextTool() : gridOpen || commentPinning || (0, runtime2.isKeyboardOrPrimaryActivation)(input) ? insertText() : startTextTool()
+        }),
+        SlidesAppJsx.jsx(runtime2.ToolbarButton, {
+          iconOnly: true,
+          icon: "Image",
+          label: "Image or video",
+          tip: insertActionTip(
+            (0, runtime2.formatMessage)({
+              defaultMessage: "Insert an image or video\u2026",
+              id: "B85tTeimOt"
+            }),
+            (0, runtime2.formatMessage)({
+              defaultMessage: "Insert an image or video on the selected slide\u2026",
+              id: "MR9iXJ7wkW"
+            })
+          ),
+          disabled: insertMenuDisabled,
+          tipSide: insertMenuSide,
+          onClick: (input) => clickUploadInput(
+            (0, runtime2.isKeyboardOrPrimaryActivation)(input)
+          )
+        }),
+        embeddableVideoProviders.length > 0 ? SlidesAppJsx.jsxs(runtime2.ToolbarPopover, {
+          iconOnly: true,
+          icon: "Recording",
+          label: "Video",
+          side: insertMenuSide,
+          tip: insertActionTip(
+            "Insert a video\u2026",
+            "Insert a video on the selected slide\u2026"
+          ),
+          disabled: insertMenuDisabled,
+          "data-testid": "insert-video",
+          children: [
             SlidesAppJsx.jsx(runtime2.Menu.Item, {
-              icon: "Image",
-              onClick: (input) => clickUploadInput(
-                (0, runtime2.isKeyboardOrPrimaryActivation)(input)
-              ),
-              children: "Image or video\u2026"
-            }),
-            videoLinksEnabled ? SlidesAppJsx.jsx(runtime2.Menu.Item, {
               icon: "Upload",
               onClick: (input) => clickUploadInput(
                 (0, runtime2.isKeyboardOrPrimaryActivation)(input),
                 videoUploadInputRef
               ),
               children: "Upload video\u2026"
-            }) : null,
-            videoLinksEnabled ? SlidesAppJsx.jsx(runtime2.Menu.Item, {
+            }),
+            SlidesAppJsx.jsx(runtime2.Menu.Item, {
               icon: "Recording",
-              onClick: (input) => void askYoutubeUrl(
+              onClick: (input) => void askVideoUrl(
                 (0, runtime2.isKeyboardOrPrimaryActivation)(input)
               ),
-              children: "Embed YouTube\u2026"
-            }) : null,
-            SlidesAppJsx.jsx(runtime2.Menu.Item, {
-              icon: "Table",
-              onClick: (input) => insertTable({
-                byKey: (0, runtime2.isKeyboardOrPrimaryActivation)(
-                  input
-                )
-              }),
-              children: "Table"
-            }),
-            SlidesAppJsx.jsx(runtime2.Menu.Separator, {}),
-            QUICK_INSERT_SHAPES.map(
-              (input) => SlidesAppJsx.jsx(
-                runtime2.Menu.Item,
-                {
-                  icon: SlidesAppJsx.jsx(runtime2.ShapeIcon, {
-                    shape: input,
-                    size: 20
-                  }),
-                  onClick: (input2) => insertShape(input, {
-                    byKey: (0, runtime2.isKeyboardOrPrimaryActivation)(
-                      input2
-                    )
-                  }),
-                  children: runtime2.shapeVariantLabels[input]
-                },
-                input
-              )
-            ),
-            SlidesAppJsx.jsx(runtime2.Menu.Separator, {}),
-            QUICK_INSERT_LINE_SHAPES.map(
-              (input) => SlidesAppJsx.jsx(
-                runtime2.Menu.Item,
-                {
-                  icon: SlidesAppJsx.jsx(runtime2.ShapeIcon, {
-                    shape: input,
-                    size: 20
-                  }),
-                  onClick: (input2) => insertShape(input, {
-                    byKey: (0, runtime2.isKeyboardOrPrimaryActivation)(
-                      input2
-                    )
-                  }),
-                  children: runtime2.shapeVariantLabels[input]
-                },
-                input
-              )
-            )
+              children: "Embed a video link\u2026"
+            })
           ]
-        }) : SlidesAppJsx.jsxs(SlidesAppJsx.Fragment, {
-          children: [
-            SlidesAppJsx.jsx(runtime2.ToolbarButton, {
+        }) : null,
+        SlidesAppJsx.jsx(runtime2.ToolbarButton, {
+          iconOnly: true,
+          icon: "Table",
+          label: "Table",
+          tip: insertActionTip(
+            (0, runtime2.formatMessage)({
+              defaultMessage: "Insert a table \u2014 click, or drag onto the slide",
+              id: "HWfHqlu/i5"
+            }),
+            (0, runtime2.formatMessage)({
+              defaultMessage: "Insert a table on the selected slide",
+              id: "HidGpkzUrn"
+            })
+          ),
+          disabled: insertMenuDisabled,
+          tipSide: insertMenuSide,
+          draggable: !insertMenuDisabled && !gridOpen,
+          onDragStart: (event) => event.dataTransfer.setData(
+            "application/x-slides-insert",
+            "table"
+          ),
+          onClick: (input) => insertTable({
+            byKey: (0, runtime2.isKeyboardOrPrimaryActivation)(input)
+          })
+        }),
+        withCommentTools(
+          SlidesAppJsx.jsx("span", {
+            className: "contents",
+            onKeyDownCapture: onShapesKeyDownCapture,
+            onPointerDownCapture: () => setFocusInsertMenuOnOpen(false),
+            onClickCapture: (input) => {
+              if (pointerOutsideMenu(input)) {
+                setFocusInsertMenuOnOpen(
+                  (0, runtime2.isKeyboardOrPrimaryActivation)(input)
+                );
+              }
+            },
+            children: SlidesAppJsx.jsxs(runtime2.ToolbarPopover, {
               iconOnly: true,
-              glyph: runtime2.textFindResultIcon,
-              label: "Text",
-              shortcut: gridOpen ? void 0 : TEXT_INSERT_SHORTCUT_KEY,
-              ref: textButtonRef,
-              pressed: gridOpen || commentPinning ? void 0 : textToolOn,
+              caret: true,
+              icon: "Shapes",
+              label: "Shapes",
               tip: insertActionTip(
-                commentPinning ? (0, runtime2.formatMessage)({
-                  defaultMessage: "Add a text box",
-                  id: "7bYD9zWd+M"
-                }) : textToolOn ? (0, runtime2.formatMessage)({
-                  defaultMessage: "Click the slide where the text should go, then type. Escape cancels",
-                  id: "EKjM8J/3Gd"
-                }) : (0, runtime2.formatMessage)({
-                  defaultMessage: "Add a text box: click, then click the slide where it goes. Or drag it onto the slide",
-                  id: "dExEdQ0mjg"
+                (0, runtime2.formatMessage)({
+                  defaultMessage: "Insert a shape, line, or connector. Click a row, or drag it onto the slide",
+                  id: "bS24sr6ByK"
                 }),
                 (0, runtime2.formatMessage)({
-                  defaultMessage: "Add a text box on the selected slide",
-                  id: "m9DApAAUwW"
+                  defaultMessage: "Insert a shape, line, or connector on the selected slide",
+                  id: "ywzaHUJpE7"
                 })
               ),
-              descriptionSuffix: gridOpen || commentPinning ? void 0 : ((0, runtime2.isApplePlatform)() ? "Return" : "Enter") + (textToolOn ? " with the slide focused adds a text box in the middle" : " or Space adds one in the middle of the slide"),
               disabled: insertMenuDisabled,
-              draggable: !insertMenuDisabled && !gridOpen,
-              onDragStart: (input) => input.dataTransfer.setData(
-                "application/x-slides-insert",
-                "text"
-              ),
-              onClick: (input) => textToolOn ? stopTextTool() : gridOpen || commentPinning || (0, runtime2.isKeyboardOrPrimaryActivation)(input) ? insertText() : startTextTool()
-            }),
-            SlidesAppJsx.jsx(runtime2.ToolbarButton, {
-              iconOnly: true,
-              icon: "Image",
-              label: "Image or video",
-              tip: insertActionTip(
-                "Insert an image or video\u2026",
-                "Insert an image or video on the selected slide\u2026"
-              ),
-              disabled: insertMenuDisabled,
-              onClick: (input) => clickUploadInput(
-                (0, runtime2.isKeyboardOrPrimaryActivation)(input)
-              )
-            }),
-            videoLinksEnabled ? SlidesAppJsx.jsxs(runtime2.ToolbarPopover, {
-              iconOnly: true,
-              icon: "Recording",
-              label: "Video",
-              tip: insertActionTip(
-                "Insert a video\u2026",
-                "Insert a video on the selected slide\u2026"
-              ),
-              disabled: insertMenuDisabled,
-              "data-testid": "insert-video",
+              side: insertMenuSide,
+              open: insertMenuOpen,
+              onOpenChange: setInsertMenuOpen,
+              finalFocus: focusInsertMenuOnOpen,
               children: [
-                SlidesAppJsx.jsx(runtime2.Menu.Item, {
-                  icon: "Upload",
-                  onClick: (input) => clickUploadInput(
-                    (0, runtime2.isKeyboardOrPrimaryActivation)(
-                      input
-                    ),
-                    videoUploadInputRef
-                  ),
-                  children: "Upload video\u2026"
-                }),
-                SlidesAppJsx.jsx(runtime2.Menu.Item, {
-                  icon: "Recording",
-                  onClick: (input) => void askYoutubeUrl(
-                    (0, runtime2.isKeyboardOrPrimaryActivation)(
-                      input
-                    )
-                  ),
-                  children: "Embed YouTube\u2026"
+                QUICK_INSERT_SHAPES.map(shapeInsertMenuItem),
+                SlidesAppJsx.jsx(runtime2.Menu.Separator, {}),
+                QUICK_INSERT_LINE_SHAPES.map(shapeInsertMenuItem)
+              ]
+            })
+          })
+        )
+      ]
+    }), collapseRail = () => {
+      if (document.querySelector("[data-slides-rail-hide]:hover") !== null) {
+        railPeek.holdUntilLeave();
+      }
+      chooseRailOpen(false);
+    }, railCard = topRowLayout && !railOpen && !gridShown && presentationStartIndex === null && (!deckEmpty || creationView.cells !== null || creationView.addSlideOnStage) ? SlidesAppJsx.jsx("div", {
+      ...{
+        [runtime2.RAIL_PEEK_ATTRIBUTE]: ""
+      },
+      className: "contents",
+      ...railPeek.panel,
+      children: SlidesAppJsx.jsx(runtime2.SlideRailToolbar, {
+        placement: "card",
+        readOnly,
+        onAdd: slideActions.onAdd,
+        notesOpen,
+        onToggleNotes: () => setNotesOpen((input) => !input),
+        onSetGridOpen: setGridOpen,
+        density: toolbarDensity,
+        sidebar: {
+          onShow: () => {
+            railPeek.close();
+            chooseRailOpen(true);
+          },
+          ...railPeek.trigger
+        }
+      })
+    }) : void 0, toolbarExtras = topRowLayout ? railCard : phoneLayout ? void 0 : SlidesAppJsx.jsx(runtime2.ToolbarWhenVisible, {
+      children: insertControls
+    }), footToolbar = (placement, sheetPad = true, quiet = readOnlyOrPaused) => footToolbarShown && (!quiet || chatSlotReported) ? SlidesAppJsx.jsx("div", {
+      ref: placement === "stage" ? creationRailRef : void 0,
+      className: (0, runtime2.joinClassNames)(
+        "flex justify-center px-2 pt-2",
+        placement === "stage" ? "pointer-events-none absolute inset-x-0 bottom-0 z-10" : "shrink-0 bg-editor-canvas",
+        sheetPad ? runtime2.FOOT_TOOLBAR_PAD_CLASS : "pb-[var(--mc-foot-gap)]",
+        sheetPad && runtime2.FOOT_TOOLBAR_SHEET_PAD_CLASS,
+        phoneLayout && textEdit !== null && "invisible"
+      ),
+      children: SlidesAppJsx.jsx("div", {
+        inert: footToolbarReveal.held,
+        className: (0, runtime2.joinClassNames)(
+          "flex min-w-0 max-w-full",
+          footToolbarReveal.className
+        ),
+        children: SlidesAppJsx.jsxs(runtime2.FloatingToolbar, {
+          label: "Insert",
+          "aria-hidden": quiet ? true : void 0,
+          density: "comfortable",
+          "data-tb-foot": "",
+          className: (0, runtime2.joinClassNames)(
+            "pointer-events-auto flex max-w-full items-center gap-1 p-1 pointer-coarse:gap-1.5 pointer-coarse:p-xs",
+            chatSlotReported && !quiet && "pointer-coarse:pe-sm"
+          ),
+          children: [
+            quiet ? null : saveStatus === "loading" ? SlidesAppJsx.jsx("fieldset", {
+              disabled: true,
+              "aria-busy": "true",
+              title: (0, runtime2.formatMessage)({
+                defaultMessage: "Loading the latest content\u2026",
+                id: "dYQ+dU7yu8"
+              }),
+              className: "contents",
+              children: insertControls
+            }) : insertControls,
+            chatSlotReported ? SlidesAppJsx.jsxs(SlidesAppJsx.Fragment, {
+              children: [
+                quiet ? null : SlidesAppJsx.jsx(
+                  runtime2.ArtifactToolbarDivider,
+                  {}
+                ),
+                SlidesAppJsx.jsx(runtime2.ChatToggleSlot, {
+                  word: commentButtonShown && !quiet
                 })
               ]
-            }) : null,
-            SlidesAppJsx.jsx(runtime2.ToolbarButton, {
-              iconOnly: true,
-              icon: "Table",
-              label: "Table",
-              tip: insertActionTip(
-                "Insert a table \u2014 click, or drag onto the slide",
-                "Insert a table on the selected slide"
-              ),
-              disabled: insertMenuDisabled,
-              draggable: !insertMenuDisabled && !gridOpen,
-              onDragStart: (input) => input.dataTransfer.setData(
-                "application/x-slides-insert",
-                "table"
-              ),
-              onClick: (input) => insertTable({
-                byKey: (0, runtime2.isKeyboardOrPrimaryActivation)(
-                  input
-                )
-              })
-            }),
-            SlidesAppJsx.jsx("span", {
-              className: "relative",
-              children: SlidesAppJsx.jsxs(runtime2.PropertyPopup, {
-                open: insertMenuOpen,
-                onOpen: () => setInsertMenuOpen(true),
-                onClose: () => setInsertMenuOpen(false),
-                trigger: SlidesAppJsx.jsx(runtime2.ToolbarButton, {
-                  iconOnly: true,
-                  caret: true,
-                  icon: "Shapes",
-                  label: "Shapes",
-                  tip: insertActionTip(
-                    "Insert a shape, line, or connector \u2014 click a row, or drag it onto the slide",
-                    "Insert a shape, line, or connector on the selected slide"
-                  ),
-                  disabled: insertMenuDisabled,
-                  onClick: (input) => setFocusInsertMenuOnOpen(
-                    (0, runtime2.isKeyboardOrPrimaryActivation)(input)
-                  )
-                }),
-                align: "left",
-                "aria-label": "Shapes",
-                className: "min-w-32! p-1",
-                focusOnOpen: focusInsertMenuOnOpen,
-                children: [
-                  QUICK_INSERT_SHAPES.map(shapeInsertMenuItem),
-                  SlidesAppJsx.jsx("div", {
-                    "aria-hidden": "true",
-                    className: "mx-2 my-1 h-px bg-border-line"
-                  }),
-                  QUICK_INSERT_LINE_SHAPES.map(shapeInsertMenuItem)
-                ]
-              })
-            })
+            }) : null
           ]
         })
       })
-    }), pdfExportDisabled = extraExportFormats && presentableSlides.length === 0, toolbarExtrasEnd = SlidesAppJsx.jsxs(SlidesAppJsx.Fragment, {
+    }) : null, pdfExportDisabled = extraExportFormats && presentableSlides.length === 0, toolbarExtrasEnd = SlidesAppJsx.jsxs(SlidesAppJsx.Fragment, {
       children: [
         SlidesAppJsx.jsxs(runtime2.ToolbarPopover, {
           iconOnly: true,
           icon: "Download",
           label: exporting ? EXPORTING_MESSAGE : "Download",
-          tip: downloadsWithheld2 ? runtime2.DOWNLOADS_UNAVAILABLE_MESSAGE : exporting ? EXPORTING_MESSAGE : !extraExportFormats ? presentableSlides.length === 0 ? "Every slide is skipped \u2014 unskip one to export" : "Download the presentation as a PDF, a web page or a PowerPoint file (skipped slides stay out)" : getSlideToExport() === void 0 ? "Nothing to export yet" : "Download the presentation as a PDF, a web page or a PowerPoint file (skipped slides stay out), or this slide as an image",
+          tip: downloadsWithheld2 ? runtime2.DOWNLOADS_UNAVAILABLE_MESSAGE : exporting ? EXPORTING_MESSAGE : !extraExportFormats ? presentableSlides.length === 0 ? (0, runtime2.formatMessage)({
+            defaultMessage: "Every slide is skipped \u2014 unskip one to export",
+            id: "mFBfglPpib"
+          }) : (0, runtime2.formatMessage)({
+            defaultMessage: "Download the presentation as a PDF, a web page or a PowerPoint file (skipped slides stay out)",
+            id: "S7T8Pk5Gs7"
+          }) : getSlideToExport() === void 0 ? (0, runtime2.formatMessage)({
+            defaultMessage: "Nothing to export yet",
+            id: "S2vo4FlGaY"
+          }) : (0, runtime2.formatMessage)({
+            defaultMessage: "Download the presentation as a PDF, a web page or a PowerPoint file (skipped slides stay out), or this slide as an image",
+            id: "k/eanJbCxu"
+          }),
           disabled: downloadsWithheld2 || (extraExportFormats ? getSlideToExport() === void 0 : presentableSlides.length === 0) || exporting,
           children: [
             SlidesAppJsx.jsx(runtime2.Menu.Item, {
               disabled: pdfExportDisabled,
               disabledReason: ALL_SLIDES_SKIPPED_EXPORT_MESSAGE,
               onClick: () => void downloadPdf(),
-              children: "PDF (.pdf)"
+              children: (0, runtime2.formatMessage)({
+                defaultMessage: "PDF (.pdf)",
+                id: "j0JilUiysi"
+              })
             }),
             SlidesAppJsx.jsx(runtime2.Menu.Item, {
               disabled: pdfExportDisabled,
               disabledReason: ALL_SLIDES_SKIPPED_EXPORT_MESSAGE,
               onClick: () => void downloadHtml(),
-              children: "Web page (.html)"
+              children: (0, runtime2.formatMessage)({
+                defaultMessage: "Web page (.html)",
+                id: "ttnvc1Dd9M"
+              })
             }),
             extraExportFormats ? SlidesAppJsx.jsx(runtime2.Menu.Item, {
               onClick: () => void downloadPng(),
-              children: "Current slide as an image (.png)"
+              children: (0, runtime2.formatMessage)({
+                defaultMessage: "Current slide as an image (.png)",
+                id: "6m8dAV0/01"
+              })
             }) : null,
             SlidesAppJsx.jsx(runtime2.Menu.Separator, {}),
             SlidesAppJsx.jsxs(runtime2.Menu.Group, {
@@ -253345,16 +255256,25 @@ function installEditorApp(runtime2) {
                   disabled: pdfExportDisabled,
                   disabledReason: ALL_SLIDES_SKIPPED_EXPORT_MESSAGE,
                   onClick: () => void exportPptx("current"),
-                  children: "PowerPoint, current fonts (.pptx)"
+                  children: (0, runtime2.formatMessage)({
+                    defaultMessage: "PowerPoint, current fonts (.pptx)",
+                    id: "6QiTn+LH3M"
+                  })
                 }),
                 SlidesAppJsx.jsx(runtime2.Menu.Item, {
                   disabled: pdfExportDisabled,
                   disabledReason: ALL_SLIDES_SKIPPED_EXPORT_MESSAGE,
                   onClick: () => void exportPptx("basic"),
-                  children: "PowerPoint, basic fonts (.pptx)"
+                  children: (0, runtime2.formatMessage)({
+                    defaultMessage: "PowerPoint, basic fonts (.pptx)",
+                    id: "NDxzA33NVr"
+                  })
                 }),
                 SlidesAppJsx.jsx(runtime2.Menu.GroupLabel, {
-                  children: "Basic fonts work on any computer"
+                  children: (0, runtime2.formatMessage)({
+                    defaultMessage: "Basic fonts work on any computer",
+                    id: "70TUTvxtIi"
+                  })
                 })
               ]
             })
@@ -253373,7 +255293,16 @@ function installEditorApp(runtime2) {
               className: "max-md:rotate-90"
             }),
             label: "Properties",
-            tip: gridOpen ? "Open a slide to edit its properties" : inspectorOpen ? "Hide the properties panel" : "Show the properties panel",
+            tip: gridOpen ? (0, runtime2.formatMessage)({
+              defaultMessage: "Open a slide to edit its properties",
+              id: "OOOnxdR8cA"
+            }) : inspectorOpen ? (0, runtime2.formatMessage)({
+              defaultMessage: "Hide the properties panel",
+              id: "aqHgtoEC+5"
+            }) : (0, runtime2.formatMessage)({
+              defaultMessage: "Show the properties panel",
+              id: "5w6mYqIqKM"
+            }),
             disabled: gridOpen,
             pressed: inspectorOpen && !gridOpen,
             ref: inspectorReturnFocusRef,
@@ -253384,7 +255313,50 @@ function installEditorApp(runtime2) {
           })
         })
       ]
-    });
+    }), renderSlideRail = (overPage) => SlidesAppJsx.jsx("div", {
+      className: "contents",
+      children: SlidesAppJsx.jsx(runtime2.SlideThumbnailRail, {
+        rootRef: insertMenuRef,
+        slides,
+        look: deferredPendingLook,
+        assets: snapshot.assets,
+        currentId: currentSlide?.id ?? null,
+        readOnly,
+        pending: creationView.cells !== null ? {
+          cells: creationView.cells,
+          active: creationView.active,
+          follow: creationView.place?.on === "cell" ? creationView.place.id : null,
+          growing: creationView.growing,
+          growFirst: creationView.fromEmptyDeck && !creationView.sheetIn,
+          fresh: creationView.fresh,
+          leaving: creationView.leftover
+        } : void 0,
+        personPaged: onPersonPaged,
+        onSelect: selectRailSlide,
+        ...slideActions,
+        onDuplicateAt: (input2, options) => duplicateSlide(input2, options),
+        onCollapse: collapseRail,
+        onEnterSlide: () => editorZoomApiRef.current?.focusSlide(),
+        gridOpen: false,
+        onSetGridOpen: setGridOpen,
+        notesOpen,
+        onToggleNotes: () => setNotesOpen((input2) => !input2),
+        commentCounts: openCommentCounts,
+        peersDeck: memoryScope === "" ? null : (0, runtime2.frameContextId)(memoryScope),
+        placement: railPlacement,
+        resize: phoneLayout ? void 0 : {
+          canvas: editorElementRef,
+          thumbW: thumbWidth,
+          onThumbW: setThumbWidth,
+          paneH: notesOpen ? (0, runtime2.clampSpeakerNotesEditorHeight)(notesHeight) : 0,
+          geometry: railGeometryRef
+        },
+        actionRow: !phoneLayout,
+        actionsDensity: toolbarDensity,
+        overPage,
+        several: railSeveral
+      })
+    }), slideRail = railOpen && railSlidesShown ? renderSlideRail(false) : null;
     return SlidesAppJsx.jsx(runtime2.slideSnapshotsEnabledContext.Provider, {
       value: true,
       children: SlidesAppJsx.jsx(runtime2.videoStillsContext.Provider, {
@@ -253397,12 +255369,17 @@ function installEditorApp(runtime2) {
           toolbarExtrasEnd,
           toolbarTrailing,
           toolbarUndoButtons: false,
+          toolbarLeadingFlat: railPeek.peeking && railSlidesShown,
           toolbarTouchTargets: "square",
+          toolbarDensity,
           toolbarVariant: host ? "docked" : "floating",
           alwaysShowExtras: true,
           skeleton: SlidesAppJsx.jsx(SlidesAppLoadingSkeleton, {
             doc: documentStore.doc,
-            railOpen
+            railOpen,
+            placement: railPlacement,
+            footBar: footToolbarShown,
+            ticks: topRowLayout && !railOpen
           }),
           skeletonFlush: true,
           leading: host?.leading,
@@ -253412,9 +255389,7 @@ function installEditorApp(runtime2) {
               children: runtime2.SLIDES_PRINT_STYLES
             }),
             SlidesAppJsx.jsx(runtime2.HotRestoreRevealGate, {
-              box: currentSlide === void 0 ? null : () => (editorElementRef.current?.querySelector(
-                "[data-slide-surface]"
-              ) ?? editorElementRef.current ?? gridViewElementRef.current?.querySelector(
+              box: currentSlide === void 0 ? null : () => (slideSurface() ?? editorElementRef.current ?? gridViewElementRef.current?.querySelector(
                 "[data-grid-surface]"
               ))?.getBoundingClientRect()
             }),
@@ -253503,7 +255478,7 @@ function installEditorApp(runtime2) {
                     SlidesAppJsx.jsx(runtime2.FindBar, {
                       ...findController.bar
                     }),
-                    showCommentTargets ? SlidesAppJsx.jsx("div", {
+                    gridShown ? SlidesAppJsx.jsx("div", {
                       className: (0, runtime2.joinClassNames)(
                         "absolute inset-0",
                         gridLeaving ? "z-20" : gridOpen ? "z-10" : "z-0"
@@ -253541,7 +255516,16 @@ function installEditorApp(runtime2) {
                                 notesShown: notesOpen,
                                 commentCounts: openCommentCounts,
                                 commenting: commentMode && gridOpen,
-                                commentLayer: !gridOpen || !commentMode ? void 0 : (input) => SlidesAppJsx.jsx(
+                                commentLayer: !gridOpen || !commentMode ? gridCommentPinsShown ? (input) => SlidesAppJsx.jsx(
+                                  runtime2.GridCommentPinsLayer,
+                                  {
+                                    ...commentController,
+                                    slides,
+                                    containerRef: input,
+                                    topInset: gridTopInset,
+                                    clipRef: editingGridSlide ? editorElementRef : void 0
+                                  }
+                                ) : void 0 : (input) => SlidesAppJsx.jsx(
                                   runtime2.SlideGridCommentLayer,
                                   {
                                     ...commentController,
@@ -253557,14 +255541,38 @@ function installEditorApp(runtime2) {
                                     onRevealed: () => setCommentViewReveal(null)
                                   }
                                 ),
-                                peerLayer: touchLayout ? void 0 : (input, options) => SlidesAppJsx.jsx(
-                                  runtime2.GridPeerCursorLayers,
-                                  {
-                                    tiles: options,
-                                    surfaceOf: scopedSlideKey,
-                                    glyphScale: input
-                                  }
-                                ),
+                                peerLayer: touchLayout ? void 0 : (input, options) => {
+                                  let value = creationView.phase === "quiet" ? options.find(
+                                    (input2) => input2.id === agentSlideId
+                                  ) : void 0;
+                                  return SlidesAppJsx.jsxs(
+                                    SlidesAppJsx.Fragment,
+                                    {
+                                      children: [
+                                        SlidesAppJsx.jsx(
+                                          runtime2.GridPeerCursorLayers,
+                                          {
+                                            tiles: options,
+                                            surfaceOf: scopedSlideKey,
+                                            glyphScale: input
+                                          }
+                                        ),
+                                        value !== void 0 ? SlidesAppJsx.jsx(
+                                          runtime2.AgentCursor,
+                                          {
+                                            tint: "orange",
+                                            label: AGENT_CURSOR_LABEL,
+                                            at: {
+                                              left: value.x + AGENT_CURSOR_OFFSET.left,
+                                              top: value.y + AGENT_CURSOR_OFFSET.top
+                                            },
+                                            glyphScale: input
+                                          }
+                                        ) : null
+                                      ]
+                                    }
+                                  );
+                                },
                                 onCameraChange: republishGridPointerOnCameraChange,
                                 onSelect: (input) => {
                                   setCurrentSlideId(input);
@@ -253573,14 +255581,17 @@ function installEditorApp(runtime2) {
                                 },
                                 onOpen: handleGridOpenSlide,
                                 onClose: closeGridFromButton,
-                                onMoveSlidesTo: (items, options, context) => {
+                                onMoveSlidesTo: (input, options, extra) => {
+                                  if (readOnly || documentStore.doc.readOnly()) {
+                                    return;
+                                  }
                                   commitStructuralChange(
-                                    items.length > 1 ? "move slides" : "move slide",
-                                    (input) => (0, runtime2.moveSlidesToSection)(
+                                    input.length > 1 ? "move slides" : "move slide",
+                                    (input2) => (0, runtime2.moveSlidesToSection)(
+                                      input2,
                                       input,
-                                      items,
                                       options,
-                                      context
+                                      extra
                                     )
                                   );
                                 },
@@ -253630,7 +255641,10 @@ function installEditorApp(runtime2) {
                                 ),
                                 onRemoveSection: (input) => void commitStructuralChange(
                                   "remove section",
-                                  (input2) => (0, runtime2.deleteSection)(input2, input)
+                                  (input2) => (0, runtime2.deleteSection)(
+                                    input2,
+                                    input
+                                  )
                                 ),
                                 onAddSection: (input) => void commitStructuralChange(
                                   "new section",
@@ -253646,759 +255660,871 @@ function installEditorApp(runtime2) {
                           gridLeaving ? SlidesAppJsx.jsx("aside", {
                             inert: true,
                             "aria-hidden": true,
-                            className: "shrink-0 border-t border-border-line bg-panel pb-[var(--sl-safe-b,0px)]",
-                            children: SlidesAppJsx.jsx(
-                              runtime2.SlideRailToolbar,
-                              {
-                                readOnly,
-                                onAdd: slideActions.onAdd,
-                                notesOpen,
-                                onToggleNotes: () => {
-                                },
-                                ...wasEditingWhenGridLeftRef.current ? {} : {
-                                  notesDisabledReason: (0, runtime2.slidesHaveSpeakerNotes)(
-                                    slides
-                                  ) ? void 0 : readOnly ? "No speaker notes in this presentation" : "No speaker notes yet \u2014 open a slide to add some"
-                                },
-                                gridOpen: false,
-                                onSetGridOpen: () => {
-                                },
-                                onCollapse: () => {
-                                },
-                                collapseDisabledReason: CANVAS_VIEW_NO_THUMBNAILS_MESSAGE
-                              }
-                            )
+                            ...topRowAttributes,
+                            className: (0, runtime2.joinClassNames)(
+                              "shrink-0",
+                              railPlacement === "left" ? "order-first bg-editor-canvas" : footPanelClassSheet
+                            ),
+                            children: SlidesAppJsx.jsx("div", {
+                              className: railPlacement === "left" ? (0, runtime2.joinClassNames)(
+                                "border-b border-border-line bg-panel",
+                                railColumnClass
+                              ) : "contents",
+                              children: SlidesAppJsx.jsx(
+                                runtime2.SlideRailToolbar,
+                                {
+                                  placement: railPlacement,
+                                  readOnly,
+                                  onAdd: slideActions.onAdd,
+                                  notesOpen,
+                                  onToggleNotes: () => {
+                                  },
+                                  ...wasEditingWhenGridLeftRef.current ? {} : {
+                                    notesDisabledReason: phoneLayout ? "Turn your phone sideways to show speaker notes" : (0, runtime2.slidesHaveSpeakerNotes)(
+                                      slides
+                                    ) ? void 0 : readOnly ? "No speaker notes in this presentation" : "No speaker notes yet \u2014 open a slide to add some"
+                                  },
+                                  gridOpen: false,
+                                  onSetGridOpen: () => {
+                                  },
+                                  onCollapse: () => {
+                                  },
+                                  collapseDisabledReason: "Canvas view is showing, so there is no thumbnail strip to hide",
+                                  density: toolbarDensity
+                                }
+                              )
+                            })
                           }) : null
                         ]
                       })
                     }) : null,
                     gridOpen ? presentationStartIndex !== null ? SlidesAppJsx.jsx("div", {
                       className: "h-full bg-editor-canvas"
-                    }) : null : SlidesAppJsx.jsx("div", {
+                    }) : SlidesAppJsx.jsx(
+                      runtime2.SlideNavigationAnnouncement,
+                      {
+                        slideKey: currentSlide?.id,
+                        message: slideNavigationMessage
+                      }
+                    ) : SlidesAppJsx.jsx("div", {
                       className: "relative z-10 h-full min-h-0",
                       children: !currentSlide && (documentStore.bootReport.htmlErrors ?? 0) > 0 ? SlidesAppJsx.jsxs("div", {
                         className: "flex h-full flex-col items-center justify-center gap-3 bg-editor-canvas p-6 text-center",
                         children: [
                           SlidesAppJsx.jsx("p", {
                             className: "text-sm text-fg-secondary",
-                            children: "This presentation\u2019s HTML couldn\u2019t be read."
+                            children: (0, runtime2.formatMessage)({
+                              defaultMessage: "This presentation\u2019s HTML couldn\u2019t be read.",
+                              id: "Fq3tmXljCa"
+                            })
                           }),
-                          SlidesAppJsx.jsxs("p", {
+                          SlidesAppJsx.jsx("p", {
                             className: "max-w-md text-xs text-fg-muted",
-                            children: [
-                              String(documentStore.bootReport.htmlErrors),
-                              " structural error",
-                              documentStore.bootReport.htmlErrors === 1 ? "" : "s",
-                              documentStore.bootReport.htmlErrorSample !== void 0 ? " \u2014 first: " + documentStore.bootReport.htmlErrorSample : "",
-                              ". Fix the source and rebuild; nothing can be saved from here."
-                            ]
+                            children: documentStore.bootReport.htmlErrorSample !== void 0 ? (0, runtime2.formatMessage)(
+                              {
+                                defaultMessage: "{n, plural, one {{count} structural error \u2014 first: {sample}. Fix the source and rebuild; nothing can be saved from here.} other {{count} structural errors \u2014 first: {sample}. Fix the source and rebuild; nothing can be saved from here.}}",
+                                id: "UvT/4nICEz"
+                              },
+                              {
+                                n: documentStore.bootReport.htmlErrors ?? 0,
+                                count: String(
+                                  documentStore.bootReport.htmlErrors
+                                ),
+                                sample: documentStore.bootReport.htmlErrorSample
+                              }
+                            ) : (0, runtime2.formatMessage)(
+                              {
+                                defaultMessage: "{n, plural, one {{count} structural error. Fix the source and rebuild; nothing can be saved from here.} other {{count} structural errors. Fix the source and rebuild; nothing can be saved from here.}}",
+                                id: "lkMTQA5A0s"
+                              },
+                              {
+                                n: documentStore.bootReport.htmlErrors ?? 0,
+                                count: String(
+                                  documentStore.bootReport.htmlErrors
+                                )
+                              }
+                            )
                           })
                         ]
                       }) : !currentSlide && hidingMovedDeck() ? SlidesAppJsx.jsx("div", {
                         className: "h-full bg-editor-canvas",
                         "data-testid": "mc-moved-deck"
-                      }) : !currentSlide && !creationOnEmptyDeck ? SlidesAppJsx.jsx(EmptyPresentationView, {
+                      }) : !currentSlide && !creationOnEmptyDeck ? phoneLayout ? SlidesAppJsx.jsxs("div", {
+                        className: "flex h-full min-h-0 flex-col",
+                        children: [
+                          SlidesAppJsx.jsx("div", {
+                            ref: railLayout.stage,
+                            className: "min-h-0 flex-1",
+                            children: SlidesAppJsx.jsx(
+                              EmptyPresentationView,
+                              {
+                                readOnly,
+                                why: saveMessage,
+                                busy: presentationBusy,
+                                arriving: showAwaitingPlaceholder,
+                                onAdd: openTemplatePickerFromRail
+                              }
+                            )
+                          }),
+                          footToolbar("row", true, true)
+                        ]
+                      }) : SlidesAppJsx.jsx(EmptyPresentationView, {
                         readOnly,
                         why: saveMessage,
                         busy: presentationBusy,
                         arriving: showAwaitingPlaceholder,
-                        onAdd: () => openTemplatePicker()
+                        onAdd: openTemplatePickerFromRail
                       }) : SlidesAppJsx.jsxs("div", {
-                        className: "relative flex h-full min-h-0 flex-col",
+                        className: "relative flex h-full min-h-0",
                         children: [
-                          !currentSlide ? SlidesAppJsx.jsxs("div", {
-                            className: "relative flex min-h-0 flex-1",
+                          railPlacement === "left" ? SlidesAppJsx.jsxs("div", {
+                            className: "contents [:root[data-mc-presentation=sheet]_&]:hidden",
                             children: [
-                              SlidesAppJsx.jsx("div", {
-                                ref: creationStageRef,
-                                "data-creation-stage": "",
-                                className: "relative min-w-0 flex-1 bg-editor-canvas",
-                                "aria-busy": presentationBusy && !showSlideContent ? true : void 0,
-                                children: showSlideContent ? SlidesAppJsx.jsx("div", {
-                                  className: (0, runtime2.joinClassNames)(
-                                    "absolute inset-0",
-                                    creationView.toEmptyDeck && "sl-creation-empty",
-                                    creationView.fromEmptyDeck && "sl-creation-empty-out"
-                                  ),
-                                  inert: creationView.fromEmptyDeck,
-                                  children: SlidesAppJsx.jsx(
-                                    EmptyPresentationView,
-                                    {
-                                      readOnly,
-                                      why: saveMessage,
-                                      busy: presentationBusy && !creationView.fromEmptyDeck,
-                                      arriving: showAwaitingPlaceholder,
-                                      onAdd: () => openTemplatePicker(),
-                                      still: creationView.fromEmptyDeck
-                                    }
-                                  )
-                                }) : null
-                              }),
-                              creationView.addSlideOnStage ? SlidesAppJsx.jsx("div", {
-                                ref: creationRailRef,
-                                className: "pointer-events-none absolute inset-x-0 bottom-3 z-30 flex justify-center pb-[var(--sl-safe-b,0px)] [:root[data-mc-presentation=sheet]_&]:hidden",
-                                children: SlidesAppJsx.jsxs(
-                                  runtime2.Surface,
-                                  {
-                                    elevation: runtime2.PANEL_ELEVATION,
-                                    className: "pointer-events-auto flex items-center gap-0.5 rounded-full p-2.25 select-none",
-                                    children: [
-                                      SlidesAppJsx.jsx(
-                                        runtime2.Button,
-                                        {
-                                          variant: "ghost",
-                                          size: toolbarButtonSize,
-                                          onClick: () => openTemplatePicker(),
-                                          children: ADD_SLIDE_LABEL
-                                        }
-                                      ),
-                                      SlidesAppJsx.jsx(
-                                        "span",
-                                        {
-                                          className: "mx-0.5 h-4 w-px bg-border-line"
-                                        }
-                                      ),
-                                      SlidesAppJsx.jsx(
-                                        runtime2.Button,
-                                        {
-                                          iconOnly: true,
-                                          variant: "ghost",
-                                          size: toolbarButtonSize,
-                                          icon: "Slides",
-                                          "aria-label": SHOW_SLIDE_THUMBNAILS_LABEL,
-                                          "data-slides-rail-show": "",
-                                          onClick: () => chooseRailOpen(
-                                            true
-                                          )
-                                        }
-                                      )
-                                    ]
-                                  }
-                                )
+                              slideRail ?? (topRowLayout && currentSlide !== void 0 && !editingGridSlide ? SlidesAppJsx.jsx(
+                                runtime2.SlideTicks,
+                                {
+                                  slides,
+                                  assets: snapshot.assets,
+                                  currentId: currentSlide.id,
+                                  onSelect: selectRailSlide,
+                                  onEnterSlide: () => editorZoomApiRef.current?.focusSlide(),
+                                  stage: editorElementRef,
+                                  insetTop: topInset,
+                                  insetBottom: pageOcclusionBand + railFootGap,
+                                  coverId: host === void 0 ? snapshot.cover : null,
+                                  commentCounts: openCommentCounts,
+                                  covered: railPeek.peeking
+                                }
+                              ) : null),
+                              railPeek.peeking && railSlidesShown ? SlidesAppJsx.jsx("div", {
+                                ...{
+                                  [runtime2.RAIL_PEEK_ATTRIBUTE]: ""
+                                },
+                                className: "sl-panel-peek absolute inset-y-0 left-0 flex border-e bg-surface-popover pe-3 shadow-popover",
+                                style: {
+                                  zIndex: peekZIndex
+                                },
+                                ...railPeek.panel,
+                                children: renderSlideRail(true)
                               }) : null
                             ]
-                          }) : SlidesAppJsx.jsxs(
-                            SlidesAppJsx.Fragment,
-                            {
-                              children: [
-                                showAwaitingPlaceholder ? SlidesAppJsx.jsx("div", {
-                                  "data-testid": "slides-arriving-notice",
-                                  className: "mt-[var(--tb-overlay-h,0px)] shrink-0 px-3.5 py-1.5",
-                                  children: SlidesAppJsx.jsx(
-                                    runtime2.Callout,
-                                    {
-                                      variant: "neutral",
-                                      role: "none",
-                                      children: formatPresentationBuildProgress(
-                                        slides.length,
-                                        slides.length + resolvedAwaitedSlideCount
-                                      ) + "."
-                                    }
-                                  )
-                                }) : null,
-                                SlidesAppJsx.jsx("div", {
-                                  role: "status",
-                                  className: "shrink-0",
-                                  children: slideErrorMessage !== void 0 && slideHtmlError !== void 0 ? SlidesAppJsx.jsx(
-                                    runtime2.DamagedSlideNotice,
-                                    {
-                                      slideId: currentSlide.id,
-                                      scope: memoryScope,
-                                      deckTitle: snapshot.meta.title,
-                                      reason: slideErrorMessage,
-                                      diagnostic: slideHtmlError,
-                                      canAsk: !readOnly,
-                                      className: (0, runtime2.joinClassNames)(
-                                        !showAwaitingPlaceholder && "mt-[var(--tb-overlay-h,0px)]",
-                                        "px-3.5 py-1.5"
-                                      )
-                                    },
-                                    currentSlide.id
-                                  ) : null
-                                }),
-                                SlidesAppJsx.jsx(
-                                  runtime2.SlideNavigationAnnouncement,
-                                  {
-                                    slideKey: currentSlideId !== null ? currentSlide?.id : void 0,
-                                    message: () => currentSlideIndex < 0 || presentationStartIndex !== null || document.activeElement?.closest(
-                                      '[role="listbox"]'
-                                    ) != null ? null : (0, runtime2.formatPresentationSlideAnnouncement)(
-                                      currentSlideIndex,
-                                      slides.length,
-                                      (0, runtime2.slideTitleSnippet)(
-                                        currentSlide
-                                      )
-                                    )
-                                  }
-                                ),
-                                SlidesAppJsx.jsxs("div", {
-                                  className: "relative flex min-h-0 flex-1",
-                                  children: [
-                                    SlidesAppJsx.jsxs("div", {
-                                      ref: creationStageRef,
-                                      "data-slides-editor": "",
-                                      className: "relative min-w-0 flex-1",
-                                      children: [
-                                        SlidesAppJsx.jsx(
-                                          runtime2.SlideCanvasEditor,
-                                          {
-                                            startCamera: cameraPreferenceRef.current?.canvas === false ? cameraPreferenceRef.current.view : null,
-                                            onCamera: saveSlideCamera,
-                                            lookPreview: currentSlide !== void 0 ? pendingLook?.(currentSlide) : void 0,
-                                            commentStop: commentController.ctl !== null,
-                                            onStageMoved: remeasureCommentsOnStageMove,
-                                            onCropStart: () => stopTextTool(true),
-                                            returnTakenHint: textToolOn ? "Text tool on. Press " + ((0, runtime2.isApplePlatform)() ? "Return" : "Enter") + " to add a text box in the middle of the slide, or Escape to turn it off." : void 0,
-                                            designColors: designPalette,
-                                            slideColors: slidePalette,
-                                            pickImage: currentSlideReadOnly ? void 0 : async (input) => (await prepareImageAsset(
-                                              input
-                                            )).src,
-                                            slide: currentSlide,
-                                            slideNumber: slides.indexOf(
-                                              currentSlide
-                                            ) + 1,
-                                            slideName: currentSlideIndex < 0 ? "Slide" : (0, runtime2.formatPresentationSlideAnnouncement)(
-                                              currentSlideIndex,
-                                              slides.length,
-                                              (0, runtime2.slideTitleSnippet)(
-                                                currentSlide
-                                              )
-                                            ),
-                                            busy: presentationBusy,
-                                            assets: snapshot.assets,
-                                            pending: pendingUploads.filter(
-                                              (input) => input.slideId === currentSlide.id
-                                            ),
-                                            covered: presentationStartIndex !== null,
-                                            onPointerNorm: (input, options) => cursorPublisherRef.current?.move(
-                                              scopedSlideKey(
-                                                currentSlide.id
-                                              ),
-                                              input,
-                                              options
-                                            ),
-                                            peerLayer: (input, options) => SlidesAppJsx.jsxs(
-                                              SlidesAppJsx.Fragment,
-                                              {
-                                                children: [
-                                                  SlidesAppJsx.jsx(
-                                                    runtime2.SlidePeerSelections,
-                                                    {
-                                                      hosted: host?.presence !== void 0,
-                                                      deck: memoryScope === "" ? null : (0, runtime2.frameContextId)(
-                                                        memoryScope
-                                                      ),
-                                                      slideId: currentSlide.id,
-                                                      measure: options,
-                                                      scale: 1 / input
-                                                    }
-                                                  ),
-                                                  SlidesAppJsx.jsx(
-                                                    runtime2.PeerCursors,
-                                                    {
-                                                      surface: scopedSlideKey(
-                                                        currentSlide.id
-                                                      ),
-                                                      toLocal: (input2, options2) => ({
-                                                        left: input2 * runtime2.SLIDE_WIDTH,
-                                                        top: options2 * runtime2.SLIDE_HEIGHT
-                                                      }),
-                                                      glyphScale: input
-                                                    }
-                                                  )
-                                                ]
-                                              }
-                                            ),
-                                            deckCellCount: (0, runtime2.countDeckTableCells)(
-                                              slides
-                                            ),
-                                            withinStyleBudget: canAddStyledNodes,
-                                            selection,
-                                            onSelectionChange: (input) => {
-                                              setSelection(input);
-                                              if (textEdit && !input.some(
-                                                (input2) => input2.frameId === textEdit.frameId
-                                              )) {
-                                                setTextEditState(
-                                                  null
-                                                );
-                                              }
-                                            },
-                                            onLiveChange,
-                                            onGestureEnd,
-                                            dragLiveRef: dragActiveRef,
-                                            textEdit,
-                                            onTextEdit: (input) => {
-                                              setTextEditState(
-                                                input
-                                              );
-                                              if (input !== null) {
-                                                setProtectedEditorSlide(
-                                                  currentSlide.id
-                                                );
-                                              }
-                                            },
-                                            onDropImage: dropFilesOnSlide,
-                                            onReplaceImage: (input, options, context) => void uploadAndInsertImage(
-                                              input,
-                                              options,
-                                              context
-                                            ),
-                                            faces: snapshot.faces,
-                                            facesFull: fullFontFaces,
-                                            fonts: snapshot.fonts,
-                                            typeStyles: currentTypeStyles,
-                                            deckTypeStyles,
-                                            onDropInsert,
-                                            onOpenInspector: (input) => {
-                                              if (runtime2.ENABLE_OBJECT_PROPERTIES_MENU) {
-                                                let [
-                                                  items,
-                                                  items2
-                                                ] = [
-                                                  input.currentTarget,
-                                                  (0, runtime2.isKeyboardOrPrimaryActivation)(
-                                                    input
-                                                  )
-                                                ], bounds = items.getBoundingClientRect();
-                                                openContextMenu(
-                                                  {
-                                                    x: bounds.left,
-                                                    y: bounds.bottom + 6,
-                                                    from: "more",
-                                                    keyboard: items2
-                                                  },
-                                                  selection
-                                                );
-                                                if (items2 && items.isConnected) {
-                                                  items.focus({
-                                                    preventScroll: true
-                                                  });
-                                                }
-                                                return;
-                                              }
-                                              inspectorPointerInvocationRef.current = (0, runtime2.isKeyboardOrPrimaryActivation)(
-                                                input
-                                              );
-                                              setInspectorTab(
-                                                "properties"
-                                              );
-                                              setInspectorOpen(
-                                                true
-                                              );
-                                            },
-                                            moreMenu: runtime2.ENABLE_OBJECT_PROPERTIES_MENU ? {
-                                              label: "More actions",
-                                              open: contextMenu?.at.from === "more"
-                                            } : void 0,
-                                            onDeleteSelection: currentSlideReadOnly ? void 0 : deleteSelection,
-                                            onMenu: currentSlideReadOnly ? void 0 : openContextMenu,
-                                            selectionMenuHidden: inspectorOpen,
-                                            onChangeSlide,
-                                            presenting: presentationStartIndex !== null,
-                                            commenting: commentController.ctl !== null && commentController.on && presentationStartIndex === null,
-                                            readOnly: currentSlideReadOnly,
-                                            zoomApiRef: editorZoomApiRef,
-                                            onScaleChange: setToolbarScale,
-                                            bottomInset: pageOcclusionBand,
-                                            topInset,
-                                            sideInset,
-                                            surround: editorSurround,
-                                            stageOverlay: SlidesAppJsx.jsxs(SlidesAppJsx.Fragment, {
-                                              children: [
-                                                SlidesAppJsx.jsx(
-                                                  runtime2.SlideCommentLayer,
-                                                  {
-                                                    ...commentController,
-                                                    slide: currentSlide,
-                                                    slides,
-                                                    typeStyles: allTypeStyles,
-                                                    containerRef: editorElementRef,
-                                                    topInset,
-                                                    hidden: presentationStartIndex !== null,
-                                                    keepsMode: commentModePersistent,
-                                                    remeasureRef: commentRemeasureRef
-                                                  }
-                                                ),
-                                                textToolOn ? SlidesAppJsx.jsx(TextToolLayer, {
-                                                  overSlide,
-                                                  startsOverSlide: () => slideSurface()?.matches(":hover") ?? false,
-                                                  keeps: (input) => input instanceof Node && (textButtonRef.current?.contains(input) ?? false),
-                                                  slideRect: () => slideSurface()?.getBoundingClientRect(),
-                                                  lineHeight: () => bodyLineHeight() * (slideSurface()?.getBoundingClientRect().width ?? 0) / runtime2.SLIDE_WIDTH,
-                                                  minWidth: () => MIN_TEXT_INSERT_WIDTH * (slideSurface()?.getBoundingClientRect().width ?? 0) / runtime2.SLIDE_WIDTH,
-                                                  onPlace: placeTextAt,
-                                                  onCancel: () => stopTextTool()
-                                                }) : null
-                                              ]
-                                            })
-                                          },
-                                          editingGridSlide ? "in-place" : "plain"
-                                        ),
-                                        SlidesAppJsx.jsx(
-                                          runtime2.CanvasContextMenu,
-                                          {
-                                            at: contextMenu?.at ?? null,
-                                            objects: contextMenu?.objects ?? 0,
-                                            fitLabel: fitViewLabel,
-                                            copyLink: slideActions.onCopyLink !== void 0,
-                                            refusals: contextMenu?.refusals ?? {},
-                                            returnFocus: (input) => {
-                                              if (input !== null && (input.closest(
-                                                "[data-object-proxy]"
-                                              ) === null || input.hasAttribute(
-                                                "data-object-cursor"
-                                              ))) {
-                                                return input;
-                                              }
-                                              if (editorZoomApiRef.current?.focusSelection() !== true) {
-                                                editorZoomApiRef.current?.focusSlide();
-                                              }
-                                              return null;
-                                            },
-                                            onCommand: runContextMenuCommand,
-                                            onClose: () => setContextMenu(
-                                              null
-                                            )
-                                          }
-                                        ),
-                                        !railOpen && !editingGridSlide ? SlidesAppJsx.jsx(
-                                          "div",
-                                          {
-                                            ref: creationRailRef,
-                                            "data-slides-pager": "",
-                                            className: (0, runtime2.joinClassNames)(
-                                              "pointer-events-none absolute inset-x-0 bottom-3 z-10 flex justify-center [:root[data-mc-presentation=sheet]_&]:hidden",
-                                              !notesOpen && "pb-[var(--sl-safe-b,0px)]",
-                                              touchLayout && textEdit !== null && "invisible"
-                                            ),
-                                            children: SlidesAppJsx.jsxs(
-                                              runtime2.Surface,
-                                              {
-                                                elevation: runtime2.PANEL_ELEVATION,
-                                                className: "pointer-events-auto flex items-center gap-0.5 rounded-full p-2.25 select-none",
-                                                children: [
-                                                  SlidesAppJsx.jsx(
-                                                    runtime2.Button,
-                                                    {
-                                                      iconOnly: true,
-                                                      variant: "ghost",
-                                                      size: toolbarButtonSize,
-                                                      icon: "CaretLeft",
-                                                      "aria-label": "Previous slide",
-                                                      tooltip: "Previous slide (\u2190)",
-                                                      ...disabledInsertControlProps(
-                                                        currentSlideIndex <= 0
-                                                      ),
-                                                      onClick: () => pageSlide(
-                                                        -1
-                                                      )
-                                                    }
-                                                  ),
-                                                  SlidesAppJsx.jsxs(
-                                                    "span",
-                                                    {
-                                                      className: "px-1 text-[11px] tabular-nums whitespace-nowrap text-fg-muted pointer-coarse:text-body",
-                                                      children: [
-                                                        currentSlideIndex + 1,
-                                                        " / ",
-                                                        slides.length
-                                                      ]
-                                                    }
-                                                  ),
-                                                  SlidesAppJsx.jsx(
-                                                    runtime2.Button,
-                                                    {
-                                                      iconOnly: true,
-                                                      variant: "ghost",
-                                                      size: toolbarButtonSize,
-                                                      icon: "CaretRight",
-                                                      "aria-label": "Next slide",
-                                                      tooltip: "Next slide (\u2192)",
-                                                      ...disabledInsertControlProps(
-                                                        currentSlideIndex >= slides.length - 1
-                                                      ),
-                                                      onClick: () => pageSlide(
-                                                        1
-                                                      )
-                                                    }
-                                                  ),
-                                                  SlidesAppJsx.jsx(
-                                                    "span",
-                                                    {
-                                                      className: "mx-0.5 h-4 w-px bg-border-line"
-                                                    }
-                                                  ),
-                                                  SlidesAppJsx.jsx(
-                                                    runtime2.Button,
-                                                    {
-                                                      iconOnly: true,
-                                                      variant: "ghost",
-                                                      size: toolbarButtonSize,
-                                                      icon: "BookText",
-                                                      "aria-label": "Speaker notes",
-                                                      tooltip: notesOpen ? "Hide speaker notes" : "Show speaker notes",
-                                                      pressed: notesOpen,
-                                                      onClick: () => setNotesOpen(
-                                                        (input) => !input
-                                                      )
-                                                    }
-                                                  ),
-                                                  SlidesAppJsx.jsx(
-                                                    runtime2.Button,
-                                                    {
-                                                      iconOnly: true,
-                                                      variant: "ghost",
-                                                      size: toolbarButtonSize,
-                                                      icon: "Slides",
-                                                      "aria-label": SHOW_SLIDE_THUMBNAILS_LABEL,
-                                                      "data-slides-rail-show": "",
-                                                      onClick: () => chooseRailOpen(
-                                                        true
-                                                      )
-                                                    }
-                                                  )
-                                                ]
-                                              }
-                                            )
-                                          }
-                                        ) : null
-                                      ]
-                                    }),
-                                    SlidesAppJsx.jsx(
-                                      runtime2.SidePanel,
+                          }) : null,
+                          SlidesAppJsx.jsxs("div", {
+                            className: "relative flex h-full min-h-0 min-w-0 flex-1 flex-col",
+                            children: [
+                              !currentSlide ? SlidesAppJsx.jsxs("div", {
+                                className: "relative flex min-h-0 flex-1",
+                                children: [
+                                  SlidesAppJsx.jsx("div", {
+                                    ref: creationStageRef,
+                                    "data-creation-stage": "",
+                                    className: "relative min-w-0 flex-1 bg-editor-canvas",
+                                    "aria-busy": presentationBusy && !showSlideContent ? true : void 0,
+                                    children: showSlideContent ? SlidesAppJsx.jsx(
+                                      "div",
                                       {
-                                        id: "slides-inspector",
-                                        title: (() => {
-                                          if (themeTabShown) {
-                                            return "Theme";
-                                          }
-                                          let value = (0, runtime2.filterValidSelections)(
-                                            currentSlide,
-                                            selection
-                                          );
-                                          if (value.length > 1) {
-                                            return String(
-                                              value.length
-                                            ) + " selected";
-                                          }
-                                          let value2 = value[value.length - 1];
-                                          switch (value2 ? (0, runtime2.selectedNode)(
-                                            currentSlide,
-                                            value2
-                                          )?.kind : void 0) {
-                                            case "text":
-                                              return "Text";
-                                            case "img": {
-                                              let node = (0, runtime2.selectedNode)(
-                                                currentSlide,
-                                                value2
-                                              );
-                                              return node?.kind === "img" && (node.video !== void 0 || node.videoLink !== void 0) ? "Video" : "Image";
-                                            }
-                                            case "icon":
-                                              return "Icon";
-                                            case "table":
-                                              return "Table";
-                                            case "stack":
-                                              return "Group";
-                                            case "grid":
-                                              return "Grid";
-                                            case "shape":
-                                              return "Shape";
-                                            case "html":
-                                              return "Embed";
-                                            case "spacer":
-                                              return "Spacer";
-                                            case "overlay":
-                                              return "Overlay";
-                                            default:
-                                              return "Slide";
-                                          }
-                                        })(),
-                                        open: inspectorOpen,
-                                        onClose: () => setInspectorOpen(false),
-                                        hideTitle: true,
-                                        wideHeader: false,
-                                        resizeLabel: themeTabEnabled ? "Resize side panel" : "Resize properties panel",
-                                        ...themeTabEnabled ? {
-                                          tabs: PROPERTY_PANEL_TABS,
-                                          tab: inspectorTab,
-                                          onTabChange: (input) => setInspectorTab(
-                                            input === "theme" ? "theme" : "properties"
-                                          )
-                                        } : {},
+                                        className: (0, runtime2.joinClassNames)(
+                                          "absolute inset-0",
+                                          creationView.toEmptyDeck && "sl-creation-empty",
+                                          creationView.fromEmptyDeck && "sl-creation-empty-out"
+                                        ),
+                                        inert: creationView.fromEmptyDeck,
                                         children: SlidesAppJsx.jsx(
-                                          "div",
+                                          EmptyPresentationView,
                                           {
-                                            ref: inspectorContentRef,
-                                            className: "contents",
-                                            children: currentSlideReadOnly ? SlidesAppJsx.jsx(
-                                              "p",
+                                            readOnly,
+                                            why: saveMessage,
+                                            busy: presentationBusy && !creationView.fromEmptyDeck,
+                                            arriving: showAwaitingPlaceholder,
+                                            onAdd: openTemplatePickerFromRail,
+                                            still: creationView.fromEmptyDeck
+                                          }
+                                        )
+                                      }
+                                    ) : null
+                                  }),
+                                  topRowLayout ? footToolbar(
+                                    "stage",
+                                    !notesOpen
+                                  ) : creationView.addSlideOnStage ? SlidesAppJsx.jsx(
+                                    "div",
+                                    {
+                                      ref: creationRailRef,
+                                      className: "pointer-events-none absolute inset-x-0 bottom-3 z-30 flex justify-center pb-[var(--sl-safe-b,0px)] [:root[data-mc-presentation=sheet]_&]:hidden",
+                                      children: SlidesAppJsx.jsxs(
+                                        runtime2.Surface,
+                                        {
+                                          elevation: runtime2.PANEL_ELEVATION,
+                                          className: "pointer-events-auto flex items-center gap-0.5 rounded-full p-2.25 select-none",
+                                          children: [
+                                            SlidesAppJsx.jsx(
+                                              runtime2.Button,
                                               {
-                                                className: "p-3.5 text-xs text-fg-muted",
-                                                children: slideErrorMessage !== void 0 ? "This slide can\u2019t be edited until its saved content is fixed." : (0, runtime2.formatMessage)(
-                                                  {
-                                                    defaultMessage: "This presentation is read-only here, so its properties can\u2019t be edited.",
-                                                    id: "HJ6NQPAawd"
-                                                  }
+                                                variant: "ghost",
+                                                size: toolbarButtonSize,
+                                                onClick: openTemplatePickerFromRail,
+                                                children: ADD_SLIDE_LABEL
+                                              }
+                                            ),
+                                            SlidesAppJsx.jsx(
+                                              "span",
+                                              {
+                                                className: "mx-0.5 h-4 w-px bg-border-line"
+                                              }
+                                            ),
+                                            SlidesAppJsx.jsx(
+                                              runtime2.Button,
+                                              {
+                                                iconOnly: true,
+                                                variant: "ghost",
+                                                size: toolbarButtonSize,
+                                                icon: "Slides",
+                                                "aria-label": SHOW_SLIDE_THUMBNAILS_LABEL,
+                                                "data-slides-rail-show": "",
+                                                onClick: () => chooseRailOpen(
+                                                  true
                                                 )
                                               }
-                                            ) : themeTabShown ? SlidesAppJsx.jsx(
-                                              runtime2.ThemePanel,
-                                              {
-                                                restyle: deckRestyle,
-                                                slide: currentSlide ?? void 0,
-                                                assets: snapshot.assets,
-                                                designColors: designPalette,
-                                                faces: snapshot.faces,
-                                                facesFull: fullFontFaces,
-                                                fonts: snapshot.fonts,
-                                                editsAreUndoSteps: textEdit === null
-                                              }
-                                            ) : SlidesAppJsx.jsx(
-                                              runtime2.SelectionInspector,
-                                              {
-                                                editsAreUndoSteps: textEdit === null,
-                                                designColors: designPalette,
-                                                slideColors: slidePalette,
-                                                assets: snapshot.assets,
-                                                onReplaceImage: (input, options, context, as) => void uploadAndInsertImage(
-                                                  input,
-                                                  options,
-                                                  context,
-                                                  void 0,
-                                                  as
-                                                ),
-                                                onRemoveImages: removeSelectedImages,
-                                                onRemoveCover: (input, options) => void removeCoverImage(
-                                                  input,
-                                                  options
-                                                ),
-                                                onChangeVideoLink: runtime2.videoProviders.some(
-                                                  runtime2.canEmbedVideoProvider
-                                                ) ? (input, options) => void changeVideoLink(
-                                                  input,
-                                                  options
-                                                ) : void 0,
-                                                unasked: inspectorUnasked,
-                                                slide: currentSlide,
-                                                selection,
-                                                deckCellCount: (0, runtime2.countDeckTableCells)(
-                                                  slides
-                                                ),
-                                                typeStyles: currentTypeStyles,
-                                                deckTypeStyles,
-                                                faces: snapshot.faces,
-                                                facesFull: fullFontFaces,
-                                                fonts: snapshot.fonts,
-                                                onChange: onChangeSlide,
-                                                onLiveChange,
-                                                onGestureEnd,
-                                                onSelectUnit: (input) => setSelection(
-                                                  [
-                                                    input
-                                                  ]
-                                                ),
-                                                measure: (input) => editorZoomApiRef.current?.measureUnit(
-                                                  input
-                                                ),
-                                                pickImage: currentSlideReadOnly ? void 0 : async (input) => (await prepareImageAsset(
-                                                  input
-                                                )).src
-                                              }
+                                            )
+                                          ]
+                                        }
+                                      )
+                                    }
+                                  ) : null
+                                ]
+                              }) : SlidesAppJsx.jsxs(
+                                SlidesAppJsx.Fragment,
+                                {
+                                  children: [
+                                    showAwaitingPlaceholder ? SlidesAppJsx.jsx(
+                                      "div",
+                                      {
+                                        "data-testid": "slides-arriving-notice",
+                                        className: "mt-[var(--tb-overlay-h,0px)] shrink-0 px-3.5 py-1.5",
+                                        children: SlidesAppJsx.jsx(
+                                          runtime2.Callout,
+                                          {
+                                            variant: "neutral",
+                                            role: "none",
+                                            children: formatPresentationBuildProgress(
+                                              slides.length,
+                                              slides.length + resolvedAwaitedSlideCount
                                             )
                                           }
                                         )
                                       }
-                                    )
+                                    ) : null,
+                                    SlidesAppJsx.jsxs("div", {
+                                      role: "status",
+                                      className: "shrink-0",
+                                      children: [
+                                        pausedReadOnly ? SlidesAppJsx.jsx(
+                                          "div",
+                                          {
+                                            "data-testid": "slides-paused-notice",
+                                            className: (0, runtime2.joinClassNames)(
+                                              !showAwaitingPlaceholder && "mt-[var(--tb-overlay-h,0px)]",
+                                              "px-3.5 py-1.5"
+                                            ),
+                                            children: SlidesAppJsx.jsx(
+                                              runtime2.Callout,
+                                              {
+                                                variant: "warning",
+                                                role: "none",
+                                                children: saveMessage
+                                              }
+                                            )
+                                          }
+                                        ) : null,
+                                        slideErrorMessage !== void 0 && slideHtmlError !== void 0 ? SlidesAppJsx.jsx(
+                                          runtime2.DamagedSlideNotice,
+                                          {
+                                            slideId: currentSlide.id,
+                                            scope: memoryScope,
+                                            deckTitle: snapshot.meta.title,
+                                            reason: slideErrorMessage,
+                                            diagnostic: slideHtmlError,
+                                            canAsk: !readOnly || pausedEditing?.mayEdit === true,
+                                            className: (0, runtime2.joinClassNames)(
+                                              !showAwaitingPlaceholder && !pausedReadOnly && "mt-[var(--tb-overlay-h,0px)]",
+                                              "px-3.5 py-1.5"
+                                            )
+                                          },
+                                          currentSlide.id
+                                        ) : null
+                                      ]
+                                    }),
+                                    SlidesAppJsx.jsx(
+                                      runtime2.SlideNavigationAnnouncement,
+                                      {
+                                        slideKey: currentSlideId !== null ? currentSlide?.id : void 0,
+                                        message: () => currentSlideIndex < 0 || presentationStartIndex !== null || document.activeElement?.closest(
+                                          '[role="listbox"]'
+                                        ) != null ? null : (0, runtime2.formatPresentationSlideAnnouncement)(
+                                          currentSlideIndex,
+                                          slides.length,
+                                          (0, runtime2.slideTitleSnippet)(
+                                            currentSlide
+                                          )
+                                        )
+                                      }
+                                    ),
+                                    SlidesAppJsx.jsxs("div", {
+                                      className: "relative flex min-h-0 flex-1",
+                                      children: [
+                                        SlidesAppJsx.jsxs(
+                                          "div",
+                                          {
+                                            ref: creationStageRef,
+                                            "data-slides-editor": "",
+                                            className: "relative min-w-0 flex-1",
+                                            children: [
+                                              SlidesAppJsx.jsx(
+                                                runtime2.SlideCanvasEditor,
+                                                {
+                                                  startCamera: cameraPreferenceRef.current?.canvas === false ? cameraPreferenceRef.current.view : null,
+                                                  onCamera: saveSlideCamera,
+                                                  designColors: designPalette,
+                                                  slideColors: slidePalette,
+                                                  pickImage: currentSlideReadOnly ? void 0 : async (input) => (await prepareImageAsset(
+                                                    input
+                                                  )).src,
+                                                  slide: currentSlide,
+                                                  lookPreview: pendingLook?.(
+                                                    currentSlide
+                                                  ),
+                                                  slideNumber: slides.indexOf(
+                                                    currentSlide
+                                                  ) + 1,
+                                                  slideName: currentSlideIndex < 0 ? "Slide" : (0, runtime2.formatPresentationSlideAnnouncement)(
+                                                    currentSlideIndex,
+                                                    slides.length,
+                                                    (0, runtime2.slideTitleSnippet)(
+                                                      currentSlide
+                                                    )
+                                                  ),
+                                                  busy: presentationBusy,
+                                                  assets: snapshot.assets,
+                                                  pending: pendingUploads.filter(
+                                                    (input) => input.slideId === currentSlide.id
+                                                  ),
+                                                  covered: presentationStartIndex !== null,
+                                                  onPointerNorm: (input, options) => cursorPublisherRef.current?.move(
+                                                    scopedSlideKey(
+                                                      currentSlide.id
+                                                    ),
+                                                    input,
+                                                    options
+                                                  ),
+                                                  peerLayer: (input, options) => SlidesAppJsx.jsxs(
+                                                    SlidesAppJsx.Fragment,
+                                                    {
+                                                      children: [
+                                                        SlidesAppJsx.jsx(
+                                                          runtime2.SlidePeerSelections,
+                                                          {
+                                                            hosted: host?.presence !== void 0,
+                                                            deck: memoryScope === "" ? null : (0, runtime2.frameContextId)(
+                                                              memoryScope
+                                                            ),
+                                                            slideId: currentSlide.id,
+                                                            measure: options,
+                                                            scale: 1 / input
+                                                          }
+                                                        ),
+                                                        SlidesAppJsx.jsx(
+                                                          runtime2.PeerCursors,
+                                                          {
+                                                            surface: scopedSlideKey(
+                                                              currentSlide.id
+                                                            ),
+                                                            toLocal: (input2, options2) => ({
+                                                              left: input2 * runtime2.SLIDE_WIDTH,
+                                                              top: options2 * runtime2.SLIDE_HEIGHT
+                                                            }),
+                                                            glyphScale: input
+                                                          }
+                                                        ),
+                                                        agentSlideId === currentSlide.id && creationView.phase === "quiet" ? SlidesAppJsx.jsx(
+                                                          runtime2.AgentCursor,
+                                                          {
+                                                            tint: "orange",
+                                                            label: AGENT_CURSOR_LABEL,
+                                                            at: AGENT_CURSOR_OFFSET,
+                                                            glyphScale: input
+                                                          }
+                                                        ) : null
+                                                      ]
+                                                    }
+                                                  ),
+                                                  deckCellCount: (0, runtime2.countDeckTableCells)(
+                                                    slides
+                                                  ),
+                                                  withinStyleBudget: canAddStyledNodes,
+                                                  selection,
+                                                  onSelectionChange: (input) => {
+                                                    setSelection(
+                                                      input
+                                                    );
+                                                    if (textEdit && !input.some(
+                                                      (input2) => input2.frameId === textEdit.frameId
+                                                    )) {
+                                                      setTextEditState(
+                                                        null
+                                                      );
+                                                    }
+                                                  },
+                                                  onLiveChange,
+                                                  onGestureEnd,
+                                                  dragLiveRef: dragActiveRef,
+                                                  textEdit,
+                                                  onTextEdit: (input) => {
+                                                    setTextEditState(
+                                                      input
+                                                    );
+                                                    if (input !== null) {
+                                                      setProtectedEditorSlide(
+                                                        currentSlide.id
+                                                      );
+                                                    }
+                                                  },
+                                                  onDropImage: dropFilesOnSlide,
+                                                  onReplaceImage: (input, options, context) => void uploadAndInsertImage(
+                                                    input,
+                                                    options,
+                                                    context
+                                                  ),
+                                                  faces: snapshot.faces,
+                                                  facesFull: fullFontFaces,
+                                                  fonts: snapshot.fonts,
+                                                  typeStyles: currentTypeStyles,
+                                                  deckTypeStyles,
+                                                  onDropInsert,
+                                                  onCropStart: () => stopTextTool(
+                                                    true
+                                                  ),
+                                                  returnTakenHint: textToolOn ? "Text tool on. Press " + ((0, runtime2.isApplePlatform)() ? "Return" : "Enter") + " to add a text box in the middle of the slide, or Escape to cancel." : void 0,
+                                                  onOpenInspector: (input) => {
+                                                    if (runtime2.ENABLE_OBJECT_PROPERTIES_MENU) {
+                                                      let [
+                                                        items,
+                                                        items2
+                                                      ] = [
+                                                        input.currentTarget,
+                                                        (0, runtime2.isKeyboardOrPrimaryActivation)(
+                                                          input
+                                                        )
+                                                      ], bounds = items.getBoundingClientRect();
+                                                      openContextMenu(
+                                                        {
+                                                          x: bounds.left,
+                                                          y: bounds.bottom + 6,
+                                                          from: "more",
+                                                          keyboard: items2
+                                                        },
+                                                        selection
+                                                      );
+                                                      if (items2 && items.isConnected) {
+                                                        items.focus(
+                                                          {
+                                                            preventScroll: true
+                                                          }
+                                                        );
+                                                      }
+                                                      return;
+                                                    }
+                                                    inspectorPointerInvocationRef.current = (0, runtime2.isKeyboardOrPrimaryActivation)(
+                                                      input
+                                                    );
+                                                    setInspectorTab(
+                                                      "properties"
+                                                    );
+                                                    setInspectorOpen(
+                                                      true
+                                                    );
+                                                  },
+                                                  moreMenu: runtime2.ENABLE_OBJECT_PROPERTIES_MENU ? {
+                                                    label: "More actions",
+                                                    open: contextMenu?.at.from === "more"
+                                                  } : void 0,
+                                                  onDeleteSelection: currentSlideReadOnly ? void 0 : deleteSelection,
+                                                  onMenu: currentSlideReadOnly ? void 0 : openContextMenu,
+                                                  selectionMenuHidden: inspectorOpen,
+                                                  onChangeSlide,
+                                                  presenting: presentationStartIndex !== null,
+                                                  commenting: commentsOn,
+                                                  commentStop: commentController.ctl !== null,
+                                                  readOnly: currentSlideReadOnly,
+                                                  zoomApiRef: editorZoomApiRef,
+                                                  onScaleChange: setToolbarScale,
+                                                  bottomInset: pageOcclusionBand + railFootGap,
+                                                  topInset,
+                                                  sideInset,
+                                                  surround: editorSurround,
+                                                  onStageMoved: remeasureCommentsOnStageMove,
+                                                  stageOverlay: SlidesAppJsx.jsxs(
+                                                    SlidesAppJsx.Fragment,
+                                                    {
+                                                      children: [
+                                                        SlidesAppJsx.jsx(
+                                                          runtime2.SlideCommentLayer,
+                                                          {
+                                                            ...commentController,
+                                                            slide: currentSlide,
+                                                            slides,
+                                                            typeStyles: allTypeStyles,
+                                                            containerRef: editorElementRef,
+                                                            topInset,
+                                                            hidden: presentationStartIndex !== null,
+                                                            keepsMode: commentModePersistent,
+                                                            remeasureRef: commentRemeasureRef,
+                                                            pinsQuiet: gridLeaving
+                                                          }
+                                                        ),
+                                                        textToolOn ? SlidesAppJsx.jsx(
+                                                          TextToolLayer,
+                                                          {
+                                                            overSlide,
+                                                            startsOverSlide: () => slideSurface()?.matches(
+                                                              ":hover"
+                                                            ) ?? false,
+                                                            keeps: (input) => input instanceof Node && (textButtonRef.current?.contains(
+                                                              input
+                                                            ) ?? false),
+                                                            slideRect: () => slideSurface()?.getBoundingClientRect(),
+                                                            lineHeight: () => bodyLineHeight() * (slideSurface()?.getBoundingClientRect().width ?? 0) / runtime2.SLIDE_WIDTH,
+                                                            minWidth: () => MIN_TEXT_INSERT_WIDTH * (slideSurface()?.getBoundingClientRect().width ?? 0) / runtime2.SLIDE_WIDTH,
+                                                            onPlace: placeTextAt,
+                                                            onCancel: () => stopTextTool()
+                                                          }
+                                                        ) : null
+                                                      ]
+                                                    }
+                                                  )
+                                                },
+                                                editingGridSlide ? "in-place" : "plain"
+                                              ),
+                                              SlidesAppJsx.jsx(
+                                                runtime2.CanvasContextMenu,
+                                                {
+                                                  at: contextMenu?.at ?? null,
+                                                  objects: contextMenu?.objects ?? 0,
+                                                  fitLabel: fitViewLabel,
+                                                  copyLink: slideActions.onCopyLink !== void 0,
+                                                  refusals: contextMenu?.refusals ?? {},
+                                                  returnFocus: (input) => {
+                                                    if (input !== null && (input.closest(
+                                                      "[data-object-proxy]"
+                                                    ) === null || input.hasAttribute(
+                                                      "data-object-cursor"
+                                                    ))) {
+                                                      return input;
+                                                    }
+                                                    if (editorZoomApiRef.current?.focusSelection() !== true) {
+                                                      editorZoomApiRef.current?.focusSlide();
+                                                    }
+                                                    return null;
+                                                  },
+                                                  onCommand: runContextMenuCommand,
+                                                  onClose: () => setContextMenu(
+                                                    null
+                                                  )
+                                                }
+                                              ),
+                                              topRowLayout ? footToolbar(
+                                                "stage",
+                                                !notesOpen && !editingGridSlide
+                                              ) : !railOpen && !editingGridSlide ? SlidesAppJsx.jsx(
+                                                "div",
+                                                {
+                                                  ref: creationRailRef,
+                                                  "data-slides-pager": "",
+                                                  className: (0, runtime2.joinClassNames)(
+                                                    "pointer-events-none absolute inset-x-0 bottom-3 z-10 flex justify-center [:root[data-mc-presentation=sheet]_&]:hidden",
+                                                    !notesOpen && "pb-[var(--sl-safe-b,0px)]",
+                                                    touchLayout && textEdit !== null && "invisible"
+                                                  ),
+                                                  children: SlidesAppJsx.jsxs(
+                                                    runtime2.Surface,
+                                                    {
+                                                      elevation: runtime2.PANEL_ELEVATION,
+                                                      className: "pointer-events-auto flex items-center gap-0.5 rounded-full p-2.25 select-none",
+                                                      children: [
+                                                        SlidesAppJsx.jsx(
+                                                          runtime2.Button,
+                                                          {
+                                                            iconOnly: true,
+                                                            variant: "ghost",
+                                                            size: toolbarButtonSize,
+                                                            icon: "CaretLeft",
+                                                            "aria-label": "Previous slide",
+                                                            tooltip: currentSlideIndex <= 0 ? runtime2.FIRST_SLIDE_LABEL : (0, runtime2.formatMessage)(
+                                                              {
+                                                                defaultMessage: "Previous slide (\u2190)",
+                                                                id: "0l7VgYDKPW"
+                                                              }
+                                                            ),
+                                                            ...disabledInsertControlProps(
+                                                              currentSlideIndex <= 0
+                                                            ),
+                                                            onClick: () => pageSlide(
+                                                              -1
+                                                            )
+                                                          }
+                                                        ),
+                                                        SlidesAppJsx.jsxs(
+                                                          "span",
+                                                          {
+                                                            className: "px-1 text-[11px] tabular-nums whitespace-nowrap text-fg-muted pointer-coarse:text-body",
+                                                            children: [
+                                                              currentSlideIndex + 1,
+                                                              " / ",
+                                                              slides.length
+                                                            ]
+                                                          }
+                                                        ),
+                                                        SlidesAppJsx.jsx(
+                                                          runtime2.Button,
+                                                          {
+                                                            iconOnly: true,
+                                                            variant: "ghost",
+                                                            size: toolbarButtonSize,
+                                                            icon: "CaretRight",
+                                                            "aria-label": "Next slide",
+                                                            tooltip: currentSlideIndex >= slides.length - 1 ? runtime2.LAST_SLIDE_LABEL : (0, runtime2.formatMessage)(
+                                                              {
+                                                                defaultMessage: "Next slide (\u2192)",
+                                                                id: "KM3rbfwIm4"
+                                                              }
+                                                            ),
+                                                            ...disabledInsertControlProps(
+                                                              currentSlideIndex >= slides.length - 1
+                                                            ),
+                                                            onClick: () => pageSlide(
+                                                              1
+                                                            )
+                                                          }
+                                                        ),
+                                                        SlidesAppJsx.jsx(
+                                                          "span",
+                                                          {
+                                                            className: "mx-0.5 h-4 w-px bg-border-line"
+                                                          }
+                                                        ),
+                                                        SlidesAppJsx.jsx(
+                                                          runtime2.Button,
+                                                          {
+                                                            iconOnly: true,
+                                                            variant: "ghost",
+                                                            size: toolbarButtonSize,
+                                                            icon: "BookText",
+                                                            "aria-label": "Speaker notes",
+                                                            tooltip: notesOpen ? runtime2.HIDE_SPEAKER_NOTES_LABEL : runtime2.SHOW_SPEAKER_NOTES_LABEL,
+                                                            pressed: notesOpen,
+                                                            onClick: () => setNotesOpen(
+                                                              (input) => !input
+                                                            )
+                                                          }
+                                                        ),
+                                                        SlidesAppJsx.jsx(
+                                                          runtime2.Button,
+                                                          {
+                                                            iconOnly: true,
+                                                            variant: "ghost",
+                                                            size: toolbarButtonSize,
+                                                            icon: "Slides",
+                                                            "aria-label": SHOW_SLIDE_THUMBNAILS_LABEL,
+                                                            "data-slides-rail-show": "",
+                                                            onClick: () => chooseRailOpen(
+                                                              true
+                                                            )
+                                                          }
+                                                        )
+                                                      ]
+                                                    }
+                                                  )
+                                                }
+                                              ) : null
+                                            ]
+                                          }
+                                        ),
+                                        SlidesAppJsx.jsx(
+                                          runtime2.SidePanel,
+                                          {
+                                            id: "slides-inspector",
+                                            title: (() => {
+                                              if (themeTabEnabled && inspectorTab === "theme") {
+                                                return "Theme";
+                                              }
+                                              let value = (0, runtime2.filterValidSelections)(
+                                                currentSlide,
+                                                selection
+                                              );
+                                              if (value.length > 1) {
+                                                return String(
+                                                  value.length
+                                                ) + " selected";
+                                              }
+                                              let value2 = value[value.length - 1], value3 = value2 ? (0, runtime2.selectedNode)(
+                                                currentSlide,
+                                                value2
+                                              ) : void 0;
+                                              switch (value3?.kind) {
+                                                case "text":
+                                                  return "Text";
+                                                case "img":
+                                                  return value3.video !== void 0 || value3.videoLink !== void 0 ? "Video" : "Image";
+                                                case "icon":
+                                                  return "Icon";
+                                                case "table":
+                                                  return "Table";
+                                                case "stack":
+                                                  return "Group";
+                                                case "grid":
+                                                  return "Grid";
+                                                case "shape":
+                                                  return "Shape";
+                                                case "html":
+                                                  return "Embed";
+                                                case "spacer":
+                                                  return "Spacer";
+                                                case "overlay":
+                                                  return "Overlay";
+                                                default:
+                                                  return "Slide";
+                                              }
+                                            })(),
+                                            open: inspectorOpen,
+                                            onClose: () => setInspectorOpen(
+                                              false
+                                            ),
+                                            hideTitle: true,
+                                            wideHeader: false,
+                                            resizeLabel: themeTabEnabled ? "Resize side panel" : "Resize properties panel",
+                                            ...themeTabEnabled ? {
+                                              tabs: PROPERTY_PANEL_TABS,
+                                              tab: inspectorTab,
+                                              onTabChange: (input) => setInspectorTab(
+                                                input === "theme" ? "theme" : "properties"
+                                              )
+                                            } : {},
+                                            children: SlidesAppJsx.jsx(
+                                              "div",
+                                              {
+                                                ref: inspectorContentRef,
+                                                className: "contents",
+                                                children: currentSlideReadOnly ? SlidesAppJsx.jsx(
+                                                  "p",
+                                                  {
+                                                    className: "p-3.5 text-xs text-fg-muted",
+                                                    children: slideErrorMessage !== void 0 ? runtime2.HELD_SLIDE_EDIT_MESSAGE : (0, runtime2.formatMessage)(
+                                                      {
+                                                        defaultMessage: "This presentation is read-only here, so its properties can\u2019t be edited.",
+                                                        id: "HJ6NQPAawd"
+                                                      }
+                                                    )
+                                                  }
+                                                ) : themeTabEnabled && inspectorTab === "theme" ? SlidesAppJsx.jsx(
+                                                  runtime2.ThemePanel,
+                                                  {
+                                                    restyle: deckRestyle,
+                                                    slide: currentSlide ?? void 0,
+                                                    assets: snapshot.assets,
+                                                    designColors: designPalette,
+                                                    faces: snapshot.faces,
+                                                    facesFull: fullFontFaces,
+                                                    fonts: snapshot.fonts,
+                                                    editsAreUndoSteps: textEdit === null
+                                                  }
+                                                ) : SlidesAppJsx.jsx(
+                                                  runtime2.SelectionInspector,
+                                                  {
+                                                    unasked: inspectorUnasked,
+                                                    editsAreUndoSteps: textEdit === null,
+                                                    designColors: designPalette,
+                                                    slideColors: slidePalette,
+                                                    assets: snapshot.assets,
+                                                    onReplaceImage: (input, options, extra, extra2) => void uploadAndInsertImage(
+                                                      input,
+                                                      options,
+                                                      extra,
+                                                      {
+                                                        as: extra2
+                                                      }
+                                                    ),
+                                                    onRemoveImages: removeSelectedImages,
+                                                    onRemoveCover: (input, options) => void removeCoverImage(
+                                                      input,
+                                                      options
+                                                    ),
+                                                    onChangeVideoLink: embeddableVideoProviders.length > 0 ? (input, options) => void changeVideoLink(
+                                                      input,
+                                                      options
+                                                    ) : void 0,
+                                                    slide: currentSlide,
+                                                    selection,
+                                                    deckCellCount: (0, runtime2.countDeckTableCells)(
+                                                      slides
+                                                    ),
+                                                    typeStyles: currentTypeStyles,
+                                                    deckTypeStyles,
+                                                    faces: snapshot.faces,
+                                                    facesFull: fullFontFaces,
+                                                    fonts: snapshot.fonts,
+                                                    onChange: onChangeSlide,
+                                                    onLiveChange,
+                                                    onGestureEnd,
+                                                    onSelectUnit: (input) => setSelection(
+                                                      [
+                                                        input
+                                                      ]
+                                                    ),
+                                                    measure: (input) => editorZoomApiRef.current?.measureUnit(
+                                                      input
+                                                    ),
+                                                    pickImage: currentSlideReadOnly ? void 0 : async (input) => (await prepareImageAsset(
+                                                      input
+                                                    )).src
+                                                  }
+                                                )
+                                              }
+                                            )
+                                          }
+                                        )
+                                      ]
+                                    })
                                   ]
-                                })
-                              ]
-                            }
-                          ),
-                          SlidesAppJsx.jsxs("div", {
-                            className: "contents [:root[data-mc-presentation=sheet]_&]:hidden",
-                            children: [
-                              notesOpen && currentSlide ? SlidesAppJsx.jsx(
-                                runtime2.SpeakerNotesEditor,
-                                {
-                                  slide: currentSlide,
-                                  height: notesHeight,
-                                  onResize: setNotesHeight,
-                                  onResizeStart: () => {
-                                    notesResizeGeometryRef.current = railGeometryRef.current?.() ?? null;
-                                  },
-                                  heightFor: (input, options, context, value) => input + (0, runtime2.clampStageRailResizeDelta)(
-                                    options,
-                                    notesResizeGeometryRef.current,
-                                    context - input,
-                                    value - input
-                                  ),
-                                  atScreenBottom: !railOpen && !editingGridSlide,
-                                  readOnly: currentSlideReadOnly,
-                                  onLiveChange: notesEditGesture.live,
-                                  onGestureEnd: notesEditGesture.end,
-                                  onRelease: () => editorZoomApiRef.current?.focusSlide()
                                 }
-                              ) : null,
-                              railOpen && !editingGridSlide && (currentSlide !== void 0 || creationView.cells !== null) ? SlidesAppJsx.jsx("div", {
-                                className: "contents",
-                                children: SlidesAppJsx.jsx(
-                                  runtime2.SlideThumbnailRail,
-                                  {
-                                    rootRef: insertMenuRef,
-                                    slides,
-                                    assets: snapshot.assets,
-                                    currentId: currentSlide?.id ?? null,
-                                    readOnly,
-                                    pending: creationView.cells !== null ? {
-                                      cells: creationView.cells,
-                                      active: creationView.active,
-                                      follow: creationView.place?.on === "cell" ? creationView.place.id : null,
-                                      growing: creationView.growing,
-                                      growFirst: creationView.fromEmptyDeck && !creationView.sheetIn,
-                                      fresh: creationView.fresh,
-                                      leaving: creationView.leftover
-                                    } : void 0,
-                                    personPaged: onPersonPaged,
-                                    onSelect: selectRailSlide,
-                                    ...slideActions,
-                                    onDuplicateAt: (input, options) => duplicateSlide(
-                                      input,
-                                      options
-                                    ),
-                                    onCollapse: () => chooseRailOpen(false),
-                                    onEnterSlide: () => editorZoomApiRef.current?.focusSlide(),
-                                    gridOpen: false,
-                                    onSetGridOpen: setGridOpen,
-                                    notesOpen,
-                                    onToggleNotes: () => setNotesOpen(
-                                      (input) => !input
-                                    ),
-                                    commentCounts: openCommentCounts,
-                                    peersDeck: memoryScope === "" ? null : (0, runtime2.frameContextId)(
-                                      memoryScope
-                                    ),
-                                    look: deferredPendingLook,
-                                    // "left" with appifact_bottom_toolbar (off locally).
-                                    placement: "bottom",
-                                    actionRow: true,
-                                    overPage: false,
-                                    several: railSeveral,
-                                    resize: {
-                                      canvas: editorElementRef,
-                                      thumbW: thumbWidth,
-                                      onThumbW: setThumbWidth,
-                                      paneH: notesOpen ? (0, runtime2.clampSpeakerNotesEditorHeight)(
-                                        notesHeight
-                                      ) : 0,
-                                      geometry: railGeometryRef
+                              ),
+                              phoneLayout ? footToolbar("row", false) : null,
+                              SlidesAppJsx.jsxs("div", {
+                                className: "contents [:root[data-mc-presentation=sheet]_&]:hidden",
+                                children: [
+                                  notesOpen && currentSlide ? SlidesAppJsx.jsx(
+                                    runtime2.SpeakerNotesEditor,
+                                    {
+                                      slide: currentSlide,
+                                      height: notesHeight,
+                                      onResize: setNotesHeight,
+                                      onResizeStart: () => {
+                                        notesResizeGeometryRef.current = railGeometryRef.current?.() ?? null;
+                                      },
+                                      heightFor: (input, options, context, value) => input + (0, runtime2.clampStageRailResizeDelta)(
+                                        options,
+                                        notesResizeGeometryRef.current,
+                                        context - input,
+                                        value - input
+                                      ),
+                                      atScreenBottom: (!railOpen || railPlacement === "left") && !editingGridSlide,
+                                      readOnly: currentSlideReadOnly,
+                                      onLiveChange: notesEditGesture.live,
+                                      onGestureEnd: notesEditGesture.end,
+                                      onRelease: () => editorZoomApiRef.current?.focusSlide()
                                     }
-                                  }
-                                )
-                              }) : null
+                                  ) : null,
+                                  railPlacement === "bottom" ? slideRail : null
+                                ]
+                              })
                             ]
                           }),
                           creationView.phase !== "quiet" || creationView.toEmptyDeck ? SlidesAppJsx.jsx(
@@ -254407,11 +256533,9 @@ function installEditorApp(runtime2) {
                               view: creationView,
                               stage: editorElementRef,
                               rail: insertMenuRef,
-                              // Upstream: "left" with the desktop bottom toolbar
-                              // (appifact_bottom_toolbar); off locally, so "bottom".
-                              railPlacement: "bottom",
+                              railPlacement,
                               insetTop: topInset,
-                              insetBottom: pageOcclusionBand,
+                              insetBottom: pageOcclusionBand + railFootGap,
                               insetSide: sideInset,
                               hidden: editingGridSlide || presentationStartIndex !== null,
                               onFit: creationFitsEmptyStage ? setToolbarScale : void 0
@@ -254420,23 +256544,41 @@ function installEditorApp(runtime2) {
                         ]
                       })
                     })
+                    // BaoCut: upstream's follow announcer (AAt: following collaborators and the agent across slides)
+                    // and its phone-remote offer (Ggt) are not ported.
                   ]
                 }),
+                gridOpen ? footToolbar("row", false) : null,
                 (gridOpen || editingGridSlide) && presentationStartIndex === null && !deckEmpty ? SlidesAppJsx.jsx("aside", {
                   ref: gridLeavingPanelRef,
-                  className: "shrink-0 border-t border-border-line bg-panel pb-[var(--sl-safe-b,0px)] [:root[data-mc-presentation=sheet]_&]:pb-0",
-                  children: SlidesAppJsx.jsx(runtime2.SlideRailToolbar, {
-                    readOnly,
-                    onAdd: slideActions.onAdd,
-                    notesOpen,
-                    onToggleNotes: () => setNotesOpen((input) => !input),
-                    notesDisabledReason: gridOpen ? (0, runtime2.slidesHaveSpeakerNotes)(slides) ? void 0 : readOnly ? "No speaker notes in this presentation" : "No speaker notes yet \u2014 open a slide to add some" : void 0,
-                    gridOpen: true,
-                    slideShortcut: gridOpen ? "esc" : void 0,
-                    canvasShortcut: editingGridSlide ? "shift+cmd+0" : void 0,
-                    onSetGridOpen: setGridOpen,
-                    onCollapse: () => chooseRailOpen(false),
-                    collapseDisabledReason: gridOpen ? CANVAS_VIEW_NO_THUMBNAILS_MESSAGE : "Editing among the slides: the Canvas around this slide stands in for the thumbnail strip"
+                  ...topRowAttributes,
+                  className: (0, runtime2.joinClassNames)(
+                    "shrink-0",
+                    railPlacement === "left" ? "order-first bg-editor-canvas" : footPanelClass
+                  ),
+                  children: SlidesAppJsx.jsx("div", {
+                    className: railPlacement === "left" ? (0, runtime2.joinClassNames)(
+                      "border-b border-border-line bg-panel",
+                      railColumnClass
+                    ) : "contents",
+                    children: SlidesAppJsx.jsx(runtime2.SlideRailToolbar, {
+                      placement: railPlacement,
+                      readOnly,
+                      onAdd: slideActions.onAdd,
+                      notesOpen,
+                      onToggleNotes: () => setNotesOpen((input) => !input),
+                      notesDisabledReason: phoneLayout ? "Turn your phone sideways to show speaker notes" : gridOpen ? (0, runtime2.slidesHaveSpeakerNotes)(slides) ? void 0 : readOnly ? "No speaker notes in this presentation" : "No speaker notes yet \u2014 open a slide to add some" : void 0,
+                      gridOpen: true,
+                      slideShortcut: gridOpen ? "esc" : void 0,
+                      canvasShortcut: editingGridSlide ? "shift+cmd+0" : void 0,
+                      onSetGridOpen: setGridOpen,
+                      onCollapse: () => chooseRailOpen(false),
+                      collapseDisabledReason: gridOpen ? CANVAS_VIEW_NO_THUMBNAILS_MESSAGE : (0, runtime2.formatMessage)({
+                        defaultMessage: "Editing among the slides: the Canvas around this slide stands in for the thumbnail strip",
+                        id: "bkXIxmDNDq"
+                      }),
+                      density: toolbarDensity
+                    })
                   })
                 }) : null
               ]
@@ -254465,6 +256607,7 @@ function installEditorApp(runtime2) {
               onIndexChange: setPresentationCurrentIndex,
               onExit: (input) => exitPresentation(presentableSlides[input]?.id)
             }) : null,
+            // BaoCut: upstream's phone-remote view (Wgt) is not ported.
             SlidesAppJsx.jsx(runtime2.LiveAnnouncer, {}),
             SlidesAppJsx.jsx(PresentationWaitingAnnouncement, {
               waiting: resolvedAwaitingSlides,
@@ -254706,41 +256849,86 @@ function installEditorApp(runtime2) {
   }
   function SlidesAppLoadingSkeleton({
     doc,
-    railOpen
+    railOpen,
+    placement,
+    footBar,
+    ticks
   }) {
-    return SlidesAppJsx.jsx("div", {
+    let railBeside = railOpen && placement === "left";
+    return SlidesAppJsx.jsxs("div", {
       className: "flex h-full min-h-0",
-      children: SlidesAppJsx.jsxs("div", {
-        className: "flex min-w-0 flex-1 flex-col",
-        children: [
-          SlidesAppJsx.jsx("div", {
-            className: "relative flex min-h-0 flex-1 items-center justify-center bg-editor-canvas p-6 pt-[calc(1.5rem+var(--tb-overlay-h,0px))]",
-            children: SlidesAppJsx.jsx(runtime2.EarlySlideFallback, {
-              doc,
-              fallback: SlidesAppJsx.jsx("div", {
-                className: "mc-shimmer aspect-video w-full max-w-3xl rounded-md"
-              })
-            })
-          }),
-          railOpen ? SlidesAppJsx.jsx("div", {
-            className: "flex shrink-0 gap-6 border-t border-border-line bg-panel p-3 pl-9",
-            children: [0, 1, 2].map(
-              (input) => SlidesAppJsx.jsx(
-                "div",
-                {
-                  className: "mc-shimmer aspect-video shrink-0 rounded-sm",
-                  style: {
-                    width: runtime2.MIN_RAIL_THUMB_WIDTH
-                  }
-                },
-                input
-              )
+      children: [
+        railBeside ? SlidesAppJsx.jsx("div", {
+          "data-slides-rail-panel": "",
+          className: (0, runtime2.joinClassNames)(
+            runtime2.RAIL_COLUMN_WIDTH_CLASS,
+            "flex shrink-0 flex-col items-center gap-3 overflow-hidden border-r border-border-line bg-panel px-3 pt-[calc(2rem+41px)] pointer-coarse:pt-[calc(2rem+42px)] [:root[data-mc-presentation=sheet]_&]:hidden"
+          ),
+          children: [0, 1, 2].map(
+            (input) => SlidesAppJsx.jsx(
+              "div",
+              {
+                className: "mc-shimmer aspect-video shrink-0 rounded-sm",
+                style: {
+                  width: runtime2.RAIL_COLUMN_THUMB_WIDTH
+                }
+              },
+              input
             )
-          }) : SlidesAppJsx.jsx("div", {
-            className: "h-[calc(3.375rem+var(--sl-safe-b,0px))] shrink-0 bg-editor-canvas pointer-coarse:h-[calc(1.875rem+40px+var(--sl-safe-b,0px))]"
-          })
-        ]
-      })
+          )
+        }) : null,
+        SlidesAppJsx.jsxs("div", {
+          className: "flex min-w-0 flex-1 flex-col",
+          children: [
+            SlidesAppJsx.jsx("div", {
+              className: (0, runtime2.joinClassNames)(
+                "relative flex min-h-0 flex-1 items-center justify-center bg-editor-canvas p-6 pt-[calc(1.5rem+var(--tb-overlay-h,0px))]",
+                ticks && "px-12"
+              ),
+              children: SlidesAppJsx.jsx(runtime2.EarlySlideFallback, {
+                doc,
+                sidePad: ticks ? runtime2.SLIDE_TICKS_GUTTER : 0,
+                fallback: SlidesAppJsx.jsx("div", {
+                  className: "mc-shimmer aspect-video w-full max-w-3xl rounded-md"
+                })
+              })
+            }),
+            railOpen || ticks ? null : SlidesAppJsx.jsx("div", {
+              className: "h-[calc(3.375rem+var(--sl-safe-b,0px))] shrink-0 bg-editor-canvas pointer-coarse:h-[calc(1.875rem+40px+var(--sl-safe-b,0px))]"
+            }),
+            footBar ? SlidesAppJsx.jsx("div", {
+              "data-skeleton-foot-bar": "",
+              className: (0, runtime2.joinClassNames)(
+                "flex shrink-0 justify-center bg-editor-canvas px-2 pt-2",
+                !railOpen || railBeside ? runtime2.FOOT_TOOLBAR_PAD_CLASS : "pb-[var(--mc-foot-gap)]"
+              ),
+              children: SlidesAppJsx.jsx("div", {
+                className: "h-10 pointer-coarse:h-13"
+              })
+            }) : railBeside ? SlidesAppJsx.jsx("div", {
+              className: "shrink-0 bg-editor-canvas",
+              style: {
+                height: runtime2.RAIL_FOOT_GAP
+              }
+            }) : null,
+            railOpen && !railBeside ? SlidesAppJsx.jsx("div", {
+              className: "flex shrink-0 gap-6 border-t border-border-line bg-panel p-3 pl-9",
+              children: [0, 1, 2].map(
+                (input) => SlidesAppJsx.jsx(
+                  "div",
+                  {
+                    className: "mc-shimmer aspect-video shrink-0 rounded-sm",
+                    style: {
+                      width: runtime2.MIN_RAIL_THUMB_WIDTH
+                    }
+                  },
+                  input
+                )
+              )
+            }) : null
+          ]
+        })
+      ]
     });
   }
   function loadImageDimensions(src) {
@@ -255181,6 +257369,7 @@ function installEditorApp(runtime2) {
       }
     };
     TEXT_INSERT_SHORTCUT_KEY = "t";
+    videoStillNoun = () => "video\u2019s " + ((0, runtime2.canEmbedAnyVideoProvider)() ? "cover image" : "picture");
     disabledInsertControlProps = (disabled2) => ({
       "aria-disabled": disabled2 || void 0,
       tabIndex: disabled2 ? -1 : void 0,
@@ -255195,10 +257384,7 @@ function installEditorApp(runtime2) {
       role: "body",
       text: ""
     });
-    videoStillNoun = () => "video\u2019s " + ((0, runtime2.canEmbedAnyVideoProvider)() ? "cover image" : "picture");
     DEFAULT_VIDEO_FRAME_SIZE = { w: 960, h: 540 };
-    SVG_TOO_LARGE_KIND = "svg-too-large";
-    UNKNOWN_TYPE_KIND = "unknown-type";
     DAMAGED_SLIDE_ACTION_MESSAGE = (0, runtime2.formatMessage)({
       defaultMessage: "That slide can\u2019t be edited until its saved content is fixed. Nothing changed.",
       id: "byGni1ohUd"
@@ -270899,6 +273085,9 @@ function createSlidesRuntime(options = {}) {
     installEditorTemplates(runtime2),
     installEditorTemplateRestyling(runtime2),
     installDeliveryDialog(runtime2),
+    installEditorRailPlacement(runtime2),
+    installEditorRailPeek(runtime2),
+    installBridgeBottomToolbar(runtime2),
     installEditorApp(runtime2),
     installDocumentsWriteAccess(runtime2),
     installBootThumbnailCapture(runtime2),
