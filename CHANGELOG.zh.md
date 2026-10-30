@@ -4,6 +4,20 @@
 
 本文档记录 `baoyu-design` 的重要变更。
 
+## 2.3.0 - 2026-10-30
+
+### 变更
+- 归档 `baoyu-design` 技能：从 `skills/` 移到 `archive/baoyu-design/`，`skills` CLI 不再安装它。README 改为只介绍四个 artifact 技能和 `dataviz`。
+
+### 修复
+- `claude-slides`：补齐 2026-10-29 版编辑器的其余部分，包括 YouTube 以外的视频嵌入、Present 菜单、手机横屏提示和底部工具栏；按钮和菜单的间距恢复正常。
+- `claude-design-system`：加入新的控件（二维取色器、分段控件、属性行、数字输入框）；删除确认框可以再次打开。
+- `claude-dashboard`：同步 2026-10-29 版页面界面和提示文字，并支持在单写入者页面上手动编辑页面（Edit the page，Beta）。
+- 评论：修复从右到左页面里的提示位置，以及危险菜单项的高亮。
+
+### 文档
+- 更新 README 中的编辑器截图。
+
 ## 2.1.0 - 2026-10-30
 
 ### 新功能

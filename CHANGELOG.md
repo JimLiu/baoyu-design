@@ -4,6 +4,20 @@ English | [中文](./CHANGELOG.zh.md)
 
 All notable changes to `baoyu-design` are tracked in this file.
 
+## 2.3.0 - 2026-10-30
+
+### Changed
+- Archive the `baoyu-design` skill: it moves from `skills/` to `archive/baoyu-design/`, so the `skills` CLI no longer installs it. The READMEs now cover the four artifact skills and `dataviz`.
+
+### Fixes
+- `claude-slides`: port the rest of the 2026-10-29 editor, including video embeds beyond YouTube, the Present menu, the phone landscape hint and the bottom toolbar; buttons and menus keep their spacing.
+- `claude-design-system`: add the new controls (2D color picker, segmented control, property rows, number input); the delete confirmation opens again.
+- `claude-dashboard`: port the 2026-10-29 page UI and messages, and editing the page by hand (Edit the page, Beta) on one-writer pages.
+- Comments: fix toast placement on right-to-left pages and the danger menu item highlight.
+
+### Documentation
+- Refresh the editor screenshots in the READMEs.
+
 ## 2.1.0 - 2026-10-30
 
 ### Features
