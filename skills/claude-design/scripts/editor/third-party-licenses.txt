@@ -25,7 +25,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ------------------------------------------------------------------------
 
-@base-ui/react@1.6.0 (MIT)
+@base-ui/react@1.8.0 (MIT)
 
 MIT License
 
@@ -51,7 +51,7 @@ SOFTWARE.
 
 ------------------------------------------------------------------------
 
-@base-ui/utils@0.3.1 (MIT)
+@base-ui/utils@0.4.0 (MIT)
 
 MIT License
 
@@ -177,7 +177,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ------------------------------------------------------------------------
 
-@tanstack/react-virtual@3.14.9 (MIT)
+@tanstack/react-virtual@3.14.14 (MIT)
 
 MIT License
 
@@ -203,7 +203,7 @@ SOFTWARE.
 
 ------------------------------------------------------------------------
 
-@tanstack/virtual-core@3.17.7 (MIT)
+@tanstack/virtual-core@3.18.0 (MIT)
 
 MIT License
 

@@ -13,7 +13,7 @@ https://github.com/user-attachments/assets/d5b4f39b-a701-49de-87b8-64f3c6ef9c61
 
 `baoyu-design` packages **Claude Design** — the design engine behind [claude.ai/design](https://claude.ai/design) — as a portable **Agent Skill**. Drop it into a local agent and you get most of what the website does, right inside your editor: polished UI mockups, interactive prototypes, wireframes, landing pages, dashboards, mobile apps, and slide decks — all produced as self‑contained HTML.
 
-Next to it, four more skills bring claude.ai's **Artifact types** to the same agents: editable slide decks, design canvases, design systems and data dashboards, each opened in its own editor that runs on your machine.
+Next to it, four more skills bring claude.ai's **Artifact types** to the same agents: editable slide decks, design canvases, design systems and data dashboards, each opened in its own editor that runs on your machine. A sixth, `dataviz`, is the chart guide the agent reads before it draws any chart, in these skills or anywhere else.
 
 No website, no separate subscription, no upload step. The agent already on your machine does the work, and every artifact stays in your repo.
 
@@ -28,6 +28,7 @@ No website, no separate subscription, no upload step. The agent already on your 
 | [`claude-design`](skills/claude-design/) | A canvas of artboards: `project/canvas.json` plus `.dc.html` Design Components | The canvas editor: artboards side by side, play prototypes, retype copy, adjust tweaks; export HTML, PDF or PNG |
 | [`claude-design-system`](skills/claude-design-system/) | Design systems: tokens, a README brand book, component previews, fonts, asset groups | The design system editor: browse and edit colors, type, components and assets |
 | [`claude-dashboard`](skills/claude-dashboard/) | Data‑backed dashboards: datasets (CSV, TSV, JSON) and a page of charts, numbers and tables over them | The dashboard page: live charts, filters, and a Sources panel that traces every number to its rows |
+| [`dataviz`](skills/dataviz/) | Better charts in any medium (HTML, SVG, d3, matplotlib, plotly…): picking the form, colors that stay readable in light and dark and for color‑blind readers, marks, legends and tooltips, with a palette validator script | Nothing to open: the agent reads it before writing chart code; swap [`palette.md`](skills/dataviz/references/palette.md) for your brand's colors |
 
 ---
 
@@ -70,7 +71,7 @@ node skills/claude-slides/scripts/artifact.mjs upload designs/q3-review hero.jpg
 node skills/claude-slides/scripts/artifact.mjs list                                 # find design systems on disk
 ```
 
-A dashboard is written through the same script (`write-db`, `read-db`, `upload`, `check`, `open`) into its own store under `<root>/db/`. Each skill runs its own local server, and the editors ship prebuilt in `scripts/editor/`; [`tools/artifact-skills/`](tools/artifact-skills/) rebuilds them.
+A dashboard is written through the same script (`write-db`, `read-db`, `upload`, `check`, `open`) into its own store under `<root>/db/`. Each skill runs its own local server, and everything in `scripts/` ships prebuilt: plain JavaScript that runs on Node alone, with nothing to install or build.
 
 ---
 

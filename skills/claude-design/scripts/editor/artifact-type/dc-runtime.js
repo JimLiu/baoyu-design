@@ -1921,9 +1921,8 @@
     }
   });
 
-  // apps/design-editor/node_modules/scheduler/cjs/scheduler.development.js
   var require_scheduler_development = __commonJS({
-    "apps/design-editor/node_modules/scheduler/cjs/scheduler.development.js"(exports) {
+    "node_modules/scheduler/cjs/scheduler.development.js"(exports) {
       "use strict";
       /**
        * @license React
@@ -2380,9 +2379,8 @@
     }
   });
 
-  // apps/design-editor/node_modules/scheduler/index.js
   var require_scheduler = __commonJS({
-    "apps/design-editor/node_modules/scheduler/index.js"(exports, module) {
+    "node_modules/scheduler/index.js"(exports, module) {
       "use strict";
       if (false) {
         module.exports = null;
@@ -2392,9 +2390,8 @@
     }
   });
 
-  // apps/design-editor/node_modules/react-dom-18/cjs/react-dom.development.js
   var require_react_dom_development = __commonJS({
-    "apps/design-editor/node_modules/react-dom-18/cjs/react-dom.development.js"(exports) {
+    "node_modules/react-dom-18/cjs/react-dom.development.js"(exports) {
       "use strict";
       /**
        * @license React
@@ -23578,9 +23575,8 @@
     }
   });
 
-  // apps/design-editor/node_modules/react-dom-18/index.js
   var require_react_dom_18 = __commonJS({
-    "apps/design-editor/node_modules/react-dom-18/index.js"(exports, module) {
+    "node_modules/react-dom-18/index.js"(exports, module) {
       "use strict";
       if (false) {
         checkDCE();
@@ -23591,9 +23587,8 @@
     }
   });
 
-  // apps/design-editor/node_modules/react-dom-18/client.js
   var require_client = __commonJS({
-    "apps/design-editor/node_modules/react-dom-18/client.js"(exports) {
+    "node_modules/react-dom-18/client.js"(exports) {
       "use strict";
       var m = require_react_dom_18();
       if (false) {
@@ -23622,12 +23617,15 @@
     }
   });
 
-  // packages/design-runtime/src/runtime/index.tsx
+  try {
+    window.__dcHostRuntime = true;
+  } catch (e) {
+  }
+
   var import_react6 = __toESM(require_react_18(), 1);
   var ReactDOM = __toESM(require_react_dom_18(), 1);
   var import_client = __toESM(require_client(), 1);
 
-  // packages/design-runtime/src/runtime/react.tsx
   var defineProperty = Object.defineProperty;
   var defineOwnField = (target, property, value) => property in target ? defineProperty(target, property, {
     enumerable: true,
@@ -23655,7 +23653,6 @@
     return getReact().createElement(...argumentsList);
   }
 
-  // packages/design-runtime/src/runtime/document.tsx
   function parseDesignDocument(documentNode) {
     const templateElement = documentNode.querySelector("x-dc");
     if (!templateElement) return null;
@@ -23836,7 +23833,6 @@
     return rootName;
   }
 
-  // packages/design-runtime/src/runtime/expressions.ts
   var IDENTIFIER_PATTERN = /^[A-Za-z_$][A-Za-z0-9_$]*/;
   var NUMBER_LITERAL_PATTERN = /^-?\d+(\.\d+)?$/;
   function evaluateExpression(scope, expression) {
@@ -23921,7 +23917,6 @@
     return value;
   }
 
-  // packages/design-runtime/src/runtime/template.tsx
   var CAMEL_ATTRIBUTE_PREFIX = "sc-camel-";
   var INLINE_TAGS = new Set(
     "a abbr b bdi bdo br cite code del dfn em i ins kbd mark q s samp small span strike strong sub sup u var wbr".split(
@@ -24791,7 +24786,6 @@
     };
   }
 
-  // packages/design-runtime/src/runtime/errors.ts
   var MAX_REPORTED_ERRORS = 10;
   var MAX_ERROR_MESSAGE_LENGTH = 300;
   var truncateErrorMessage = (message) => message.length > MAX_ERROR_MESSAGE_LENGTH ? message.slice(0, MAX_ERROR_MESSAGE_LENGTH - 1) + "\u2026" : message;
@@ -24837,7 +24831,6 @@
     errorReporter?.begin();
   }
 
-  // packages/design-runtime/src/runtime/components.tsx
   var StreamableLogic = class {
     constructor(props) {
       initializeField(this, "props");
@@ -25169,7 +25162,6 @@
     };
   }
 
-  // packages/design-runtime/src/runtime/resources.tsx
   function findResourceBlob(url) {
     const blobs = window.__resourceBlobs, blob = blobs ? blobs[url.split("#")[0]] : void 0;
     return blob instanceof Blob ? blob : null;
@@ -25364,7 +25356,6 @@
     }
   }
 
-  // packages/design-runtime/src/runtime/helmet.ts
   var ATOMIC_CSS = ".fx{display:flex}.col{display:flex;flex-direction:column}.grid{display:grid}.ac{align-items:center}.jc{justify-content:center}.jb{justify-content:space-between}.f1{flex:1}.noshrink{flex-shrink:0}.wrap{flex-wrap:wrap}.fw5{font-weight:500}.fw6{font-weight:600}.fw7{font-weight:700}.fw8{font-weight:800}.fs11{font-size:11px}.fs12{font-size:12px}.fs13{font-size:13px}.fs14{font-size:14px}.fs15{font-size:15px}.fs16{font-size:16px}.fs20{font-size:20px}.fs22{font-size:22px}.upper{text-transform:uppercase}.tc{text-align:center}.nowrap{white-space:nowrap}.gap8{gap:8px}.gap10{gap:10px}.gap12{gap:12px}.gap16{gap:16px}.gap24{gap:24px}.m0{margin:0}.mt8{margin-top:8px}.mt12{margin-top:12px}.mt16{margin-top:16px}.mb8{margin-bottom:8px}.mb12{margin-bottom:12px}.mb16{margin-bottom:16px}.posrel{position:relative}.posabs{position:absolute}.round{border-radius:50%}.ohide{overflow:hidden}.bbox{box-sizing:border-box}.pointer{cursor:pointer}.w100{width:100%}.b0{border:none}";
   var DESIGN_MODE_META_PATTERN = /<meta\b[^>]*\bname\s*=\s*["']design_doc_mode["'][^>]*\b(?:content|value)\s*=\s*["'](\w+)["']/i;
   var LIGHT_BACKGROUND = "#ededeb";
@@ -25468,7 +25459,6 @@
     };
   }
 
-  // packages/design-runtime/src/runtime/css.ts
   function unquotedUrlEnd(css, start) {
     if (css[start] !== "u" && css[start] !== "U" || css.slice(start, start + 4).toLowerCase() !== "url(" || /[a-z0-9_-]/i.test(css[start - 1] ?? ""))
       return -1;
@@ -25548,7 +25538,6 @@
     };
   }
 
-  // packages/design-runtime/src/runtime/registry.tsx
   function createRegistry() {
     const entries = /* @__PURE__ */ Object.create(null);
     function get(name) {
@@ -25772,7 +25761,37 @@
     };
   }
 
-  // packages/design-runtime/src/runtime/boot.ts
+  var RUNTIME_REPLACED_MESSAGE = "[dc] Something in this page tried to replace one of the Design runtime's functions, most likely a second copy of the runtime. It was stopped so that edits keep showing here. If the page loads support.js or a copy of it a second time, remove the extra script tag or <x-import>.";
+  function takeHostRuntimeMarker(target) {
+    const marked = target.__dcHostRuntime === true;
+    try {
+      delete target.__dcHostRuntime;
+    } catch {
+    }
+    return marked;
+  }
+  function defineRuntimeGlobals(target, values, protect, canReplace = () => false) {
+    for (const [name, value] of Object.entries(values)) {
+      if (protect && name.startsWith("__dc")) {
+        let current = value;
+        const get = () => current;
+        try {
+          Object.defineProperty(target, name, {
+            configurable: false,
+            enumerable: true,
+            get,
+            set: (next) => {
+              if (!canReplace()) throw new TypeError(RUNTIME_REPLACED_MESSAGE);
+              current = next;
+            }
+          });
+        } catch {
+        }
+        if (Object.getOwnPropertyDescriptor(target, name)?.get === get) continue;
+      }
+      Object.assign(target, { [name]: value });
+    }
+  }
   function hideDesignSource() {
     const styleElement = document.createElement("style");
     styleElement.textContent = "x-dc{display:none!important}";
@@ -25798,11 +25817,12 @@
       }
     );
   }
+  var hostRuntime = takeHostRuntimeMarker(window);
   function bootRuntime() {
     const omelette = window.__dcRuntimeMode === "omelette", runtime = createRuntime(document, {
       omelette
     });
-    let rootName = "Root", mounted = false;
+    let rootName = "Root", mounted = false, booted = false;
     const runtimeStyle = document.createElement("style");
     runtimeStyle.textContent = RUNTIME_CSS;
     document.head.prepend(runtimeStyle);
@@ -25866,17 +25886,31 @@
       DCLogic: runtime.StreamableLogic,
       StreamableLogic: runtime.StreamableLogic
     };
-    Object.assign(window, api);
-    window.__dcContentKeyed = true;
-    document.readyState !== "loading" ? api.__dcBoot() : document.addEventListener("DOMContentLoaded", () => api.__dcBoot());
+    defineRuntimeGlobals(
+      window,
+      {
+        ...api,
+        __dcContentKeyed: true
+      },
+      hostRuntime,
+      () => booted && !mounted
+    );
+    const boot = () => {
+      try {
+        api.__dcBoot();
+      } finally {
+        booted = true;
+      }
+    };
+    document.readyState !== "loading" ? boot() : document.addEventListener("DOMContentLoaded", boot);
   }
 
-  // packages/design-runtime/src/runtime/index.tsx
   window.React = import_react6.default;
   window.ReactDOM = { ...ReactDOM, createRoot: import_client.createRoot };
   hideDesignSource();
   ensureReactAvailable().then(bootRuntime).catch((error) => {
-    console.error("[dc] failed to load React or boot:", error);
+    if (error instanceof Error && error.message === RUNTIME_REPLACED_MESSAGE) console.error(error.message);
+    else console.error("[dc] failed to load React or boot:", error);
     throw error;
   });
 })();

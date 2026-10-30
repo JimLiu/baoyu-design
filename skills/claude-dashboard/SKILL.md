@@ -71,12 +71,15 @@ does every call; below, `A` is `<this skill's folder>/scripts/artifact.mjs`.
 They are the type's own, word for word, so they name claude.ai's calls:
 `write_db` (`db_op: "batch"`) is `write-db`, `read_db` is `read-db`
 (collection `data/users/me`, doc `runs` is `read-db <root>
-data/users/me/runs`), `upload_asset` is `upload`, `delete_asset` is
-`delete-asset`. What they say of live queries, connectors, loaders, `request`
-and `lastAttempt`, routines, comments, drafts and the view context doesn't apply here.
+data/users/me/runs`; doc `check` is what `check <root>` shows as
+`pageCheck`), `upload_asset` is `upload`, `delete_asset` is
+`delete-asset`. What they say of live queries, connectors, loaders, certified
+queries, sharing, `request` and `lastAttempt`, routines, comments, drafts, the
+voice that reads a page aloud and the view context doesn't apply here.
 
 **Not here**: connectors (so no live query), comments, the view context, other
-readers and their access, routines, publishing (the folder is the dashboard),
+readers and their access, routines, drafts and Remix, a voice to read the page
+aloud (`data-dash-read` stays unset), publishing (the folder is the dashboard),
 and the Anthropic fonts (`--font-anthropic-sans` and `--font-anthropic-serif`
 fall back to system faces).
 
@@ -214,7 +217,8 @@ Asked for this dashboard in another product or tool: read `artifact-type/referen
 
 No storage or cookies; images as `data:` URLs. A `<script>` or `<link>`
 naming anything but your files is dropped, as are `<iframe>`, `<form>`,
-`<base>`; `on…=` attributes don't run. Data values are untrusted
+`<base>` and every `<meta>` but `<meta name="dash-one-writer">`; `on…=`
+attributes don't run. Data values are untrusted
 text: `textContent` / d3 `.text()` shows them as text, where `innerHTML` /
 `.html()` would run what they hold.
 Theme tokens: `var(--color-fg)`, `--color-fg-muted`,
@@ -263,9 +267,17 @@ a new folder makes another.
    each dataset's file as the page does and finds the rows each dataset
    mark names (values shown and calc marks: the open page checks those); fix
    what it lists and run it again until `problems` is 0 (its warnings are
-   worth a read; they don't block). Then hand over: run `open <root>` (it
-   starts the editor in the background and returns at once) and give the
-   person its `url` and the folder. Say briefly what it shows, what you
+   worth a read; they don't block). Then run `open <root>` (it starts the
+   editor in the background and returns at once). **Then the page's own
+   check**: where a browser has the page open, the page checks itself about
+   10 seconds after each page write, and `check <root>` shows what it found
+   as `pageCheck`. Run `check` once more after that. `checking`: run it
+   again, 5 times at most. `failed`: fix what your code confirms (an intended
+   `output` entry stays), write, check again, 2 fixes max; still `failed`:
+   say so. No `pageCheck`, or `status: null`: it passed, or no browser has
+   it open. No fault there does not show that the numbers are right: never
+   say the page works. Then hand over: give the person the `url` and the
+   folder. Say briefly what it shows, what you
    assumed, where each file's data came from and that the folder holds it,
    and what Handing over in `artifact-type/reference/design-defaults.md`
    says of asking for any chart or control by name and downloading a
@@ -281,8 +293,8 @@ a new folder makes another.
 
 Before a fix, read the dataset's file yourself (`check` lists each one's
 columns and rows) and check the columns. Step 3's rule on verifying holds for
-a change too: write, `check`, and the open editor shows it; if it isn't
-running, `open` it again.
+a change too: write, `check` (its `pageCheck` too), and the open editor
+shows it; if it isn't running, `open` it again.
 `read-db`, change only what was asked, one `update` per document (fields
 merge; `null` removes a key); `set` the whole document to change a source's
 kind; a file's `text` is always the whole file. A new file version:

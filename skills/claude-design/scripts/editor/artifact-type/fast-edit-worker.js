@@ -363,7 +363,6 @@
     }
   });
 
-  // packages/design-runtime/src/worker/browser-node-shims.ts
   var host = globalThis;
   if (!host.setImmediate) {
     host.setImmediate = (callback, ...args) => setTimeout(callback, 0, ...args);
@@ -69031,7 +69030,6 @@ this.Function = globalThis.Function;
     return jQueryFactoryWrapper(window2, true);
   }
 
-  // packages/design-runtime/src/worker/statement-stream.ts
   var BLOCK_COMMENT = String.raw`\/\*(?:[^*]|\*(?!\/))*\*\/`;
   var TRAILING_COMMENTS = new RegExp(
     String.raw`(?:\s|${BLOCK_COMMENT}|\/\/[^\n]*(?:\n|$))+$`
@@ -69458,7 +69456,6 @@ this.Function = globalThis.Function;
     };
   }
 
-  // packages/design-runtime/src/worker/runtime.ts
   var DEFAULT_LIMITS = {
     maxLines: 40,
     maxChars: 2e4,
@@ -70785,6 +70782,14 @@ this.Function = globalThis.Function;
       };
       state2.used = /* @__PURE__ */ new Set();
       state2.started = false;
+      let nativeGetElementById = document.getElementById.bind(document);
+      document.getElementById = (id2) => {
+        let element = state2.elOf.get(id2);
+        if (element !== void 0 && element.isConnected && element.getAttribute("id") === id2)
+          return element;
+        let found = nativeGetElementById(id2), file = found && value3(id2) ? state2.fileOf(found) : null;
+        return file && state2.slides.get(file).src ? null : found;
+      };
       state2.assign = (..._extraArguments105) => {
         let unhandledElements = [];
         for (let fileElement of container.children) {
@@ -70822,6 +70827,7 @@ this.Function = globalThis.Function;
               state2.rehandled.add(fileEntry.id);
               continue;
             }
+            if (elementId !== null && fileEntry.src) continue;
             unhandledElements.push([element, fileEntry]);
           }
         }
@@ -70924,6 +70930,11 @@ this.Function = globalThis.Function;
             if (entry && !entry.removed && value23[input]) {
               if (state2.copyOf.set(value23[input], entry.id), !entry.hadSection)
                 value23[input].removeAttribute("data-section");
+              let copies = value23[input].querySelectorAll("*");
+              options2.querySelectorAll("*").forEach((original, index) => {
+                if (state2.origId.has(original))
+                  state2.origId.set(copies[index], state2.origId.get(original));
+              });
             }
           }
         );
@@ -71261,19 +71272,8 @@ this.Function = globalThis.Function;
               );
               continue;
             }
-            if (mintId.last = value24, mintId.op.op === "add")
-              mintId.op.html = value24;
-            else {
-              let entry = state2.slides.get(mintId.src);
-              let value25 = entry.rootId === null ? entry.last.replace(
-                /^(<[a-z][a-z0-9-]*)/i,
-                '$1 id="' + expectedOrder + '"'
-              ) : entry.last.replace(
-                'id="' + entry.rootId + '"',
-                'id="' + expectedOrder + '"'
-              );
-              if (value24 !== value25) mintId.op.html = value24;
-            }
+            mintId.last = value24;
+            mintId.op.html = value24;
             continue;
           }
           if (value24 === mintId.last) continue;
@@ -72999,7 +72999,6 @@ this.Function = globalThis.Function;
     };
   }
 
-  // packages/design-runtime/src/worker/sandbox.ts
   try {
     Function("");
   } catch (value2) {
