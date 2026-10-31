@@ -4,6 +4,21 @@
 
 本文档记录 `baoyu-design` 的重要变更。
 
+## 2.5.0 - 2026-10-31
+
+### 新功能
+- 局域网分享：`claude-slides`、`claude-design`、`claude-design-system` 和 `claude-dashboard` 可以把项目开放到同一个 Wi‑Fi 或内网。`share <root>`（或 `open <root> --lan`）给每种角色打印一个链接：`editor` 能改也能评论，`commenter` 只能评论，`viewer` 只能看。拿到链接的人输个名字就能进来；一个人保存，其他打开的页面马上跟着变，每条评论记在写它的人名下。DeepSeek Harness 插件也一样带上了。
+- 坐在这台电脑前的主人有一个仿照 claude.ai 分享对话框的 **Share** 按钮：谁加入了、谁在线，每个人的角色菜单和移除，访问范围（只有这台电脑，或网络里拿到链接的人），每个链接的复制、关闭和重置。命令行里也能做：`share <root> --disable <角色>`、`--enable <角色>`、`--reset <角色>`、`--role <访客>=<角色>`、`--off`。
+- 访客也有 Share 按钮：里面是他可以转发的链接（自己这一级和更低的角色），以及复制当前页面地址的 Copy link，只有有权限的人打得开，其他人看到 "No access" 页。
+- 角色处处生效：commenter 和 viewer 看到的是编辑器的只读模式，viewer 只能看评论，只有作者能改自己的消息，只有主人能把评论发给 Agent。仪表盘上主人和 editor 能写数据，commenter 和 viewer 什么都写不了，连自己的 `data/users` 也不行。
+- 每个技能的服务器有自己的端口：slides 4710、design 4720、design system 4730、dashboard 4740，被占用时顺延到下一个空闲端口。`--port n` 从 n 开始找，`--port 0` 随便取一个空闲端口。
+- `claude-design-system`：评论和 Share 放在页面顶部的一条栏里，和 claude.ai 的 artifact 页头一样。
+- `claude-dashboard`：页面的地址是 `/dashboard/<id>/`，重启后不变，开着的旧标签页不会显示后来占了这个端口的别的文件夹。
+- Share 按钮跟着所在工具栏的样式走，浅色和深色模式都一样。
+
+### 文档
+- 每个编辑器的 `SKILL.md` 都加了 Sharing 一节。README 介绍了局域网分享，并把仪表盘页面列进支持评论的页面。
+
 ## 2.4.1 - 2026-10-31
 
 ### 新功能

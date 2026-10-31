@@ -4,6 +4,21 @@ English | [中文](./CHANGELOG.zh.md)
 
 All notable changes to `baoyu-design` are tracked in this file.
 
+## 2.5.0 - 2026-10-31
+
+### Features
+- Share on your local network: `claude-slides`, `claude-design`, `claude-design-system` and `claude-dashboard` open a project to the same Wi‑Fi or LAN. `share <root>` (or `open <root> --lan`) prints a link per role: `editor` edits and comments, `commenter` comments without editing, `viewer` only looks. Whoever opens a link types a name and is in; a save shows on every other open page, and each comment is its writer's own. The DeepSeek Harness plugins carry it too.
+- The owner, at this computer, gets a **Share** button after claude.ai's share dialog: who joined and who is online, a role menu and remove for each person, general access (only this computer, or anyone on the network with a link), and Copy, turn off and reset for each link. From the command line: `share <root> --disable <role>`, `--enable <role>`, `--reset <role>`, `--role <guest>=<role>` and `--off`.
+- Guests get a Share button too: the links they may pass on (their own role's and the ones below it) and Copy link for the page's address, which only people with access can open; anyone else gets a "No access" page.
+- Roles hold everywhere: commenters and viewers get the editor's read-only mode, viewers only read comments, only a message's author edits it, and only the owner sends comments to the agent. On a dashboard, the owner and editors write; commenters and viewers write nothing, their own `data/users` included.
+- Each skill's server has its own port: slides 4710, design 4720, design system 4730, dashboard 4740, or the next free one when that is taken. `--port n` starts from n, `--port 0` takes any free port.
+- `claude-design-system`: comments and Share sit in a bar across the top of the page, like claude.ai's artifact header.
+- `claude-dashboard`: the page is served at `/dashboard/<id>/`, an address that stays the same across restarts, so a tab left open never shows another folder that took the port.
+- The Share button takes the look of the bar it sits in, in light and dark.
+
+### Documentation
+- Each editor's `SKILL.md` has a Sharing section. The READMEs describe sharing on the local network and name the dashboard page among those with comments.
+
 ## 2.4.1 - 2026-10-31
 
 ### Features
