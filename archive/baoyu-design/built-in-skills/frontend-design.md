@@ -1,6 +1,7 @@
 ---
 name: "frontend-design"
 description: "Frontend design\nAesthetic direction for designs outside an existing brand system"
+license: "Apache License 2.0, see LICENSE-frontend-design.txt. Modified from Anthropic's frontend-design skill: frontmatter rewritten for the built-in-skill format; text as Claude Design ships it."
 ---
 Use this guidance when designing frontend/UI work that is NOT governed by an existing brand or design system. Create distinctive HTML with exceptional attention to aesthetic details and creative choices.
 
