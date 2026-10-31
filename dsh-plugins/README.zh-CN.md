@@ -1,0 +1,73 @@
+# DeepSeek Harness 插件
+
+[English](README.md) · [简体中文](README.zh-CN.md) · [返回 baoyu-design](../README.zh-CN.md)
+
+这里的每个文件夹都是一个 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 插件，各带一个 baoyu-design 技能。你让 Agent 做幻灯片、设计稿、设计系统或数据看板，它会把文件写进你的工作区，再给你一个编辑器链接。编辑器就运行在你自己的电脑上，链接在应用的侧栏里打开，和对话并排。
+
+| 插件 | 能做什么 | 评论 |
+|---|---|---|
+| [Claude 幻灯片](dsh-claude-slides/)<br>`/claude-slides` | Agent 把可编辑的幻灯片写成本地文件，并在本地幻灯片编辑器里打开，你可以放映、修改，导出 PDF、HTML 或 PowerPoint。 | Send to agent |
+| [Claude 设计稿](dsh-claude-design/)<br>`/claude-design` | Agent 把可编辑的设计画布（多个画板并排）写成本地文件，并在本地画布编辑器里打开，你可以改文字、调参数，也可以把评论发给 Agent 修改。 | Send to agent |
+| [Claude 设计系统](dsh-claude-design-system/)<br>`/claude-design-system` | Agent 把设计系统（设计令牌、字体样式、组件、素材和品牌手册）写成本地文件，并在本地页面里打开，你可以浏览、修改，也可以把评论发给 Agent 修改。 | Send to agent |
+| [Claude 数据看板](dsh-claude-dashboard/)<br>`/claude-dashboard` | Agent 根据你的数据文件做出数据看板（图表、数字和表格），并在本地看板编辑器里打开，来源面板会显示每个数字是从哪里来的。 | 无 |
+
+只需要 DeepSeek Harness 桌面版。插件用的是桌面版自带的 Node.js，不用另外安装任何东西。
+
+## 安装
+
+1. **下载本仓库**，放在一个不会挪动的地方。可以克隆：
+
+   ```bash
+   git clone https://github.com/JimLiu/baoyu-design.git
+   ```
+
+   也可以在仓库的 GitHub 页面点 **Code** → **Download ZIP**，下载后解压。应用不会复制插件，而是直接使用插件所在的文件夹，所以文件夹挪走或删掉，插件就用不了了。
+
+2. **复制插件文件夹的完整路径**，比如 `/Users/you/baoyu-design/dsh-plugins/dsh-claude-slides`。要复制的是插件自己的文件夹（里面有 `package.json` 的那个），不是 `dsh-plugins/`，也不是整个仓库。
+   - macOS：在访达里选中文件夹，按住 **Option** 键右键，选「将"…"拷贝为路径名称」。
+   - Windows：按住 **Shift** 键右键文件夹，选「复制为路径」，再去掉两边的引号。
+
+3. **在应用里添加。** 点左侧栏的 **Plugins**（插件），再点右上角的 **Add plugin**，把路径粘贴到 **Package name or address** 一栏，点 **Install**。
+
+4. **打开开关。** 插件会出现在列表里，开关没开就打开。
+
+想装几个插件，就把第 2 到 4 步做几遍。
+
+**命令行安装。** 装到某个 CLI profile（比如 `web`）：
+
+```bash
+dsh plugin --profile web add /absolute/path/to/baoyu-design/dsh-plugins/dsh-claude-slides
+```
+
+桌面版自己的 profile 只接受从插件页添加的插件。
+
+## 使用
+
+1. **新开一个会话。** 装插件之前就开着的会话里没有这个新技能。给会话选一个工作区文件夹，Agent 会把文件写在这里。
+2. **说出你要什么。** 可以直接用自然语言说，比如"做一份 10 页的三季度业绩汇报"；也可以点名技能：输入 `/` 后选它，比如 `/claude-slides`。可以把材料交给 Agent，比如笔记、需求说明，做看板时给一个 CSV。
+3. **打开 Agent 给的链接**，以 `http://127.0.0.1:` 开头。它会在右侧栏的浏览器里打开，和对话并排。如果在别处打开了，到 **设置 → 通用** 里把聊天链接的打开方式改成应用内侧栏。
+4. **在编辑器里修改。** 你的修改会存回同一批文件，Agent 的改动也会实时出现在页面上。还想改什么，在对话里说，或者留评论。
+5. **把评论发给 Agent**（看上面表格的"评论"一列）：
+   - **Send to agent**：在页面上加评论，勾选 **Send to agent** 再发送。对话空闲时 Agent 也会接手，改好以后在评论里回复你。这个勾选框只在 Agent 等评论时出现；Agent 每次给你链接时都会开始等。
+   - **无**：这个编辑器没有评论功能。直接在对话里告诉 Agent 要改哪里、怎么改。
+
+以后要接着改，在同一个工作区里开会话，让 Agent 再打开那份幻灯片、设计稿或看板。它会启动编辑器，给你一个新链接。
+
+## 更新
+
+把新版本放到同一个文件夹：在仓库里 `git pull`，或者重新下载 ZIP 解压覆盖旧的。然后在插件页把插件关掉再打开（或者重启应用），再新开一个会话。
+
+如果新版本放在了别的文件夹，先卸载插件，再用新路径重新添加。
+
+## 卸载
+
+在插件页打开这个插件，点 **Uninstall**。你做好的幻灯片、设计稿和看板还留在各自的工作区文件夹里。
+
+## 遇到问题
+
+- **输入 `/` 后找不到这个技能。** 到插件页确认插件已经打开，再新开一个会话。
+- **Agent 的做法和插件说的不一样。** 如果工作区里有同名技能的副本（在 `.agents/skills/` 或 `.dsh/skills/` 下），Agent 会用那一份，而不是插件里的。
+- **安装失败。** 检查路径是不是完整的（以 `/` 开头，Windows 上以盘符开头），是不是指向插件自己的文件夹，也就是里面有 `package.json` 的那个。
+- **链接打不开，或者没有 Send to agent。** 比如重启应用以后就会这样。让 Agent 再打开一次编辑器，编辑器和等评论都会重新启动。
+
+每个插件的文件夹里还有它自己的 README，介绍里面有什么。

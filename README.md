@@ -93,7 +93,7 @@ To install one:
 
 3. Start a new session and ask for a deck, a canvas, a design system or a dashboard, or type `/claude-design` (`/claude-slides` and so on).
 
-A workspace that has its own copy of a skill (in `.agents/skills/` or `.dsh/skills/`) uses that copy instead of the plugin's. Each plugin's README in `dsh-plugins/` has the details.
+A workspace that has its own copy of a skill (in `.agents/skills/` or `.dsh/skills/`) uses that copy instead of the plugin's. Step by step, with updating, uninstalling and what to do when something doesn't work: [`dsh-plugins/`](dsh-plugins/README.md).
 
 ---
 

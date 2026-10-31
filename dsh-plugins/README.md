@@ -1,0 +1,96 @@
+# DeepSeek Harness plugins
+
+[English](README.md) · [简体中文](README.zh-CN.md) · [Back to baoyu-design](../README.md)
+
+Each folder here is a plugin for the [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) app. A plugin
+adds one baoyu-design skill: ask the agent for a slide deck, a design, a design system or a dashboard, and it writes the
+files into your workspace, then gives you a link to an editor that runs on your computer. The link opens in the app's
+sidebar, next to the chat.
+
+| Plugin | What it does | Comments |
+|---|---|---|
+| [Claude Slides](dsh-claude-slides/)<br>`/claude-slides` | The agent writes editable slide decks as files and opens them in a local slide editor where you can present, edit, and export PDF, HTML, or PowerPoint. | Send to agent |
+| [Claude Design](dsh-claude-design/)<br>`/claude-design` | The agent writes editable design canvases (artboards side by side) as files and opens them in a local canvas editor where you can retype copy, adjust tweaks, and send comments to the agent. | Send to agent |
+| [Claude Design System](dsh-claude-design-system/)<br>`/claude-design-system` | The agent writes design systems (tokens, type, components, assets, a brand book) as files and opens them in a local page where you can browse and edit them, and send comments to the agent. | Send to agent |
+| [Claude Dashboard](dsh-claude-dashboard/)<br>`/claude-dashboard` | The agent builds data-backed dashboards (charts, numbers and tables over your data files) and opens them in a local dashboard editor whose Sources panel shows where every number comes from. | None |
+
+All you need is the DeepSeek Harness desktop app. The plugins run on the Node.js the app ships with, so there is nothing
+else to install.
+
+## Install
+
+1. **Download this repository** and keep it somewhere it can stay. Clone it:
+
+   ```bash
+   git clone https://github.com/JimLiu/baoyu-design.git
+   ```
+
+   or, on the repository's GitHub page, click **Code** → **Download ZIP** and unzip it. The app does not copy a plugin:
+   it uses the folder where it is. If you move or delete the folder, the plugin stops working.
+
+2. **Copy the full path of the plugin's folder**, for example
+   `/Users/you/baoyu-design/dsh-plugins/dsh-claude-slides`. It must be the plugin's own folder (the one with
+   `package.json` in it), not `dsh-plugins/` or the repository.
+   - macOS: select the folder in Finder, hold **Option**, right-click it, and choose **Copy "…" as Pathname**.
+   - Windows: hold **Shift**, right-click the folder, choose **Copy as path**, and remove the quotes around it.
+
+3. **Add it in the app.** Click **Plugins** in the left sidebar, then **Add plugin** at the top right. Paste the path
+   into **Package name or address** and click **Install**.
+
+4. **Turn it on.** The plugin now shows in the list. If its switch is off, turn it on.
+
+Repeat steps 2 to 4 for each plugin you want.
+
+**Command line.** To install into a CLI profile, such as `web`:
+
+```bash
+dsh plugin --profile web add /absolute/path/to/baoyu-design/dsh-plugins/dsh-claude-slides
+```
+
+The desktop app's own profile only accepts plugins added from its Plugins page.
+
+## Use
+
+1. **Start a new session.** Sessions that were open before you installed the plugin don't have the new skill. Pick a
+   workspace folder for the session: that is where the agent writes the files.
+2. **Ask for what you want.** You can ask in plain words, for example "make a 10-slide deck on our Q3 results". You can
+   also name the skill: type `/` and pick it, such as `/claude-slides`. You can give the agent files to work from, such
+   as notes, a brief, or a CSV for a dashboard.
+3. **Open the link** the agent gives you, which starts with `http://127.0.0.1:`. It opens in the right sidebar's browser,
+   next to the chat. If it opens somewhere else, check **Settings → General** for where chat links open, and choose the
+   in-app sidebar.
+4. **Work in the editor.** The editor saves your changes to the same files, and the agent's changes appear in the page
+   as it makes them. To change more, ask in the chat or leave a comment.
+5. **Send comments to the agent** (see the Comments column above):
+   - **Send to agent**: add a comment on the page, tick **Send to agent**, and send it. The agent picks the comment up
+     even when the chat is idle, makes the change, and replies in the comment. The box only shows while the agent is
+     waiting for comments, and it starts waiting each time it gives you a link.
+   - **None**: this editor has no comments. Tell the agent in the chat what to change and where.
+
+To come back later, open a session in the same workspace and ask the agent to open the deck, design or dashboard
+again. It starts the editor and gives you a new link.
+
+## Update
+
+Get the new version into the same folder, with `git pull` in the repository, or download the ZIP again and unzip it over
+the old one. Then, on the Plugins page, turn the plugin off and back on, or restart the app, and start a new session.
+
+If the new copy is in a different folder, uninstall the plugin and add it again with the new path.
+
+## Uninstall
+
+On the Plugins page, open the plugin and click **Uninstall**. The decks, designs and dashboards you made stay in their
+workspace folders.
+
+## If something doesn't work
+
+- **The skill isn't offered after you type `/`.** Check on the Plugins page that the plugin is on, then start a new
+  session.
+- **The agent follows different instructions.** If the workspace has its own copy of the skill, in `.agents/skills/` or
+  `.dsh/skills/`, the agent uses that copy instead of the plugin's.
+- **Installing fails.** Check that the path is complete (it starts with `/`, or a drive letter on Windows) and that it
+  points to the plugin's own folder, the one with `package.json` in it.
+- **The link doesn't load, or Send to agent is missing.** This happens after the app restarts, for example. Ask the
+  agent to open the editor again. That starts the editor and the wait for comments again.
+
+Each plugin's folder has its own README with more on what is inside.
