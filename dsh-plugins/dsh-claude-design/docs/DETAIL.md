@@ -12,9 +12,10 @@ artboard. It then starts a local canvas editor and gives you its link.
 - In the editor you see the artboards side by side, retype copy and adjust each artboard's tweaks. Your edits are
   saved back into the same files, and the agent's changes show up in the page as it writes them.
 - Comment on anything on an artboard (Comment, or C). Tick **Send to agent** and the agent picks it up at once, even
-  when the conversation is idle: it changes the artboard and replies in the comment. The box is there while the agent
-  waits for comments, which it starts each time it gives you the link (a background job in the conversation). After
-  restarting the app, ask the agent to open the design again to bring it back.
+  when the conversation is idle: it changes the artboard and replies in the comment. The comment also shows in the chat
+  as a card; **View thread** on the card opens it in the editor. The box is there while comments can reach the agent,
+  which starts each time it gives you the link. After restarting the app, ask the agent to open the design again to
+  bring it back.
 - To change a design later, ask the agent to revise the folder that holds its `project/canvas.json`.
 - A workspace that has its own `claude-design` skill (in `.agents/skills/` or `.dsh/skills/`) uses that copy instead
   of this plugin's.

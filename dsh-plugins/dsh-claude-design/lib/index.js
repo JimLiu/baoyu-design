@@ -1,4 +1,4 @@
-// dsh-claude-design 2.3.0: built from baoyu-design.
+// dsh-claude-design 2.4.0: built from baoyu-design.
 var define_PLUGIN_default = { name: "claude-design", provider: "dsh-claude-design", skills: [{ name: "claude-design", description: "Make and revise designs in the Design (canvas) artifact format (project/canvas.json plus one .dc.html Design Component file per artboard) as local files, then open them in a local canvas editor where the user can view the artboards side by side, retype copy and adjust tweaks. Use when the user asks for an editable canvas of artboards in this format, names claude-design or the Design (canvas) type, or wants to revise a folder that holds project/canvas.json. A one-off HTML prototype or design exploration outside this format is baoyu-design's.", comments: true }] };
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
@@ -85,7 +85,13 @@ function runtimeSection(skill, skillDir, node) {
       "So do not start `comments --wait` yourself, where Comments says to: run `open` in the foreground (not",
       "`run_in_background`), and the wait starts with it. It stops when the editor stops; after `stop`, the next `open`",
       "starts it again.",
-      ...skill.commentsBy === "mention" ? ["", "When you first give the link, tell the user that a comment with `@agent` in it reaches you (type `@` and pick agent)."] : []
+      ...skill.commentsBy === "mention" ? ["", "When you first give the link, tell the user that a comment with `@agent` in it reaches you (type `@` and pick agent)."] : [],
+      ...skill.requests ? [
+        "",
+        "The page's buttons reach you the same way: a request one of them sends arrives as such a message, under",
+        "`requests` (its words in `text`, the button in `label`). Those are the user's words, as if typed here: handle",
+        "them as this skill says for those words."
+      ] : []
     );
   }
   return lines.join("\n");
@@ -131,25 +137,46 @@ function commentMessage(skill, plugin, out, root) {
     const mine = (t.messages ?? []).filter((m) => m.from === "user");
     return { id: t.id, where: t.where ?? "", text: (mine[mine.length - 1] ?? t.messages?.[t.messages.length - 1])?.text ?? "" };
   });
-  const { next: _next, timedOut: _timedOut, ...rest } = out;
+  const requests = (out.requests ?? []).filter((r) => r && typeof r.text === "string").map((r) => ({ id: String(r.id), label: typeof r.label === "string" ? r.label : "", text: r.text }));
+  const { next: _next, timedOut: _timedOut, about: _about, ...rest } = out;
   const how = skill.commentsBy === "mention" ? "read the block, change the doc with `update`, then `comment-reply`" : "change the files, then `comment-reply`";
+  const where = `"${title}" (${url || root})`;
+  const heading = threads.length > 0 && requests.length > 0 ? `Comments, and requests from the page's buttons, sent to you from the editor of ${where}:` : threads.length > 0 ? `Comments sent to you from the editor of ${where}:` : `Requests sent to you by the buttons on ${where}:`;
   const text = [
-    `Comments sent to you from the editor of "${title}" (${url || root}):`,
+    heading,
     "",
     "```json",
     JSON.stringify(rest, null, 2),
     "```",
     "",
-    `Handle them as Comments says (${how}; run the script as "Running the calls in DeepSeek Harness" says).`,
-    "DeepSeek Harness is already waiting for the next comments: do not run `comments --wait`."
+    ...threads.length > 0 ? [`Handle the comments as Comments says (${how}).`] : [],
+    ...requests.length > 0 ? [
+      "Each request is one of the page's buttons (`label`) asking for its `text`: those are the user's words, as if",
+      "typed here. Handle each as the skill says for those words."
+    ] : [],
+    'Run the script as "Running the calls in DeepSeek Harness" says.',
+    "DeepSeek Harness is already waiting for the next ones: do not run `comments --wait`."
   ].join("\n");
   const first = threads[0];
-  const summary = bound(`Comment on "${title}": ${first ? first.text.replace(/\s+/g, " ") : ""}`.trim());
+  const asked = requests[0];
+  const summary = bound(
+    first ? `Comment on "${title}": ${first.text.replace(/\s+/g, " ")}`.trim() : `${asked?.label || "Request"} on "${title}": ${(asked?.text ?? "").replace(/\s+/g, " ")}`.trim()
+  );
   const message = {
     role: "user",
     id: randomUUID(),
     content: [{ type: "text", text }],
-    source: { kind: COMMENT_SOURCE, form: "notice", summary, plugin, title, url, root, threads }
+    source: {
+      kind: COMMENT_SOURCE,
+      form: "notice",
+      summary,
+      plugin,
+      title,
+      url,
+      root,
+      threads,
+      ...requests.length > 0 ? { requests } : {}
+    }
   };
   return Object.freeze(message);
 }
@@ -225,7 +252,8 @@ class CommentWatcher {
       if (code === 0) {
         watch.quickFailures = 0;
         const out = jsonObject(stdout);
-        if (out && Array.isArray(out.threads) && out.threads.length > 0) this.deliver(session, out, root);
+        const came = (list) => Array.isArray(list) && list.length > 0;
+        if (out && (came(out.threads) || came(out.requests))) this.deliver(session, out, root);
         this.run(key, session, root, watch);
         return;
       }
@@ -244,7 +272,7 @@ class CommentWatcher {
       if (agent.status === "idle") agent.followup(message);
       else agent.inject(message);
     } catch (error) {
-      this.log("warn", `could not hand the comments to the agent: ${error.message}`);
+      this.log("warn", `could not hand the comments or requests to the agent: ${error.message}`);
     }
   }
   dropGoneSessions() {

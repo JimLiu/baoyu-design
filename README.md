@@ -80,18 +80,17 @@ A dashboard is written through the same script (`write-db`, `read-db`, `upload`,
 
 The four editor skills also come as [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) plugins, in [`dsh-plugins/`](dsh-plugins/): `dsh-claude-slides`, `dsh-claude-design`, `dsh-claude-design-system` and `dsh-claude-dashboard`. Each plugin carries its skill exactly as this repo publishes it, prebuilt editor included, so Claude Design and the other editors run on your DeepSeek agent.
 
-In the slides, canvas and design-system editors, a comment goes straight to the agent: whenever the agent gives you an editor link, the plugin has it wait for comments in a background job. Mark up the page, tick **Send to agent**, and the agent wakes up, reads your comment, makes the change and replies in the comment thread.
+In the slides, canvas and design-system editors, a comment goes straight to the agent: whenever the agent opens an editor, the plugin waits for comments. Mark up the page, tick **Send to agent**, and the agent wakes up, reads your comment, makes the change and replies in the comment thread. The comment also shows in the chat as a card.
 
-To install one:
+The plugins are on npm under these names. To install one:
 
-1. Get the repo: `git clone https://github.com/JimLiu/baoyu-design` (or download it).
-2. In the DeepSeek Harness app, open **Plugins** → install, and enter the absolute path of a plugin folder, such as `…/baoyu-design/dsh-plugins/dsh-claude-design`. From the command line, for a CLI profile such as `web`:
+1. In the DeepSeek Harness app, open **Plugins** → **Add plugin**, enter a plugin's name, such as `dsh-claude-design`, and click **Install**. From the command line, for a CLI profile such as `web`:
 
    ```bash
-   dsh plugin --profile web add /absolute/path/to/baoyu-design/dsh-plugins/dsh-claude-design
+   dsh plugin --profile web add dsh-claude-design
    ```
 
-3. Start a new session and ask for a deck, a canvas, a design system or a dashboard, or type `/claude-design` (`/claude-slides` and so on).
+2. Quit and reopen the app, then start a new session and ask for a deck, a canvas, a design system or a dashboard, or type `/claude-design` (`/claude-slides` and so on).
 
 A workspace that has its own copy of a skill (in `.agents/skills/` or `.dsh/skills/`) uses that copy instead of the plugin's. Step by step, with updating, uninstalling and what to do when something doesn't work: [`dsh-plugins/`](dsh-plugins/README.md).
 

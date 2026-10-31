@@ -7,15 +7,19 @@ dashboard editor, with a Sources panel that shows where every number comes from.
 
 ## Install
 
-In the DeepSeek Harness app: **Plugins** → install → enter this package's folder (an absolute path) or its tarball.
-From the command line, for a CLI profile such as `web`:
+In the DeepSeek Harness desktop app: **Plugins** → **Add plugin** → enter `dsh-claude-dashboard` in **Package name or
+address** → **Install**, and turn the plugin on. From the command line, for a CLI profile such as `web`:
 
 ```sh
-dsh plugin --profile web add /absolute/path/to/dsh-claude-dashboard
+dsh plugin --profile web add dsh-claude-dashboard
 ```
 
 Then start a new session and ask for a dashboard, or type `/claude-dashboard`. A workspace that has its own
 `claude-dashboard` skill (in `.agents/skills/` or `.dsh/skills/`) uses that copy instead of this plugin's.
+
+To update, uninstall the plugin, install it again, and quit and reopen the app. For a day after a release the app's
+package manager (pnpm) still picks the previous version; to get the new one sooner, enter the name with the version,
+such as `dsh-claude-dashboard@2.4.0`.
 
 ## What is inside
 

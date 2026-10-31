@@ -19,35 +19,27 @@ else to install.
 
 ## Install
 
-1. **Download this repository** and keep it somewhere it can stay. Clone it:
+1. **Open the Plugins page.** Click **Plugins** in the left sidebar, then **Add plugin** at the top right.
+2. **Enter the plugin's name** in **Package name or address**, for example `dsh-claude-slides`, and click **Install**.
+   The names are in the table above. The app downloads the plugin from npm, or from the npmmirror registry when npm is
+   out of reach.
+3. **Turn it on.** The plugin now shows in the list. If its switch is off, turn it on.
+4. **Quit and reopen the app.** The chat shows comments sent to the agent as cards only after a restart.
 
-   ```bash
-   git clone https://github.com/JimLiu/baoyu-design.git
-   ```
-
-   or, on the repository's GitHub page, click **Code** → **Download ZIP** and unzip it. The app does not copy a plugin:
-   it uses the folder where it is. If you move or delete the folder, the plugin stops working.
-
-2. **Copy the full path of the plugin's folder**, for example
-   `/Users/you/baoyu-design/dsh-plugins/dsh-claude-slides`. It must be the plugin's own folder (the one with
-   `package.json` in it), not `dsh-plugins/` or the repository.
-   - macOS: select the folder in Finder, hold **Option**, right-click it, and choose **Copy "…" as Pathname**.
-   - Windows: hold **Shift**, right-click the folder, choose **Copy as path**, and remove the quotes around it.
-
-3. **Add it in the app.** Click **Plugins** in the left sidebar, then **Add plugin** at the top right. Paste the path
-   into **Package name or address** and click **Install**.
-
-4. **Turn it on.** The plugin now shows in the list. If its switch is off, turn it on.
-
-Repeat steps 2 to 4 for each plugin you want.
+To install several plugins, repeat steps 1 to 3 for each, then restart once.
 
 **Command line.** To install into a CLI profile, such as `web`:
 
 ```bash
-dsh plugin --profile web add /absolute/path/to/baoyu-design/dsh-plugins/dsh-claude-slides
+dsh plugin --profile web add dsh-claude-slides
 ```
 
 The desktop app's own profile only accepts plugins added from its Plugins page.
+
+**From a folder.** You can also install from a copy of this repository: clone it (or download the ZIP and unzip it),
+and in step 2 enter the full path of the plugin's own folder, the one with `package.json` in it, such as
+`/Users/you/baoyu-design/dsh-plugins/dsh-claude-slides`. The app uses that folder where it is, so don't move or delete
+it.
 
 ## Use
 
@@ -73,11 +65,19 @@ again. It starts the editor and gives you a new link.
 
 ## Update
 
-Get the new version into the same folder, with `git pull` in the repository, or download the ZIP again and unzip it over
-the old one. Then quit and reopen the app, and start a new session. Turning the plugin off and on in the Plugins page
-is not enough when the new version changes what the chat shows, such as the comment cards.
+The app doesn't update these plugins by itself. To get a new version:
 
-If the new copy is in a different folder, uninstall the plugin and add it again with the new path.
+1. On the Plugins page, open the plugin and click **Uninstall**. The decks, designs and dashboards you made stay in their
+   workspace folders.
+2. Add it again by name, as in [Install](#install).
+3. Quit and reopen the app, and start a new session.
+
+For a day after a release, adding a plugin by name still gets the previous version: the app's package manager (pnpm)
+holds new releases back for 24 hours. To get the new one sooner, enter the name with the version, such as
+`dsh-claude-slides@2.4.0`. The versions are in the [changelog](../CHANGELOG.md).
+
+A plugin added from a folder: get the new version into the same folder, with `git pull` in the repository or by
+unzipping the new ZIP over the old one, then quit and reopen the app and start a new session.
 
 ## Uninstall
 
@@ -90,8 +90,11 @@ workspace folders.
   session.
 - **The agent follows different instructions.** If the workspace has its own copy of the skill, in `.agents/skills/` or
   `.dsh/skills/`, the agent uses that copy instead of the plugin's.
-- **Installing fails.** Check that the path is complete (it starts with `/`, or a drive letter on Windows) and that it
-  points to the plugin's own folder, the one with `package.json` in it.
+- **Installing fails.** Check the name against the table above. The install dialog shows the error and which registry
+  the app asked; if neither npm nor npmmirror can be reached, check your network or proxy. For a folder, check that the
+  path is complete (it starts with `/`, or a drive letter on Windows) and that it points to the plugin's own folder, the
+  one with `package.json` in it.
+- **The app says the plugin is already installed.** To install it again, for example to update it, uninstall it first.
 - **The link doesn't load, or Send to agent is missing.** This happens after the app restarts, for example. Ask the
   agent to open the editor again. That starts the editor and the wait for comments again.
 

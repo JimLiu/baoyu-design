@@ -80,18 +80,17 @@ node skills/claude-slides/scripts/artifact.mjs list                             
 
 四个编辑器技能也做成了 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 插件，放在 [`dsh-plugins/`](dsh-plugins/)：`dsh-claude-slides`、`dsh-claude-design`、`dsh-claude-design-system` 和 `dsh-claude-dashboard`。每个插件带着本仓库发布的那份技能，连同预先构建好的编辑器，让 Claude Design 这几个编辑器跑在你的 DeepSeek Agent 上。
 
-幻灯片、画布和设计系统编辑器里的评论可以直接交给 Agent：Agent 每次把编辑器链接给你时，插件都会让它在后台任务里等评论。在页面上标注，勾选 **Send to agent**，Agent 就会醒来，读你的评论，改好页面，再在评论串里回复你。
+幻灯片、画布和设计系统编辑器里的评论可以直接交给 Agent：Agent 每次打开编辑器，插件都会开始等评论。在页面上标注，勾选 **Send to agent**，Agent 就会醒来，读你的评论，改好页面，再在评论串里回复你。评论也会以卡片的形式出现在对话里。
 
-安装方法：
+这几个插件都发布在 npm 上，名字就是上面这些。安装方法：
 
-1. 拿到仓库：`git clone https://github.com/JimLiu/baoyu-design`（或者直接下载）。
-2. 在 DeepSeek Harness 应用里打开 **Plugins** → 安装，填插件文件夹的绝对路径，比如 `…/baoyu-design/dsh-plugins/dsh-claude-design`。用命令行给某个 CLI profile（比如 `web`）安装：
+1. 在 DeepSeek Harness 应用里打开 **Plugins** → **Add plugin**，填插件名，比如 `dsh-claude-design`，点 **Install**。用命令行给某个 CLI profile（比如 `web`）安装：
 
    ```bash
-   dsh plugin --profile web add /absolute/path/to/baoyu-design/dsh-plugins/dsh-claude-design
+   dsh plugin --profile web add dsh-claude-design
    ```
 
-3. 新开一个会话，直接说要幻灯片、画布、设计系统或仪表盘，或者输入 `/claude-design`（`/claude-slides` 等）。
+2. 退出应用再重新打开，然后新开一个会话，直接说要幻灯片、画布、设计系统或仪表盘，或者输入 `/claude-design`（`/claude-slides` 等）。
 
 工作区里如果有自己的同名技能（在 `.agents/skills/` 或 `.dsh/skills/` 下），会用那一份，不用插件里的。一步一步的安装、使用、更新、卸载和常见问题，见 [`dsh-plugins/`](dsh-plugins/README.zh-CN.md)。
 

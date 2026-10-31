@@ -69,6 +69,16 @@ var readEdit = readReply;
 function readStatus(body) {
   return isRecord(body) && (body.status === "open" || body.status === "resolved") ? body.status : null;
 }
+function readAgentRequest(body) {
+  if (!isRecord(body)) return null;
+  const text = cleanText(body.text);
+  if (text === null) return null;
+  if (body.label !== void 0 && !isText(body.label, LIMITS.label)) return null;
+  if (body.selection !== void 0 && !isText(body.selection, LIMITS.detail)) return null;
+  const label = typeof body.label === "string" ? body.label.trim() : "";
+  const selection = typeof body.selection === "string" ? body.selection.trim() : "";
+  return { text, ...label ? { label } : {}, ...selection ? { selection } : {} };
+}
 function parseDoc(text) {
   const data = JSON.parse(text);
   if (!isRecord(data) || data.version !== COMMENTS_VERSION || !Array.isArray(data.threads)) {
@@ -263,6 +273,7 @@ async function updateComments(root, change) {
 
 var AGENT_GRACE_MS = 6e4;
 var AGENT_BUSY_MS = 30 * 6e4;
+var REQUEST_TTL_MS = 30 * 6e4;
 var WAIT_DEFAULT_S = 300;
 var WAIT_MAX_S = 3600;
 var PRESENCE_CHECK_MS = 5e3;
@@ -325,6 +336,7 @@ function createCommentsService(options) {
   const clients = /* @__PURE__ */ new Set();
   const waiters = [];
   const hookRunning = /* @__PURE__ */ new Set();
+  const requests = [];
   let lastDoc = emptyDoc();
   let lastWaitEnded = 0;
   let lastSent = "";
@@ -376,8 +388,16 @@ data: ${JSON.stringify(snap)}
     if (!waiter.response.writableEnded) sendJson(waiter.response, 200, body);
     lastWaitEnded = Date.now();
   }
+  function dropStaleRequests() {
+    const oldest = Date.now() - REQUEST_TTL_MS;
+    while (requests.length > 0 && Date.parse(requests[0].sentAt) < oldest) {
+      const dropped = requests.shift();
+      log(`comments: dropped request ${dropped.id}: no agent took it in ${REQUEST_TTL_MS / 6e4} minutes`);
+    }
+  }
   async function deliver() {
     if (closed) return;
+    dropStaleRequests();
     const waiter = waiters[0];
     if (waiter) {
       const views = await updateComments(root, (doc) => {
@@ -386,15 +406,19 @@ data: ${JSON.stringify(snap)}
         for (const t of pending) markDelivered(t, at, "wait");
         return agentViews(doc, pending);
       });
-      if (views.length === 0) return;
+      const handed = requests.splice(0);
+      if (views.length === 0 && handed.length === 0) return;
       if (waiter.done) {
-        await updateComments(root, (doc) => {
-          for (const t of doc.threads) if (views.some((v) => v.id === t.id) && t.agent?.via === "wait") t.agent = { status: "pending", sentAt: t.agent.sentAt };
-        });
+        requests.unshift(...handed);
+        if (views.length > 0) {
+          await updateComments(root, (doc) => {
+            for (const t of doc.threads) if (views.some((v) => v.id === t.id) && t.agent?.via === "wait") t.agent = { status: "pending", sentAt: t.agent.sentAt };
+          });
+        }
         return;
       }
-      finishWaiter(waiter, { threads: views });
-      log(`comments: sent to the agent (wait): ${views.map((v) => v.id).join(", ")}`);
+      finishWaiter(waiter, { threads: views, ...handed.length > 0 ? { requests: handed } : {} });
+      log(`comments: sent to the agent (wait): ${[...views, ...handed].map((v) => v.id).join(", ")}`);
       await broadcast();
       return;
     }
@@ -437,6 +461,38 @@ data: ${JSON.stringify(snap)}
           log(`comments: sent to the agent (hook): ${thread.id}`);
           return broadcast();
         }).catch((error) => log(`comments: ${error.message}`));
+      });
+    }
+    for (const request of requests.splice(0)) {
+      hookRunning.add(request.id);
+      const child = spawn(command, {
+        shell: true,
+        cwd: root,
+        stdio: ["pipe", "ignore", "pipe"],
+        env: { ...process.env, ARTIFACT_ROOT: root, REQUEST_ID: request.id, COMMENTS_FILE: commentsPath(root) }
+      });
+      let stderr = "";
+      child.stderr?.on("data", (chunk) => {
+        stderr = (stderr + chunk.toString("utf8")).slice(-2e3);
+      });
+      child.stdin?.on("error", () => {
+      });
+      child.stdin?.end(`${JSON.stringify({ request })}
+`);
+      let settled = false;
+      const failed = (why) => {
+        if (settled) return;
+        settled = true;
+        hookRunning.delete(request.id);
+        requests.unshift(request);
+        log(`comments: the agent hook ${why} for ${request.id}; the request stays waiting${stderr ? `: ${stderr.trim()}` : ""}`);
+      };
+      child.on("error", (error) => failed(`failed to start (${error.message})`));
+      child.on("exit", (code) => {
+        if (code !== 0) return failed(`exited with ${code}`);
+        settled = true;
+        hookRunning.delete(request.id);
+        log(`comments: sent to the agent (hook): ${request.id}`);
       });
     }
   }
@@ -488,6 +544,16 @@ data: ${JSON.stringify(snap)}
     log(`comments: ${created.id} added on ${created.label}${location.file ? ` (${location.file})` : ""}${input.send ? ", sent to the agent" : ""}`);
     sendJson(response, 201, { thread: created });
     await afterChange(Boolean(input.send));
+  }
+  async function ask(request, response) {
+    const input = readAgentRequest(await readJson(request));
+    if (!input) throw new CommentsError("INVALID_REQUEST", "expected {text} with a non-empty text");
+    if (!presence().available) throw new CommentsError("AGENT_UNAVAILABLE", "no agent is waiting: copy the request for the chat instead", 409);
+    const queued = { id: newId("r"), ...input, sentAt: now() };
+    requests.push(queued);
+    log(`comments: request ${queued.id}${input.label ? ` (${input.label})` : ""} for the agent`);
+    sendJson(response, 202, { request: queued });
+    await deliver();
   }
   async function events(request, response) {
     response.writeHead(200, {
@@ -541,6 +607,8 @@ data: ${JSON.stringify(snap)}
         if (reading) return await events(request, response);
       } else if (parts.length === 2 && parts[0] === "agent" && parts[1] === "wait") {
         if (reading) return await wait(request, response, url);
+      } else if (parts.length === 2 && parts[0] === "agent" && parts[1] === "requests") {
+        if (method === "POST") return await ask(request, response);
       } else if (parts.length === 1) {
         const id = parts[0];
         if (method === "PATCH") {

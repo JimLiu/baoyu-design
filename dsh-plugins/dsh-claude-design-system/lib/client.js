@@ -1,4 +1,4 @@
-// dsh-claude-design-system 2.3.0: built from baoyu-design.
+// dsh-claude-design-system 2.4.0: built from baoyu-design.
 window.__ModuleLoader__.load({
 	id: "dsh-claude-design-system",
 	factory: (require) => {
@@ -40,12 +40,14 @@ window.__ModuleLoader__.load({
 		var NS = CLIENT.key;
 		var zh = {
 		  "card.title": "已将对“{title}”的评论发给 Agent",
+		  "card.request": "已将“{title}”上的 {label} 发给 Agent",
 		  "card.view": "查看评论",
 		  "card.more": "显示位置",
 		  "card.less": "收起位置"
 		};
 		var en = {
 		  "card.title": "Comment on “{title}” sent to agent",
+		  "card.request": "{label} on “{title}” sent to agent",
 		  "card.view": "View thread",
 		  "card.more": "Show where",
 		  "card.less": "Hide where"
@@ -59,10 +61,12 @@ window.__ModuleLoader__.load({
 		function cardData(event) {
 		  const source = event.data?.source ?? {};
 		  const threads = Array.isArray(source.threads) ? source.threads : [];
+		  const requests = Array.isArray(source.requests) ? source.requests : [];
 		  return {
 		    title: str(source.title),
 		    url: str(source.url),
 		    threads: threads.map((t) => ({ id: str(t.id), where: str(t.where), text: str(t.text) })).filter((t) => t.id),
+		    requests: requests.map((r) => ({ id: str(r.id), label: str(r.label), text: str(r.text) })).filter((r) => r.id && r.text),
 		    seq: event.seq
 		  };
 		}
@@ -128,6 +132,12 @@ window.__ModuleLoader__.load({
 		    }
 		  ) });
 		}
+		function RequestIcon() {
+		  return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("svg", { width: "14", height: "14", viewBox: "0 0 16 16", fill: "none", "aria-hidden": "true", style: iconStyle, children: [
+		    /* @__PURE__ */ (0, import_jsx_runtime.jsx)("rect", { x: "2", y: "4", width: "12", height: "7", rx: "2", stroke: "currentColor", strokeWidth: "1.2" }),
+		    /* @__PURE__ */ (0, import_jsx_runtime.jsx)("path", { d: "M8.5 8.5 11 14l.9-2.1L14 11l-5.5-2.5Z", fill: "currentColor", stroke: "var(--dsw-alias-markdown-code-block, #fff)", strokeWidth: "0.8", strokeLinejoin: "round" })
+		  ] });
+		}
 		function ChevronDown() {
 		  return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("svg", { width: "12", height: "12", viewBox: "0 0 12 12", fill: "none", "aria-hidden": "true", style: iconStyle, children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("path", { d: "M3 4.5 6 7.5l3-3", stroke: "currentColor", strokeWidth: "1.3", strokeLinecap: "round", strokeLinejoin: "round" }) });
 		}
@@ -137,17 +147,11 @@ window.__ModuleLoader__.load({
 		function Card({ title, thread, url, t, openThread }) {
 		  const [open, setOpen] = (0, import_react.useState)(true);
 		  const heading = t("card.title", { title });
-		  const split = t("card.title", { title: TITLE_MARK }).split(TITLE_MARK);
-		  const parts = split.length === 2 ? split : void 0;
 		  const meta = !CLIENT.simple && (thread.where || url);
 		  return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "bdc-card", "data-comment-id": thread.id, children: [
 		    /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "bdc-head", children: [
 		      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CommentIcon, {}),
-		      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "bdc-head-text", title: heading, children: parts ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
-		        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: parts[0] }),
-		        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "bdc-head-title", children: title }),
-		        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: parts[1] })
-		      ] }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "bdc-head-title", children: heading }) }),
+		      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Heading, { text: heading, title, parts: t("card.title", { title: TITLE_MARK }).split(TITLE_MARK) }),
 		      meta && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { type: "button", className: "bdc-toggle", "aria-expanded": open, "aria-label": t(open ? "card.less" : "card.more"), onClick: () => setOpen(!open), children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ChevronDown, {}) })
 		    ] }),
 		    /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "bdc-body", children: thread.text }),
@@ -160,9 +164,30 @@ window.__ModuleLoader__.load({
 		    ] })
 		  ] });
 		}
+		function Heading({ text, title, parts }) {
+		  return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "bdc-head-text", title: text, children: parts.length === 2 ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+		    /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: parts[0] }),
+		    /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "bdc-head-title", children: title }),
+		    /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: parts[1] })
+		  ] }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "bdc-head-title", children: text }) });
+		}
+		function RequestCardView({ title, request, t }) {
+		  const label = request.label || "Request";
+		  const heading = t("card.request", { title, label });
+		  return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "bdc-card", "data-request-id": request.id, children: [
+		    /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "bdc-head", children: [
+		      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(RequestIcon, {}),
+		      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Heading, { text: heading, title, parts: t("card.request", { title: TITLE_MARK, label }).split(TITLE_MARK) })
+		    ] }),
+		    /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "bdc-body", children: request.text })
+		  ] });
+		}
 		function CommentCards({ node, t, openThread }) {
-		  const { title, url, threads } = node.data;
-		  return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "bdc-row", children: threads.map((thread) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Card, { title, thread, url, t, openThread }, thread.id)) });
+		  const { title, url, threads, requests } = node.data;
+		  return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "bdc-row", children: [
+		    threads.map((thread) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Card, { title, thread, url, t, openThread }, thread.id)),
+		    (requests ?? []).map((request) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(RequestCardView, { title, request, t }, request.id))
+		  ] });
 		}
 		var inject = ["slots", "locale", "uiConversation"];
 		function threadUrl(url, id) {

@@ -14,8 +14,9 @@ a local design-system page and gives you its link. claude-slides and claude-desi
   same files, and the agent's changes show up in the page as it writes them.
 - Comment on a token, color, type style, component, asset or section (Comment, or C). Tick **Send to agent** and the
   agent picks it up at once, even when the conversation is idle: it changes the system and replies in the comment. The
-  box is there while the agent waits for comments, which it starts each time it gives you the link (a background job
-  in the conversation). After restarting the app, ask the agent to open the system again to bring it back.
+  comment also shows in the chat as a card; **View thread** on the card opens it in the page. The box is there while
+  comments can reach the agent, which starts each time it gives you the link. After restarting the app, ask the agent
+  to open the system again to bring it back.
 - To change a system later, ask the agent to revise the folder that holds its `project/design-system.json`.
 - A workspace that has its own `claude-design-system` skill (in `.agents/skills/` or `.dsh/skills/`) uses that copy
   instead of this plugin's.

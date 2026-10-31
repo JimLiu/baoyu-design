@@ -15,31 +15,22 @@
 
 ## 安装
 
-1. **下载本仓库**，放在一个不会挪动的地方。可以克隆：
+1. **打开插件页。** 点左侧栏的 **Plugins**（插件），再点右上角的 **Add plugin**。
+2. **填插件名。** 在 **Package name or address** 一栏填插件名，比如 `dsh-claude-slides`，点 **Install**。插件名见上面的表格。应用会从 npm 下载插件，连不上 npm 时改从 npmmirror 镜像下载。
+3. **打开开关。** 插件会出现在列表里，开关没开就打开。
+4. **退出应用再重新打开。** 重启以后，发给 Agent 的评论才会以卡片的形式出现在对话里。
 
-   ```bash
-   git clone https://github.com/JimLiu/baoyu-design.git
-   ```
-
-   也可以在仓库的 GitHub 页面点 **Code** → **Download ZIP**，下载后解压。应用不会复制插件，而是直接使用插件所在的文件夹，所以文件夹挪走或删掉，插件就用不了了。
-
-2. **复制插件文件夹的完整路径**，比如 `/Users/you/baoyu-design/dsh-plugins/dsh-claude-slides`。要复制的是插件自己的文件夹（里面有 `package.json` 的那个），不是 `dsh-plugins/`，也不是整个仓库。
-   - macOS：在访达里选中文件夹，按住 **Option** 键右键，选「将"…"拷贝为路径名称」。
-   - Windows：按住 **Shift** 键右键文件夹，选「复制为路径」，再去掉两边的引号。
-
-3. **在应用里添加。** 点左侧栏的 **Plugins**（插件），再点右上角的 **Add plugin**，把路径粘贴到 **Package name or address** 一栏，点 **Install**。
-
-4. **打开开关。** 插件会出现在列表里，开关没开就打开。
-
-想装几个插件，就把第 2 到 4 步做几遍。
+想装几个插件，就把第 1 到 3 步做几遍，最后重启一次。
 
 **命令行安装。** 装到某个 CLI profile（比如 `web`）：
 
 ```bash
-dsh plugin --profile web add /absolute/path/to/baoyu-design/dsh-plugins/dsh-claude-slides
+dsh plugin --profile web add dsh-claude-slides
 ```
 
 桌面版自己的 profile 只接受从插件页添加的插件。
+
+**从文件夹安装。** 也可以从本仓库的副本安装：克隆仓库（或者下载 ZIP 解压），第 2 步填插件自己文件夹（里面有 `package.json` 的那个）的完整路径，比如 `/Users/you/baoyu-design/dsh-plugins/dsh-claude-slides`。应用直接使用这个文件夹，不会复制，所以文件夹不要挪走或删掉。
 
 ## 使用
 
@@ -55,9 +46,15 @@ dsh plugin --profile web add /absolute/path/to/baoyu-design/dsh-plugins/dsh-clau
 
 ## 更新
 
-把新版本放到同一个文件夹：在仓库里 `git pull`，或者重新下载 ZIP 解压覆盖旧的。然后退出应用再重新打开，再新开一个会话。只在插件页把插件关掉再打开不够：新版本改了对话里显示的内容（比如评论卡片）时，要重启应用才会生效。
+应用不会自己更新这些插件。要装新版本：
 
-如果新版本放在了别的文件夹，先卸载插件，再用新路径重新添加。
+1. 在插件页打开这个插件，点 **Uninstall**。你做好的幻灯片、设计稿和看板还留在各自的工作区文件夹里。
+2. 按[安装](#安装)的步骤，用插件名重新添加。
+3. 退出应用再重新打开，再新开一个会话。
+
+新版本发布后的一天之内，用插件名添加装到的还是上一版：应用用的包管理器 pnpm 会把新发布的版本压 24 小时。想马上用新版本，就连版本号一起填，比如 `dsh-claude-slides@2.4.0`。各版本见[更新日志](../CHANGELOG.zh.md)。
+
+从文件夹安装的插件：把新版本放到同一个文件夹（在仓库里 `git pull`，或者重新下载 ZIP 解压覆盖旧的），然后退出应用再重新打开，再新开一个会话。
 
 ## 卸载
 
@@ -67,7 +64,8 @@ dsh plugin --profile web add /absolute/path/to/baoyu-design/dsh-plugins/dsh-clau
 
 - **输入 `/` 后找不到这个技能。** 到插件页确认插件已经打开，再新开一个会话。
 - **Agent 的做法和插件说的不一样。** 如果工作区里有同名技能的副本（在 `.agents/skills/` 或 `.dsh/skills/` 下），Agent 会用那一份，而不是插件里的。
-- **安装失败。** 检查路径是不是完整的（以 `/` 开头，Windows 上以盘符开头），是不是指向插件自己的文件夹，也就是里面有 `package.json` 的那个。
+- **安装失败。** 对照上面的表格检查插件名。安装对话框里会显示错误，以及应用问过哪个源；npm 和 npmmirror 都连不上时，检查网络或代理。从文件夹安装的，检查路径是不是完整的（以 `/` 开头，Windows 上以盘符开头），是不是指向插件自己的文件夹，也就是里面有 `package.json` 的那个。
+- **提示插件已经安装。** 要重新安装（比如为了更新），先卸载。
 - **链接打不开，或者没有 Send to agent。** 比如重启应用以后就会这样。让 Agent 再打开一次编辑器，编辑器和等评论都会重新启动。
 
 每个插件的文件夹里还有它自己的 README，介绍里面有什么。

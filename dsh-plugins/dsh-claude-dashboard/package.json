@@ -1,6 +1,6 @@
 {
   "name": "dsh-claude-dashboard",
-  "version": "2.3.0",
+  "version": "2.4.0",
   "description": "DeepSeek Harness plugin: the claude-dashboard skill from baoyu-design. The agent builds data-backed dashboards as files and opens them in a local dashboard editor.",
   "keywords": [
     "dsh",
