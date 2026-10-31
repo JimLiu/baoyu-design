@@ -1,0 +1,79 @@
+name: Publish DSH plugins
+
+# A version tag (v2.4.0) publishes every plugin in dsh-plugins/ to npm at that version.
+# The plugins are built elsewhere and committed here with the version of their build in package.json,
+# so a tag that the root package.json or a plugin does not match stops the run: rebuild and commit them first.
+# A version already on npm is skipped, so a run can be repeated.
+# npm trusted publishing: each package's settings on npmjs.com name this repository and this file.
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: publish-dsh-plugins
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish to npm
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+
+      - name: Check versions against the tag
+        run: |
+          if [ "$GITHUB_REF_TYPE" != "tag" ]; then
+            echo "::error::Run this workflow from a version tag, not the branch $GITHUB_REF_NAME."
+            exit 1
+          fi
+          version="${GITHUB_REF_NAME#v}"
+          root=$(node -p "require('./package.json').version")
+          if [ "$root" != "$version" ]; then
+            echo "::error::package.json is $root, the tag is $GITHUB_REF_NAME."
+            exit 1
+          fi
+          count=0
+          for dir in dsh-plugins/*/; do
+            [ -f "$dir/package.json" ] || continue
+            plugin=$(node -p "require('./${dir}package.json').version")
+            if [ "$plugin" != "$version" ]; then
+              echo "::error::${dir}package.json is $plugin, the tag is $GITHUB_REF_NAME. Rebuild the plugins at $version and commit them before tagging."
+              exit 1
+            fi
+            count=$((count + 1))
+          done
+          if [ "$count" -eq 0 ]; then
+            echo "::error::No plugin in dsh-plugins/."
+            exit 1
+          fi
+
+      - name: Publish
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          tag=latest
+          case "$version" in *-*) tag=next ;; esac
+          for dir in dsh-plugins/*/; do
+            [ -f "$dir/package.json" ] || continue
+            name=$(node -p "require('./${dir}package.json').name")
+            # Asked without npm: setup-node gives npm a placeholder token, and the registry refuses even reads with it.
+            if curl -fsS -o /dev/null "https://registry.npmjs.org/$name/$version" 2>/dev/null; then
+              echo "$name@$version is already on npm."
+              continue
+            fi
+            (cd "$dir" && npm publish --provenance --access public --tag "$tag")
+          done
