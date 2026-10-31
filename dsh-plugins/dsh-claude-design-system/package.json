@@ -1,6 +1,6 @@
 {
   "name": "dsh-claude-design-system",
-  "version": "2.4.0",
+  "version": "2.4.1",
   "description": "DeepSeek Harness plugin: the claude-design-system skill from baoyu-design. The agent writes design systems (tokens, type, components, assets) as files and opens them in a local design-system page.",
   "keywords": [
     "dsh",

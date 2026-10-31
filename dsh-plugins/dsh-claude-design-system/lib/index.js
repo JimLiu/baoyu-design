@@ -1,4 +1,4 @@
-// dsh-claude-design-system 2.4.0: built from baoyu-design.
+// dsh-claude-design-system 2.4.1: built from baoyu-design.
 var define_PLUGIN_default = { name: "claude-design-system", provider: "dsh-claude-design-system", skills: [{ name: "claude-design-system", description: "Create and revise design systems in the Design System artifact format (project/design-system.json, tokens.json, a README brand book, component previews, fonts and asset groups) as local files, then open them in a local design-system page where the user can browse and edit tokens, type, components and assets. Use when the user asks for a design system or brand kit in this format, built from a code repository, a design tool or scratch, names claude-design-system or the Design System type, or wants to revise a folder that holds project/design-system.json. claude-slides and claude-design install these systems. A free-form HTML style guide, UI kit or token page is baoyu-design's.", comments: true }] };
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";

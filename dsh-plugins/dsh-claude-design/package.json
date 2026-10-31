@@ -1,6 +1,6 @@
 {
   "name": "dsh-claude-design",
-  "version": "2.4.0",
+  "version": "2.4.1",
   "description": "DeepSeek Harness plugin: the claude-design skill from baoyu-design. The agent writes canvases of artboards as files and opens them in a local canvas editor.",
   "keywords": [
     "dsh",

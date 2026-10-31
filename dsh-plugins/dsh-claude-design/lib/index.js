@@ -1,4 +1,4 @@
-// dsh-claude-design 2.4.0: built from baoyu-design.
+// dsh-claude-design 2.4.1: built from baoyu-design.
 var define_PLUGIN_default = { name: "claude-design", provider: "dsh-claude-design", skills: [{ name: "claude-design", description: "Make and revise designs in the Design (canvas) artifact format (project/canvas.json plus one .dc.html Design Component file per artboard) as local files, then open them in a local canvas editor where the user can view the artboards side by side, retype copy and adjust tweaks. Use when the user asks for an editable canvas of artboards in this format, names claude-design or the Design (canvas) type, or wants to revise a folder that holds project/canvas.json. A one-off HTML prototype or design exploration outside this format is baoyu-design's.", comments: true }] };
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";

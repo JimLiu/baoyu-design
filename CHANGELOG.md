@@ -4,6 +4,21 @@ English | [中文](./CHANGELOG.zh.md)
 
 All notable changes to `baoyu-design` are tracked in this file.
 
+## 2.4.1 - 2026-10-31
+
+### Features
+- `claude-dashboard`: comment on a chart, a number, a table or any part of the page, and tick **Send to agent**. New `comments`, `comment-reply` and `comment-resolve` commands; `comments --wait` prints the page's address and title. The `dsh-claude-dashboard` plugin waits for comments and shows a sent comment as a card in the chat.
+- `claude-slides`, `claude-design` and `claude-design-system`: on a page opened on its own, the comments button sits in the top-right toolbar.
+- The editors use claude.ai's current icon set.
+- DeepSeek Harness: a plugin market index for the **Discover** tab, at `https://jimliu.github.io/baoyu-design/dsh-plugins/index.json`, rebuilt after each release.
+
+### Fixes
+- `claude-dashboard`: the editor ships the licenses of its open-source packages in `scripts/editor/third-party-licenses.txt`, like the other editors.
+
+### Documentation
+- New `NOTICE.md` sets out the license of each part. The MIT License covers only the maintainer's own work. The material from Anthropic (skill text and references adapted from the Artifact types, `dataviz`, the editors reconstructed from claude.ai, the Anthropicons icon fonts, and the Claude Design prompt, built-in skills and starter components in `archive/`) stays Anthropic's and is not under MIT; the archived `frontend-design` skill is Apache 2.0, with its license beside it. Open-source code keeps its own licenses. `LICENSE`, the READMEs and every `SKILL.md` point to it, and the DeepSeek Harness plugins now ship it (`"license": "SEE LICENSE IN LICENSE"`).
+- The READMEs cover installing the DeepSeek Harness plugins from npm and from **Discover**.
+
 ## 2.4.0 - 2026-10-30
 
 ### Features

@@ -1,6 +1,6 @@
 {
   "name": "baoyu-design",
-  "version": "2.4.0",
+  "version": "2.4.1",
   "private": true,
   "scripts": {
     "test": "node --test 'archive/baoyu-design/agents/tests/*.test.mjs'"
