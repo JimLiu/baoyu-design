@@ -8,6 +8,7 @@ description: >-
   code repository, a design tool or scratch, names claude-design-system or the Design System type, or
   wants to revise a folder that holds project/design-system.json. claude-slides and claude-design install
   these systems. A free-form HTML style guide, UI kit or token page is baoyu-design's.
+license: "Mixed. The skill text, references and editors adapted from Anthropic's claude.ai Artifact types stay Anthropic's and are not MIT-licensed; the local tooling is MIT. Complete terms in NOTICE.md: https://github.com/JimLiu/baoyu-design/blob/main/NOTICE.md"
 ---
 
 # Design System — a system kept in local files

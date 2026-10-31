@@ -9,7 +9,7 @@ https://github.com/user-attachments/assets/d5b4f39b-a701-49de-87b8-64f3c6ef9c61
 
 [English](README.md) · [简体中文](README.zh-CN.md) · [更新日志](CHANGELOG.zh.md)
 
-![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg) ![Best with Opus 5.5](https://img.shields.io/badge/Best%20with-Opus%205.5-d97757) ![Harness](https://img.shields.io/badge/Cursor%20%C2%B7%20Claude%20Code%20%C2%B7%20Codex-supported-1f6feb)
+[![许可：自有代码 MIT，详见 NOTICE](https://img.shields.io/badge/License-MIT%20for%20own%20code%20%C2%B7%20see%20NOTICE-blue.svg)](NOTICE.md) ![Best with Opus 5.5](https://img.shields.io/badge/Best%20with-Opus%205.5-d97757) ![Harness](https://img.shields.io/badge/Cursor%20%C2%B7%20Claude%20Code%20%C2%B7%20Codex-supported-1f6feb)
 
 本仓库把 claude.ai 的 **Artifact 类型**搬到本地 Agent 上：可编辑的幻灯片、设计画布、设计系统和数据仪表盘，每一种都用它自己的编辑器打开，编辑器就运行在你的电脑上。第五个技能 `dataviz` 是一份图表指南：Agent 在画任何图表之前先读它，不管是在这几个技能里还是别处。四个编辑器也做成了 [DeepSeek Harness 插件](#deepseek-harness-插件)，按包名从 npm 安装。
 
@@ -203,4 +203,10 @@ Agent 会 clone 或抓取该仓库、加载 `SKILL.md` 然后开干 —— 临�
 
 本项目把 **Anthropic** 出品的 claude.ai Artifact 类型和设计技能重新打包，使其得以在本地 Agent 上运行。这是一个独立的社区项目，与 Anthropic 无隶属或背书关系。
 
-由 **Jim Liu 宝玉** 重新打包并维护。基于 [MIT 许可证](LICENSE) 发布。
+由 **Jim Liu 宝玉** 重新打包并维护。仓库里的内容分三类，许可各不相同，详见 [NOTICE.md](NOTICE.md)：
+
+- **维护者自己写的部分**（本地命令行和编辑器服务器、本地评论、DeepSeek Harness 插件的代码、文档）基于 [MIT 许可证](LICENSE) 发布。
+- **取自 Anthropic 的部分**权利归 Anthropic，不适用 MIT 许可，本项目也不授予任何许可。包括改编自 Artifact 类型的技能说明和参考文档、`dataviz` 技能、从 claude.ai 还原的编辑器、Anthropicons 图标字体，以及 `archive/` 里的 Claude Design 系统提示词、内置技能和起步组件。归档的 `frontend-design` 内置技能取自 Anthropic 以 Apache 2.0 发布的技能，许可全文放在它旁边。
+- **第三方开源代码**（编辑器里打进去的开源包）各按原许可，清单在各编辑器的 `scripts/editor/third-party-licenses.txt`。
+
+npm 上的 DeepSeek Harness 插件也带着同样的 `LICENSE` 和 `NOTICE.md`。

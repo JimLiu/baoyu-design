@@ -38,4 +38,4 @@ The editor server listens on 127.0.0.1 only and reads and writes only the dashbo
 
 ## License
 
-MIT.
+Not all MIT. The plugin's own code and files (`lib/`, `cordis.patch.yml`, `locale/`, `docs/`, `icon.svg`) and the skill's local tooling are MIT, in `LICENSE`. The bundled `claude-dashboard` skill is adapted from Anthropic's claude.ai Dashboard type: its instructions, references, page and icon fonts stay Anthropic's and are not under the MIT License. `NOTICE.md` sets out which is which. The page's open-source licenses are in `skills/claude-dashboard/scripts/editor/third-party-licenses.txt`.

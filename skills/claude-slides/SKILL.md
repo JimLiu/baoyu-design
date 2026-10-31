@@ -6,6 +6,7 @@ description: >-
   retype, drag, and export PDF, HTML or PowerPoint. Use when the user asks for an editable slide
   deck or presentation in this format, names claude-slides or the Slides type, or wants to revise a
   folder that holds project/deck.json. A one-off single-file HTML deck or prototype is baoyu-design's.
+license: "Mixed. The skill text, references and editors adapted from Anthropic's claude.ai Artifact types stay Anthropic's and are not MIT-licensed; the local tooling is MIT. Complete terms in NOTICE.md: https://github.com/JimLiu/baoyu-design/blob/main/NOTICE.md"
 ---
 
 # Slides

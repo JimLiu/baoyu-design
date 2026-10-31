@@ -11,6 +11,7 @@ description: >-
   or protocol analysis, rendering-engine or Rust/WASM/backend implementation, and
   technical Markdown do not trigger it by themselves. In a larger task, load it
   when visual creation or editing begins.
+license: "Mixed. The Claude Design system prompt, built-in skills and starter components are Anthropic's and not MIT-licensed (frontend-design.md is Apache 2.0, see built-in-skills/LICENSE-frontend-design.txt); the maintainer's tools are MIT. Complete terms in NOTICE.md: https://github.com/JimLiu/baoyu-design/blob/main/NOTICE.md"
 ---
 
 # Design

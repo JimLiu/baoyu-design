@@ -39,4 +39,4 @@ The page's server listens on 127.0.0.1 only and reads and writes only the design
 
 ## License
 
-MIT. The page's third-party licenses are in `skills/claude-design-system/scripts/editor/third-party-licenses.txt`.
+Not all MIT. The plugin's own code and files (`lib/`, `cordis.patch.yml`, `locale/`, `docs/`, `icon.svg`) and the skill's local tooling are MIT, in `LICENSE`. The bundled `claude-design-system` skill is adapted from Anthropic's claude.ai Design System type: its instructions, references, page and icon fonts stay Anthropic's and are not under the MIT License. `NOTICE.md` sets out which is which. The page's open-source licenses are in `skills/claude-design-system/scripts/editor/third-party-licenses.txt`.

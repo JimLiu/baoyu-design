@@ -9,7 +9,7 @@ https://github.com/user-attachments/assets/d5b4f39b-a701-49de-87b8-64f3c6ef9c61
 
 [English](README.md) · [简体中文](README.zh-CN.md) · [Changelog](CHANGELOG.md)
 
-![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg) ![Best with Opus 5.5](https://img.shields.io/badge/Best%20with-Opus%205.5-d97757) ![Harness](https://img.shields.io/badge/Cursor%20%C2%B7%20Claude%20Code%20%C2%B7%20Codex-supported-1f6feb)
+[![License: MIT for own code, see NOTICE](https://img.shields.io/badge/License-MIT%20for%20own%20code%20%C2%B7%20see%20NOTICE-blue.svg)](NOTICE.md) ![Best with Opus 5.5](https://img.shields.io/badge/Best%20with-Opus%205.5-d97757) ![Harness](https://img.shields.io/badge/Cursor%20%C2%B7%20Claude%20Code%20%C2%B7%20Codex-supported-1f6feb)
 
 This repo brings claude.ai's **Artifact types** to local agents: editable slide decks, design canvases, design systems and data dashboards, each opened in its own editor that runs on your machine. A fifth skill, `dataviz`, is the chart guide the agent reads before it draws any chart, in these skills or anywhere else. The four editors also ship as [DeepSeek Harness plugins](#deepseek-harness-plugins), installed from npm by name.
 
@@ -203,4 +203,10 @@ For best results, **give it design context** — a screenshot, a UI kit, a desig
 
 This project repackages **Anthropic**'s claude.ai Artifact types and design skills so they can run on local agents. It is an independent, community effort and is not affiliated with or endorsed by Anthropic.
 
-Repackaged and maintained by **Jim Liu 宝玉**. Released under the [MIT License](LICENSE).
+Repackaged and maintained by **Jim Liu 宝玉**. The repository holds material under three sets of terms, set out in [NOTICE.md](NOTICE.md):
+
+- **The maintainer's own work** (the local command line and editor server, the local comments, the DeepSeek Harness plugin code, the docs) is under the [MIT License](LICENSE).
+- **Material from Anthropic** stays Anthropic's and is not under the MIT License; this project grants no license to it. That covers the skill instructions and reference docs adapted from the Artifact types, the `dataviz` skill, the editors reconstructed from claude.ai, the Anthropicons icon fonts, and the Claude Design system prompt, built-in skills and starter components in `archive/`. The archived `frontend-design` built-in skill is Anthropic's Apache 2.0 skill, with its license beside it.
+- **Third-party open-source code** bundled in the editors keeps its own license, listed in each editor's `scripts/editor/third-party-licenses.txt`.
+
+The DeepSeek Harness plugins on npm ship the same `LICENSE` and `NOTICE.md`.

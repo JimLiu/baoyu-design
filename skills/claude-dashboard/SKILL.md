@@ -1,6 +1,7 @@
 ---
 name: claude-dashboard
 description: "Use this for a local, data-backed dashboard, metrics page, KPI tracker, scorecard, data visualization or recurring report that opens in the bundled live editor: a page or scroll story of charts, numbers and tables over datasets (a CSV/TSV/JSON file the user has, or data you gather and attach), with a Sources panel that shows where every number comes from. Read it when creating, filling, refreshing or revising one. You write the datasets, then the page as plain HTML, into the dashboard's own store with this skill's script. Not for a static HTML mockup or a picture of a dashboard: that is the baoyu-design skill."
+license: "Mixed. The skill text, references and editors adapted from Anthropic's claude.ai Artifact types stay Anthropic's and are not MIT-licensed; the local tooling is MIT. Complete terms in NOTICE.md: https://github.com/JimLiu/baoyu-design/blob/main/NOTICE.md"
 ---
 
 # Dashboard — the shared type

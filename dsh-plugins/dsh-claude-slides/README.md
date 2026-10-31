@@ -37,4 +37,4 @@ The editor server listens on 127.0.0.1 only and reads and writes only the deck's
 
 ## License
 
-MIT. The editor's third-party licenses are in `skills/claude-slides/scripts/editor/third-party-licenses.txt`.
+Not all MIT. The plugin's own code and files (`lib/`, `cordis.patch.yml`, `locale/`, `docs/`, `icon.svg`) and the skill's local tooling are MIT, in `LICENSE`. The bundled `claude-slides` skill is adapted from Anthropic's claude.ai Slides type: its instructions, references, editor and icon fonts stay Anthropic's and are not under the MIT License. `NOTICE.md` sets out which is which. The editor's open-source licenses are in `skills/claude-slides/scripts/editor/third-party-licenses.txt`.

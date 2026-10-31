@@ -1,6 +1,7 @@
 ---
 name: dataviz
 description: Use this skill whenever you are about to create ANY chart, graph, plot, dashboard, or data visualization, in ANY output medium (HTML/React artifact, inline SVG, matplotlib/plotly/d3/Recharts, PNG). Read it BEFORE writing the first line of chart code, choosing chart colors, building a stat tile / KPI row, or laying out a dashboard. Teaches a design-system-agnostic method - form heuristic, color formula with a runnable validator, mark specs, interaction rules. Default palette in references/palette.md.
+license: "Anthropic's dataviz skill: not MIT-licensed, rights stay with Anthropic. Complete terms in NOTICE.md: https://github.com/JimLiu/baoyu-design/blob/main/NOTICE.md"
 ---
 
 # Data Visualization

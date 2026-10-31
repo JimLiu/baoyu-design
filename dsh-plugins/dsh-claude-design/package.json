@@ -17,7 +17,7 @@
     "url": "git+https://github.com/JimLiu/baoyu-design.git",
     "directory": "dsh-plugins/dsh-claude-design"
   },
-  "license": "MIT",
+  "license": "SEE LICENSE IN LICENSE",
   "author": "Jim Liu 宝玉",
   "type": "module",
   "main": "lib/index.js",
@@ -37,7 +37,8 @@
     "cordis.patch.yml",
     "icon.svg",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "NOTICE.md"
   ],
   "engines": {
     "node": ">=20",
