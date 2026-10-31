@@ -7,12 +7,12 @@ adds one baoyu-design skill: ask the agent for a slide deck, a design, a design 
 files into your workspace, then gives you a link to an editor that runs on your computer. The link opens in the app's
 sidebar, next to the chat.
 
-| Plugin | What it does | Comments |
-|---|---|---|
-| [Claude Slides](dsh-claude-slides/)<br>`/claude-slides` | The agent writes editable slide decks as files and opens them in a local slide editor where you can present, edit, and export PDF, HTML, or PowerPoint. | Send to agent |
-| [Claude Design](dsh-claude-design/)<br>`/claude-design` | The agent writes editable design canvases (artboards side by side) as files and opens them in a local canvas editor where you can retype copy, adjust tweaks, and send comments to the agent. | Send to agent |
-| [Claude Design System](dsh-claude-design-system/)<br>`/claude-design-system` | The agent writes design systems (tokens, type, components, assets, a brand book) as files and opens them in a local page where you can browse and edit them, and send comments to the agent. | Send to agent |
-| [Claude Dashboard](dsh-claude-dashboard/)<br>`/claude-dashboard` | The agent builds data-backed dashboards (charts, numbers and tables over your data files) and opens them in a local dashboard editor whose Sources panel shows where every number comes from. | None |
+| Plugin | npm package | What it does | Comments |
+|---|---|---|---|
+| [Claude Slides](dsh-claude-slides/)<br>`/claude-slides` | [`dsh-claude-slides`](https://www.npmjs.com/package/dsh-claude-slides) | The agent writes editable slide decks as files and opens them in a local slide editor where you can present, edit, and export PDF, HTML, or PowerPoint. | Send to agent |
+| [Claude Design](dsh-claude-design/)<br>`/claude-design` | [`dsh-claude-design`](https://www.npmjs.com/package/dsh-claude-design) | The agent writes editable design canvases (artboards side by side) as files and opens them in a local canvas editor where you can retype copy, adjust tweaks, and send comments to the agent. | Send to agent |
+| [Claude Design System](dsh-claude-design-system/)<br>`/claude-design-system` | [`dsh-claude-design-system`](https://www.npmjs.com/package/dsh-claude-design-system) | The agent writes design systems (tokens, type, components, assets, a brand book) as files and opens them in a local page where you can browse and edit them, and send comments to the agent. | Send to agent |
+| [Claude Dashboard](dsh-claude-dashboard/)<br>`/claude-dashboard` | [`dsh-claude-dashboard`](https://www.npmjs.com/package/dsh-claude-dashboard) | The agent builds data-backed dashboards (charts, numbers and tables over your data files) and opens them in a local dashboard editor whose Sources panel shows where every number comes from. | None |
 
 All you need is the DeepSeek Harness desktop app. The plugins run on the Node.js the app ships with, so there is nothing
 else to install.
@@ -21,8 +21,8 @@ else to install.
 
 1. **Open the Plugins page.** Click **Plugins** in the left sidebar, then **Add plugin** at the top right.
 2. **Enter the plugin's name** in **Package name or address**, for example `dsh-claude-slides`, and click **Install**.
-   The names are in the table above. The app downloads the plugin from npm, or from the npmmirror registry when npm is
-   out of reach.
+   The names are in the table's **npm package** column. The app downloads the plugin from npm, or from the npmmirror
+   registry when npm is out of reach.
 3. **Turn it on.** The plugin now shows in the list. If its switch is off, turn it on.
 4. **Quit and reopen the app.** The chat shows comments sent to the agent as cards only after a restart.
 
@@ -90,10 +90,10 @@ workspace folders.
   session.
 - **The agent follows different instructions.** If the workspace has its own copy of the skill, in `.agents/skills/` or
   `.dsh/skills/`, the agent uses that copy instead of the plugin's.
-- **Installing fails.** Check the name against the table above. The install dialog shows the error and which registry
-  the app asked; if neither npm nor npmmirror can be reached, check your network or proxy. For a folder, check that the
-  path is complete (it starts with `/`, or a drive letter on Windows) and that it points to the plugin's own folder, the
-  one with `package.json` in it.
+- **Installing fails.** Check the name against the table's npm package column. The install dialog shows the error and
+  which registry the app asked; if neither npm nor npmmirror can be reached, check your network or proxy. For a folder,
+  check that the path is complete (it starts with `/`, or a drive letter on Windows) and that it points to the plugin's
+  own folder, the one with `package.json` in it.
 - **The app says the plugin is already installed.** To install it again, for example to update it, uninstall it first.
 - **The link doesn't load, or Send to agent is missing.** This happens after the app restarts, for example. Ask the
   agent to open the editor again. That starts the editor and the wait for comments again.

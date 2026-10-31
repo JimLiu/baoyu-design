@@ -4,19 +4,19 @@
 
 这里的每个文件夹都是一个 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 插件，各带一个 baoyu-design 技能。你让 Agent 做幻灯片、设计稿、设计系统或数据看板，它会把文件写进你的工作区，再给你一个编辑器链接。编辑器就运行在你自己的电脑上，链接在应用的侧栏里打开，和对话并排。
 
-| 插件 | 能做什么 | 评论 |
-|---|---|---|
-| [Claude 幻灯片](dsh-claude-slides/)<br>`/claude-slides` | Agent 把可编辑的幻灯片写成本地文件，并在本地幻灯片编辑器里打开，你可以放映、修改，导出 PDF、HTML 或 PowerPoint。 | Send to agent |
-| [Claude 设计稿](dsh-claude-design/)<br>`/claude-design` | Agent 把可编辑的设计画布（多个画板并排）写成本地文件，并在本地画布编辑器里打开，你可以改文字、调参数，也可以把评论发给 Agent 修改。 | Send to agent |
-| [Claude 设计系统](dsh-claude-design-system/)<br>`/claude-design-system` | Agent 把设计系统（设计令牌、字体样式、组件、素材和品牌手册）写成本地文件，并在本地页面里打开，你可以浏览、修改，也可以把评论发给 Agent 修改。 | Send to agent |
-| [Claude 数据看板](dsh-claude-dashboard/)<br>`/claude-dashboard` | Agent 根据你的数据文件做出数据看板（图表、数字和表格），并在本地看板编辑器里打开，来源面板会显示每个数字是从哪里来的。 | 无 |
+| 插件 | npm 包名 | 能做什么 | 评论 |
+|---|---|---|---|
+| [Claude 幻灯片](dsh-claude-slides/)<br>`/claude-slides` | [`dsh-claude-slides`](https://www.npmjs.com/package/dsh-claude-slides) | Agent 把可编辑的幻灯片写成本地文件，并在本地幻灯片编辑器里打开，你可以放映、修改，导出 PDF、HTML 或 PowerPoint。 | Send to agent |
+| [Claude 设计稿](dsh-claude-design/)<br>`/claude-design` | [`dsh-claude-design`](https://www.npmjs.com/package/dsh-claude-design) | Agent 把可编辑的设计画布（多个画板并排）写成本地文件，并在本地画布编辑器里打开，你可以改文字、调参数，也可以把评论发给 Agent 修改。 | Send to agent |
+| [Claude 设计系统](dsh-claude-design-system/)<br>`/claude-design-system` | [`dsh-claude-design-system`](https://www.npmjs.com/package/dsh-claude-design-system) | Agent 把设计系统（设计令牌、字体样式、组件、素材和品牌手册）写成本地文件，并在本地页面里打开，你可以浏览、修改，也可以把评论发给 Agent 修改。 | Send to agent |
+| [Claude 数据看板](dsh-claude-dashboard/)<br>`/claude-dashboard` | [`dsh-claude-dashboard`](https://www.npmjs.com/package/dsh-claude-dashboard) | Agent 根据你的数据文件做出数据看板（图表、数字和表格），并在本地看板编辑器里打开，来源面板会显示每个数字是从哪里来的。 | 无 |
 
 只需要 DeepSeek Harness 桌面版。插件用的是桌面版自带的 Node.js，不用另外安装任何东西。
 
 ## 安装
 
 1. **打开插件页。** 点左侧栏的 **Plugins**（插件），再点右上角的 **Add plugin**。
-2. **填插件名。** 在 **Package name or address** 一栏填插件名，比如 `dsh-claude-slides`，点 **Install**。插件名见上面的表格。应用会从 npm 下载插件，连不上 npm 时改从 npmmirror 镜像下载。
+2. **填插件名。** 在 **Package name or address** 一栏填插件名，比如 `dsh-claude-slides`，点 **Install**。插件名见上面表格的"npm 包名"一列。应用会从 npm 下载插件，连不上 npm 时改从 npmmirror 镜像下载。
 3. **打开开关。** 插件会出现在列表里，开关没开就打开。
 4. **退出应用再重新打开。** 重启以后，发给 Agent 的评论才会以卡片的形式出现在对话里。
 
@@ -64,7 +64,7 @@ dsh plugin --profile web add dsh-claude-slides
 
 - **输入 `/` 后找不到这个技能。** 到插件页确认插件已经打开，再新开一个会话。
 - **Agent 的做法和插件说的不一样。** 如果工作区里有同名技能的副本（在 `.agents/skills/` 或 `.dsh/skills/` 下），Agent 会用那一份，而不是插件里的。
-- **安装失败。** 对照上面的表格检查插件名。安装对话框里会显示错误，以及应用问过哪个源；npm 和 npmmirror 都连不上时，检查网络或代理。从文件夹安装的，检查路径是不是完整的（以 `/` 开头，Windows 上以盘符开头），是不是指向插件自己的文件夹，也就是里面有 `package.json` 的那个。
+- **安装失败。** 对照上面表格的"npm 包名"一列检查插件名。安装对话框里会显示错误，以及应用问过哪个源；npm 和 npmmirror 都连不上时，检查网络或代理。从文件夹安装的，检查路径是不是完整的（以 `/` 开头，Windows 上以盘符开头），是不是指向插件自己的文件夹，也就是里面有 `package.json` 的那个。
 - **提示插件已经安装。** 要重新安装（比如为了更新），先卸载。
 - **链接打不开，或者没有 Send to agent。** 比如重启应用以后就会这样。让 Agent 再打开一次编辑器，编辑器和等评论都会重新启动。
 
