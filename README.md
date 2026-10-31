@@ -35,7 +35,7 @@ No website, no separate subscription, no upload step. The agent already on your 
 
 These four skills write the Artifact type's own file format into a folder and open it in that type's editor page, served from your machine. The agent writes the files and the editor shows each write at once; your edits in the editor are saved back into the same files, so you and the agent can take turns.
 
-In the slides, canvas and design-system editors, choose **Comment** (or press **C**) to comment on an element or area. Comments stay in the project's local `comments.json`; the agent reads and replies through `artifact.mjs`. While it listens with `comments <root> --wait`, the editor offers **Send to agent** to send your comment for it to act on.
+In the slides, canvas and design-system editors and on the dashboard page, choose **Comment** (or press **C**) to comment on an element or area. Comments stay in the project's local `comments.json`; the agent reads and replies through `artifact.mjs`. While it listens with `comments <root> --wait`, the editor offers **Send to agent** to send your comment for it to act on.
 
 ### `claude-slides`: slide decks
 
@@ -87,7 +87,7 @@ The four editor skills also come as [DeepSeek Harness](https://github.com/deepse
 | [`dsh-claude-design-system`](https://www.npmjs.com/package/dsh-claude-design-system) | `/claude-design-system`: design systems | [![npm](https://img.shields.io/npm/v/dsh-claude-design-system)](https://www.npmjs.com/package/dsh-claude-design-system) |
 | [`dsh-claude-dashboard`](https://www.npmjs.com/package/dsh-claude-dashboard) | `/claude-dashboard`: data‑backed dashboards | [![npm](https://img.shields.io/npm/v/dsh-claude-dashboard)](https://www.npmjs.com/package/dsh-claude-dashboard) |
 
-In the slides, canvas and design-system editors, a comment goes straight to the agent: whenever the agent opens an editor, the plugin waits for comments. Mark up the page, tick **Send to agent**, and the agent wakes up, reads your comment, makes the change and replies in the comment thread. The comment also shows in the chat as a card.
+In the slides, canvas and design-system editors and on the dashboard page, a comment goes straight to the agent: whenever the agent opens an editor, the plugin waits for comments. Mark up the page, tick **Send to agent**, and the agent wakes up, reads your comment, makes the change and replies in the comment thread. The comment also shows in the chat as a card.
 
 ### Install from npm
 
