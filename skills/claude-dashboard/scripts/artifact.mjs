@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 // claude-dashboard: local Artifact tool (prebuilt; do not edit).
 
-import { spawn } from "node:child_process";
+import { spawn as spawn2 } from "node:child_process";
 import { createHash } from "node:crypto";
-import fs2 from "node:fs";
+import fs4 from "node:fs";
 import http from "node:http";
-import os from "node:os";
-import path2 from "node:path";
+import os2 from "node:os";
+import path3 from "node:path";
 import { fileURLToPath } from "node:url";
 import vm from "node:vm";
 
@@ -121,9 +121,694 @@ function sendFile(request, response, file, headers) {
   stream.pipe(response);
 }
 
+var COMMENTS_FILE = "comments.json";
+var COMMENTS_VERSION = 1;
+var LIMITS = { text: 1e4, label: 1e3, detail: 4e3, anchor: 2048, section: 200, name: 100 };
+var AGENT_AUTHOR = { kind: "agent", name: "agent" };
+var CommentsError = class extends Error {
+  code;
+  status;
+  constructor(code, message, status = 400) {
+    super(message);
+    this.code = code;
+    this.status = status;
+  }
+};
+var emptyDoc = () => ({ version: COMMENTS_VERSION, threads: [] });
+function randomHex(bytes) {
+  const buf = new Uint8Array(bytes);
+  globalThis.crypto.getRandomValues(buf);
+  return Array.from(buf, (b) => b.toString(16).padStart(2, "0")).join("");
+}
+var newId = (prefix) => `${prefix}_${randomHex(5)}`;
+var isRecord = (v) => typeof v === "object" && v !== null && !Array.isArray(v);
+var isText = (v, max) => typeof v === "string" && v.length <= max;
+function cleanText(v) {
+  if (typeof v !== "string") return null;
+  const text = v.replace(/\r\n?/g, "\n").trim();
+  return text !== "" && text.length <= LIMITS.text ? text : null;
+}
+function readNewThread(body) {
+  if (!isRecord(body)) return null;
+  const text = cleanText(body.text);
+  if (text === null || !isText(body.anchor, LIMITS.anchor) || body.anchor === "" || !isText(body.label, LIMITS.label)) return null;
+  if (body.detail !== void 0 && !isText(body.detail, LIMITS.detail)) return null;
+  if (body.section !== void 0 && (!isText(body.section, LIMITS.section) || body.section === "")) return null;
+  if (body.area !== void 0 && typeof body.area !== "boolean") return null;
+  if (body.send !== void 0 && typeof body.send !== "boolean") return null;
+  return {
+    anchor: body.anchor,
+    label: body.label.trim() || "Comment",
+    ...body.detail ? { detail: body.detail } : {},
+    ...body.area ? { area: true } : {},
+    ...body.section ? { section: body.section } : {},
+    text,
+    ...body.send ? { send: true } : {}
+  };
+}
+function readReply(body) {
+  if (!isRecord(body)) return null;
+  const text = cleanText(body.text);
+  if (text === null) return null;
+  if (body.send !== void 0 && typeof body.send !== "boolean") return null;
+  return { text, ...body.send ? { send: true } : {} };
+}
+var readEdit = readReply;
+function readStatus(body) {
+  return isRecord(body) && (body.status === "open" || body.status === "resolved") ? body.status : null;
+}
+function readAgentRequest(body) {
+  if (!isRecord(body)) return null;
+  const text = cleanText(body.text);
+  if (text === null) return null;
+  if (body.label !== void 0 && !isText(body.label, LIMITS.label)) return null;
+  if (body.selection !== void 0 && !isText(body.selection, LIMITS.detail)) return null;
+  const label = typeof body.label === "string" ? body.label.trim() : "";
+  const selection = typeof body.selection === "string" ? body.selection.trim() : "";
+  return { text, ...label ? { label } : {}, ...selection ? { selection } : {} };
+}
+function parseDoc(text) {
+  const data = JSON.parse(text);
+  if (!isRecord(data) || data.version !== COMMENTS_VERSION || !Array.isArray(data.threads)) {
+    throw new CommentsError("COMMENTS_FILE_INVALID", `not a version ${COMMENTS_VERSION} comments file (expected {"version": 1, "threads": [...]})`, 500);
+  }
+  const threads = data.threads.filter(
+    (t) => isRecord(t) && typeof t.id === "string" && typeof t.anchor === "string" && typeof t.label === "string" && (t.status === "open" || t.status === "resolved") && Array.isArray(t.messages) && t.messages.every((m) => isRecord(m) && typeof m.text === "string" && isRecord(m.author) && (m.author.kind === "user" || m.author.kind === "agent"))
+  );
+  for (const t of threads) if (!isRecord(t.location)) t.location = {};
+  return { version: COMMENTS_VERSION, threads };
+}
+var formatDoc = (doc) => `${JSON.stringify(doc, null, 2)}
+`;
+function addThread(doc, input, location, author, now) {
+  const thread = {
+    id: uniqueId(doc),
+    anchor: input.anchor,
+    label: input.label,
+    ...input.detail ? { detail: input.detail } : {},
+    location: { ...location, ...input.section ? { section: input.section } : {}, ...input.area ? { area: true } : {} },
+    status: "open",
+    createdAt: now,
+    updatedAt: now,
+    messages: [{ id: newId("m"), author, text: input.text, at: now }]
+  };
+  if (input.send) sendToAgent(thread, now);
+  doc.threads.push(thread);
+  return thread;
+}
+function uniqueId(doc) {
+  for (; ; ) {
+    const id = newId("c");
+    if (!doc.threads.some((t) => t.id === id)) return id;
+  }
+}
+function addMessage(thread, author, text, now) {
+  const message = { id: newId("m"), author, text, at: now };
+  thread.messages.push(message);
+  thread.updatedAt = now;
+  if (author.kind === "agent") {
+    if (thread.agent) thread.agent = { ...thread.agent, status: "replied", repliedAt: now };
+  } else if (thread.status === "resolved") {
+    thread.status = "open";
+    delete thread.resolvedAt;
+  }
+  return message;
+}
+function editMessage(thread, messageId, text, now) {
+  const message = thread.messages.find((m) => m.id === messageId);
+  if (!message) throw new CommentsError("MESSAGE_NOT_FOUND", `No message ${messageId} in ${thread.id}.`, 404);
+  if (message.author.kind !== "user") throw new CommentsError("MESSAGE_NOT_EDITABLE", "Only your own messages can be edited.", 403);
+  if (message.text !== text) {
+    message.text = text;
+    message.editedAt = now;
+    thread.updatedAt = now;
+  }
+  return message;
+}
+function canSendToAgent(thread) {
+  const last = thread.messages.at(-1);
+  if (thread.status !== "open" || !last || last.author.kind !== "user") return false;
+  return !thread.agent || (last.editedAt ?? last.at) > thread.agent.sentAt;
+}
+function sendToAgent(thread, now) {
+  thread.agent = { status: "pending", sentAt: now };
+  thread.updatedAt = now;
+}
+function markDelivered(thread, now, via) {
+  if (thread.agent?.status !== "pending") return;
+  thread.agent = { ...thread.agent, status: "delivered", deliveredAt: now, via };
+}
+function setStatus(thread, status, now) {
+  if (thread.status === status) return;
+  thread.status = status;
+  thread.updatedAt = now;
+  if (status === "resolved") thread.resolvedAt = now;
+  else delete thread.resolvedAt;
+}
+function findThread(doc, ref) {
+  const exact = doc.threads.find((t) => t.id === ref);
+  if (exact) return exact;
+  const matches = ref.length >= 3 ? doc.threads.filter((t) => t.id.startsWith(ref)) : [];
+  if (matches.length === 1) return matches[0];
+  throw new CommentsError(
+    matches.length ? "AMBIGUOUS_COMMENT" : "COMMENT_NOT_FOUND",
+    matches.length ? `${ref} matches ${matches.length} comments; give more of the id.` : `No comment ${ref}.`,
+    404
+  );
+}
+function openThreads(doc) {
+  return doc.threads.filter((t) => t.status === "open").sort((a, b) => a.createdAt < b.createdAt ? -1 : a.createdAt > b.createdAt ? 1 : 0);
+}
+var pendingForAgent = (doc) => openThreads(doc).filter((t) => t.agent?.status === "pending");
+function agentView(thread, n) {
+  return {
+    id: thread.id,
+    ...n !== void 0 ? { n } : {},
+    status: thread.status,
+    ...thread.location.file ? { file: thread.location.file } : {},
+    where: thread.label,
+    ...thread.detail ? { detail: thread.detail } : {},
+    location: thread.location,
+    anchor: thread.anchor,
+    ...thread.agent ? { agent: thread.agent } : {},
+    messages: thread.messages.map((m) => ({ from: m.author.kind, name: m.author.name, text: m.text, at: m.at, ...m.editedAt ? { editedAt: m.editedAt } : {} }))
+  };
+}
+function agentViews(doc, threads) {
+  const open2 = openThreads(doc);
+  return threads.map((t) => {
+    const i = open2.indexOf(t);
+    return agentView(t, i >= 0 ? i + 1 : void 0);
+  });
+}
+
+import { spawn } from "node:child_process";
+import fs3 from "node:fs";
+import os from "node:os";
+
+import fs2 from "node:fs";
+import fsp from "node:fs/promises";
+import path2 from "node:path";
+var LOCK_STALE_MS = 1e4;
+var LOCK_WAIT_MS = 5e3;
+var LOCK_RETRY_MS = 20;
+var commentsPath = (root) => path2.join(root, COMMENTS_FILE);
+async function readComments(root) {
+  let text;
+  try {
+    text = await fsp.readFile(commentsPath(root), "utf8");
+  } catch (error) {
+    if (error.code === "ENOENT") return emptyDoc();
+    throw error;
+  }
+  if (text.trim() === "") return emptyDoc();
+  try {
+    return parseDoc(text);
+  } catch (error) {
+    if (error instanceof CommentsError) throw new CommentsError(error.code, `${commentsPath(root)}: ${error.message}`, 500);
+    throw new CommentsError("COMMENTS_FILE_INVALID", `${commentsPath(root)} is not valid JSON: ${error.message}`, 500);
+  }
+}
+async function lock(root) {
+  const file = `${commentsPath(root)}.lock`;
+  const deadline = Date.now() + LOCK_WAIT_MS;
+  for (; ; ) {
+    try {
+      const handle = await fsp.open(file, "wx");
+      await handle.writeFile(`${process.pid}
+`);
+      await handle.close();
+      return () => fsp.rm(file, { force: true });
+    } catch (error) {
+      if (error.code !== "EEXIST") throw error;
+    }
+    const info = await fsp.stat(file).catch(() => null);
+    if (info && Date.now() - info.mtimeMs > LOCK_STALE_MS) {
+      await fsp.rm(file, { force: true });
+      continue;
+    }
+    if (Date.now() > deadline) throw new CommentsError("COMMENTS_LOCKED", `${file} is held by another process; try again (or delete it if nothing is running).`, 503);
+    await new Promise((resolve) => setTimeout(resolve, LOCK_RETRY_MS));
+  }
+}
+async function writeAtomic(file, text) {
+  const temp = path2.join(path2.dirname(file), `.${path2.basename(file)}.${process.pid}.${Date.now().toString(36)}.tmp`);
+  await fsp.writeFile(temp, text);
+  try {
+    await fsp.rename(temp, file);
+  } catch (error) {
+    await fsp.rm(temp, { force: true });
+    throw error;
+  }
+}
+async function updateComments(root, change) {
+  const unlock = await lock(root);
+  try {
+    const doc = await readComments(root);
+    const before = formatDoc(doc);
+    const result = await change(doc);
+    const after = formatDoc(doc);
+    const exists = fs2.existsSync(commentsPath(root));
+    if (after !== before && (exists || doc.threads.length > 0)) await writeAtomic(commentsPath(root), after);
+    return result;
+  } finally {
+    await unlock();
+  }
+}
+
+var AGENT_GRACE_MS = 6e4;
+var AGENT_BUSY_MS = 30 * 6e4;
+var REQUEST_TTL_MS = 30 * 6e4;
+var WAIT_DEFAULT_S = 300;
+var WAIT_MAX_S = 3600;
+var PRESENCE_CHECK_MS = 5e3;
+var SSE_KEEPALIVE_MS = 25e3;
+var WATCH_DEBOUNCE_MS = 100;
+var POLL_MS = 2e3;
+var MAX_BODY_BYTES = 256 * 1024;
+var TooLarge2 = class extends Error {
+};
+function sendJson2(response, status, body) {
+  const text = JSON.stringify(body);
+  response.writeHead(status, {
+    "Content-Type": "application/json; charset=utf-8",
+    "Content-Length": Buffer.byteLength(text),
+    "Cache-Control": "no-store",
+    "X-Content-Type-Options": "nosniff"
+  });
+  response.end(text);
+}
+function readJson(request) {
+  return new Promise((resolve, reject) => {
+    if (!/^application\/json\b/i.test(request.headers["content-type"] ?? "")) {
+      request.resume();
+      reject(new CommentsError("INVALID_CONTENT", "expected application/json", 415));
+      return;
+    }
+    const chunks = [];
+    let size = 0;
+    request.on("data", (chunk) => {
+      size += chunk.length;
+      if (size > MAX_BODY_BYTES) {
+        reject(new TooLarge2());
+        request.destroy();
+        return;
+      }
+      chunks.push(chunk);
+    });
+    request.on("end", () => {
+      try {
+        resolve(JSON.parse(Buffer.concat(chunks).toString("utf8") || "null"));
+      } catch {
+        reject(new CommentsError("INVALID_CONTENT", "malformed JSON", 400));
+      }
+    });
+    request.on("error", reject);
+  });
+}
+function defaultUserName() {
+  try {
+    return os.userInfo().username.trim() || "you";
+  } catch {
+    return "you";
+  }
+}
+function createCommentsService(options) {
+  const { root, log, agentHook } = options;
+  const userName = (options.userName ?? defaultUserName()).slice(0, 100);
+  const user = { kind: "user", name: userName };
+  const allowWrite = options.allowWrite ?? (() => true);
+  const clients = /* @__PURE__ */ new Set();
+  const waiters = [];
+  const hookRunning = /* @__PURE__ */ new Set();
+  const requests = [];
+  let lastDoc = emptyDoc();
+  let lastWaitEnded = 0;
+  let lastSent = "";
+  let lastPresence = "";
+  let queue = Promise.resolve();
+  let closed = false;
+  const now = () => (/* @__PURE__ */ new Date()).toISOString();
+  function presence() {
+    const at = Date.now();
+    const listening = waiters.length > 0;
+    const busy = lastDoc.threads.some(
+      (t) => t.status === "open" && t.agent?.status === "delivered" && at - Date.parse(t.agent.deliveredAt ?? t.agent.sentAt) < AGENT_BUSY_MS
+    );
+    const hook = Boolean(agentHook);
+    return { available: listening || busy || hook || at - lastWaitEnded < AGENT_GRACE_MS, listening, busy, hook };
+  }
+  async function snapshot() {
+    lastDoc = await readComments(root);
+    return { threads: lastDoc.threads, agent: presence(), me: { name: userName } };
+  }
+  const frame = (snap) => `event: comments
+data: ${JSON.stringify(snap)}
+
+`;
+  function broadcast() {
+    queue = queue.then(async () => {
+      if (closed) return;
+      let snap;
+      try {
+        snap = await snapshot();
+      } catch (error) {
+        log(`comments: reading ${COMMENTS_FILE} failed: ${error.message}`);
+        return;
+      }
+      const text = frame(snap);
+      lastPresence = JSON.stringify(snap.agent);
+      if (text === lastSent) return;
+      lastSent = text;
+      for (const client of clients) client.write(text);
+    });
+    return queue;
+  }
+  function finishWaiter(waiter, body) {
+    if (waiter.done) return;
+    waiter.done = true;
+    clearTimeout(waiter.timer);
+    const i = waiters.indexOf(waiter);
+    if (i >= 0) waiters.splice(i, 1);
+    if (!waiter.response.writableEnded) sendJson2(waiter.response, 200, body);
+    lastWaitEnded = Date.now();
+  }
+  function dropStaleRequests() {
+    const oldest = Date.now() - REQUEST_TTL_MS;
+    while (requests.length > 0 && Date.parse(requests[0].sentAt) < oldest) {
+      const dropped = requests.shift();
+      log(`comments: dropped request ${dropped.id}: no agent took it in ${REQUEST_TTL_MS / 6e4} minutes`);
+    }
+  }
+  async function deliver() {
+    if (closed) return;
+    dropStaleRequests();
+    const waiter = waiters[0];
+    if (waiter) {
+      const views = await updateComments(root, (doc) => {
+        const pending = pendingForAgent(doc);
+        const at = now();
+        for (const t of pending) markDelivered(t, at, "wait");
+        return agentViews(doc, pending);
+      });
+      const handed = requests.splice(0);
+      if (views.length === 0 && handed.length === 0) return;
+      if (waiter.done) {
+        requests.unshift(...handed);
+        if (views.length > 0) {
+          await updateComments(root, (doc) => {
+            for (const t of doc.threads) if (views.some((v) => v.id === t.id) && t.agent?.via === "wait") t.agent = { status: "pending", sentAt: t.agent.sentAt };
+          });
+        }
+        return;
+      }
+      finishWaiter(waiter, { threads: views, ...handed.length > 0 ? { requests: handed } : {} });
+      log(`comments: sent to the agent (wait): ${[...views, ...handed].map((v) => v.id).join(", ")}`);
+      await broadcast();
+      return;
+    }
+    if (agentHook) await runHook(agentHook);
+  }
+  async function runHook(command) {
+    const doc = await readComments(root);
+    for (const thread of pendingForAgent(doc)) {
+      if (hookRunning.has(thread.id)) continue;
+      hookRunning.add(thread.id);
+      const view = agentViews(doc, [thread])[0];
+      const child = spawn(command, {
+        shell: true,
+        cwd: root,
+        stdio: ["pipe", "ignore", "pipe"],
+        env: { ...process.env, ARTIFACT_ROOT: root, COMMENT_ID: thread.id, COMMENTS_FILE: commentsPath(root) }
+      });
+      let stderr = "";
+      child.stderr?.on("data", (chunk) => {
+        stderr = (stderr + chunk.toString("utf8")).slice(-2e3);
+      });
+      child.stdin?.on("error", () => {
+      });
+      child.stdin?.end(`${JSON.stringify(view)}
+`);
+      child.on("error", (error) => {
+        hookRunning.delete(thread.id);
+        log(`comments: the agent hook failed to start: ${error.message}`);
+      });
+      child.on("exit", (code) => {
+        hookRunning.delete(thread.id);
+        if (code !== 0) {
+          log(`comments: the agent hook exited with ${code} for ${thread.id}; the comment stays waiting${stderr ? `: ${stderr.trim()}` : ""}`);
+          return;
+        }
+        void updateComments(root, (d) => {
+          const t = d.threads.find((x) => x.id === thread.id);
+          if (t) markDelivered(t, now(), "hook");
+        }).then(() => {
+          log(`comments: sent to the agent (hook): ${thread.id}`);
+          return broadcast();
+        }).catch((error) => log(`comments: ${error.message}`));
+      });
+    }
+    for (const request of requests.splice(0)) {
+      hookRunning.add(request.id);
+      const child = spawn(command, {
+        shell: true,
+        cwd: root,
+        stdio: ["pipe", "ignore", "pipe"],
+        env: { ...process.env, ARTIFACT_ROOT: root, REQUEST_ID: request.id, COMMENTS_FILE: commentsPath(root) }
+      });
+      let stderr = "";
+      child.stderr?.on("data", (chunk) => {
+        stderr = (stderr + chunk.toString("utf8")).slice(-2e3);
+      });
+      child.stdin?.on("error", () => {
+      });
+      child.stdin?.end(`${JSON.stringify({ request })}
+`);
+      let settled = false;
+      const failed = (why) => {
+        if (settled) return;
+        settled = true;
+        hookRunning.delete(request.id);
+        requests.unshift(request);
+        log(`comments: the agent hook ${why} for ${request.id}; the request stays waiting${stderr ? `: ${stderr.trim()}` : ""}`);
+      };
+      child.on("error", (error) => failed(`failed to start (${error.message})`));
+      child.on("exit", (code) => {
+        if (code !== 0) return failed(`exited with ${code}`);
+        settled = true;
+        hookRunning.delete(request.id);
+        log(`comments: sent to the agent (hook): ${request.id}`);
+      });
+    }
+  }
+  let debounce;
+  const changed = () => {
+    clearTimeout(debounce);
+    debounce = setTimeout(() => void broadcast(), WATCH_DEBOUNCE_MS);
+  };
+  let watcher = null;
+  try {
+    watcher = fs3.watch(root, (_event, name) => {
+      if (name === null || name === COMMENTS_FILE) changed();
+    });
+    watcher.on("error", () => {
+      watcher?.close();
+      watcher = null;
+    });
+  } catch {
+    watcher = null;
+  }
+  let lastStat = "";
+  const poll = setInterval(() => {
+    fs3.stat(commentsPath(root), (error, info) => {
+      const stat = error ? "none" : `${info.mtimeMs}:${info.size}`;
+      if (stat !== lastStat) {
+        const first = lastStat === "";
+        lastStat = stat;
+        if (!first) changed();
+      }
+    });
+    if (JSON.stringify(presence()) !== lastPresence && clients.size > 0) void broadcast();
+  }, Math.min(POLL_MS, PRESENCE_CHECK_MS));
+  poll.unref?.();
+  void broadcast();
+  async function afterChange(sent) {
+    await broadcast();
+    if (sent) await deliver();
+  }
+  async function create(request, response) {
+    const input = readNewThread(await readJson(request));
+    if (!input) throw new CommentsError("INVALID_COMMENT", "expected {anchor, label, text} with a non-empty text");
+    let location = {};
+    try {
+      location = await options.locate?.(input) ?? {};
+    } catch (error) {
+      log(`comments: could not resolve where a comment points: ${error.message}`);
+    }
+    const created = await updateComments(root, (doc) => addThread(doc, input, location, user, now()));
+    log(`comments: ${created.id} added on ${created.label}${location.file ? ` (${location.file})` : ""}${input.send ? ", sent to the agent" : ""}`);
+    sendJson2(response, 201, { thread: created });
+    await afterChange(Boolean(input.send));
+  }
+  async function ask(request, response) {
+    const input = readAgentRequest(await readJson(request));
+    if (!input) throw new CommentsError("INVALID_REQUEST", "expected {text} with a non-empty text");
+    if (!presence().available) throw new CommentsError("AGENT_UNAVAILABLE", "no agent is waiting: copy the request for the chat instead", 409);
+    const queued = { id: newId("r"), ...input, sentAt: now() };
+    requests.push(queued);
+    log(`comments: request ${queued.id}${input.label ? ` (${input.label})` : ""} for the agent`);
+    sendJson2(response, 202, { request: queued });
+    await deliver();
+  }
+  async function events(request, response) {
+    response.writeHead(200, {
+      "Content-Type": "text/event-stream; charset=utf-8",
+      "Cache-Control": "no-store",
+      Connection: "keep-alive",
+      "X-Accel-Buffering": "no"
+    });
+    response.write(": connected\n\n");
+    response.write(frame(await snapshot()));
+    clients.add(response);
+    const keepAlive = setInterval(() => response.write(": ping\n\n"), SSE_KEEPALIVE_MS);
+    keepAlive.unref?.();
+    response.on("close", () => {
+      clearInterval(keepAlive);
+      clients.delete(response);
+    });
+  }
+  async function wait(request, response, url) {
+    const asked = Number(url.searchParams.get("timeout") ?? WAIT_DEFAULT_S);
+    const seconds = Number.isFinite(asked) && asked > 0 ? Math.min(asked, WAIT_MAX_S) : WAIT_DEFAULT_S;
+    const waiter = { response, done: false };
+    waiters.push(waiter);
+    waiter.timer = setTimeout(() => {
+      finishWaiter(waiter, { threads: [] });
+      void broadcast();
+    }, seconds * 1e3);
+    const gone = () => {
+      if (waiter.done) return;
+      finishWaiter(waiter, { threads: [] });
+      void broadcast();
+    };
+    response.on("close", gone);
+    await broadcast();
+    await deliver();
+  }
+  async function handle(request, response, rest) {
+    const method = request.method ?? "GET";
+    const url = new URL(request.url ?? "/", "http://localhost");
+    const parts = rest.split("/").filter(Boolean);
+    const reading = method === "GET" || method === "HEAD";
+    try {
+      if (!reading && !allowWrite(request)) {
+        request.resume();
+        throw new CommentsError("NOT_ALLOWED", "cross-origin request", 403);
+      }
+      if (parts.length === 0) {
+        if (reading) return sendJson2(response, 200, await snapshot());
+        if (method === "POST") return await create(request, response);
+      } else if (parts.length === 1 && parts[0] === "events") {
+        if (reading) return await events(request, response);
+      } else if (parts.length === 2 && parts[0] === "agent" && parts[1] === "wait") {
+        if (reading) return await wait(request, response, url);
+      } else if (parts.length === 2 && parts[0] === "agent" && parts[1] === "requests") {
+        if (method === "POST") return await ask(request, response);
+      } else if (parts.length === 1) {
+        const id = parts[0];
+        if (method === "PATCH") {
+          const status = readStatus(await readJson(request));
+          if (!status) throw new CommentsError("INVALID_STATUS", 'expected {status: "open" | "resolved"}');
+          const t = await updateComments(root, (doc) => {
+            const found = findThread(doc, id);
+            setStatus(found, status, now());
+            return found;
+          });
+          log(`comments: ${id} ${status === "resolved" ? "resolved" : "reopened"}`);
+          sendJson2(response, 200, { thread: t });
+          return await afterChange(false);
+        }
+        if (method === "DELETE") {
+          await updateComments(root, (doc) => {
+            const found = findThread(doc, id);
+            doc.threads.splice(doc.threads.indexOf(found), 1);
+          });
+          log(`comments: ${id} deleted`);
+          sendJson2(response, 200, { deleted: id });
+          return await afterChange(false);
+        }
+      } else if (parts.length === 2 && parts[1] === "messages") {
+        if (method === "POST") {
+          const id = parts[0];
+          const input = readReply(await readJson(request));
+          if (!input) throw new CommentsError("INVALID_COMMENT", "expected {text} with a non-empty text");
+          const t = await updateComments(root, (doc) => {
+            const found = findThread(doc, id);
+            addMessage(found, user, input.text, now());
+            if (input.send) sendToAgent(found, now());
+            return found;
+          });
+          log(`comments: reply on ${id}${input.send ? ", sent to the agent" : ""}`);
+          sendJson2(response, 200, { thread: t });
+          return await afterChange(Boolean(input.send));
+        }
+      } else if (parts.length === 3 && parts[1] === "messages") {
+        if (method === "PATCH") {
+          const id = parts[0];
+          const messageId = parts[2];
+          const input = readEdit(await readJson(request));
+          if (!input) throw new CommentsError("INVALID_COMMENT", "expected {text} with a non-empty text");
+          const t = await updateComments(root, (doc) => {
+            const found = findThread(doc, id);
+            editMessage(found, messageId, input.text, now());
+            if (input.send && canSendToAgent(found)) sendToAgent(found, now());
+            return found;
+          });
+          log(`comments: message edited on ${id}${input.send ? ", sent to the agent" : ""}`);
+          sendJson2(response, 200, { thread: t });
+          return await afterChange(Boolean(input.send));
+        }
+      } else if (parts.length === 2 && parts[1] === "send") {
+        if (method === "POST") {
+          const id = parts[0];
+          request.resume();
+          const t = await updateComments(root, (doc) => {
+            const found = findThread(doc, id);
+            if (!canSendToAgent(found)) throw new CommentsError("NOTHING_TO_SEND", "the agent already has everything in this comment", 409);
+            sendToAgent(found, now());
+            return found;
+          });
+          log(`comments: ${id} sent to the agent`);
+          sendJson2(response, 200, { thread: t });
+          return await afterChange(true);
+        }
+      } else {
+        return sendJson2(response, 404, { code: "NOT_FOUND", message: "no such comments route" });
+      }
+      request.resume();
+      sendJson2(response, 405, { code: "METHOD_NOT_ALLOWED", message: `${method} is not allowed here` });
+    } catch (error) {
+      if (response.headersSent) throw error;
+      if (error instanceof CommentsError) return sendJson2(response, error.status, { code: error.code, message: error.message });
+      if (error instanceof TooLarge2) return sendJson2(response, 413, { code: "TOO_LARGE", message: "request body is too large" });
+      throw error;
+    }
+  }
+  function close() {
+    closed = true;
+    clearInterval(poll);
+    clearTimeout(debounce);
+    watcher?.close();
+    for (const waiter of [...waiters]) finishWaiter(waiter, { threads: [], closed: true });
+    for (const client of clients) client.end();
+    clients.clear();
+  }
+  return { handle, presence, deliver, close };
+}
+
 var SCRIPT = fileURLToPath(import.meta.url);
-var SKILL_DIR = path2.dirname(path2.dirname(SCRIPT));
-var EDITOR_DIR = path2.join(path2.dirname(SCRIPT), "editor");
+var SKILL_DIR = path3.dirname(path3.dirname(SCRIPT));
+var EDITOR_DIR = path3.join(path3.dirname(SCRIPT), "editor");
 var LOCAL_USER_ID = "local";
 var MAX_DOC_BYTES = 256 * 1024;
 var MAX_FILE_CHARS = 262144;
@@ -164,7 +849,7 @@ var CliError = class extends Error {
 var isObject = (v) => typeof v === "object" && v !== null && !Array.isArray(v);
 var bytesOf = (value) => Buffer.byteLength(JSON.stringify(value), "utf8");
 var kb = (n) => n >= 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)} MB` : `${Math.ceil(n / 1024)} KB`;
-var extOf = (name) => path2.extname(name).slice(1).toLowerCase();
+var extOf = (name) => path3.extname(name).slice(1).toLowerCase();
 var contentTypeOf = (name) => CONTENT_TYPES[extOf(name)] ?? "application/octet-stream";
 var quote = (s) => /^[A-Za-z0-9_./:@%+=-]+$/.test(s) ? s : `'${s.replace(/'/g, `'\\''`)}'`;
 var cmd = (name, ...args) => ["node", quote(SCRIPT), name, ...args.map(quote)].join(" ");
@@ -172,6 +857,7 @@ function print(value, compact = false) {
   process.stdout.write(`${compact ? JSON.stringify(value) : JSON.stringify(value, null, 2)}
 `);
 }
+var SWITCHES = /* @__PURE__ */ new Set(["text", "json", "wait", "all", "resolve", "reopen"]);
 function parseArgs(argv) {
   const positional = [];
   const flags = /* @__PURE__ */ new Map();
@@ -180,26 +866,26 @@ function parseArgs(argv) {
     if (arg.startsWith("--")) {
       const eq = arg.indexOf("=");
       if (eq > 0) flags.set(arg.slice(2, eq), arg.slice(eq + 1));
-      else if (i + 1 < argv.length && !argv[i + 1].startsWith("--") && !["text", "json"].includes(arg.slice(2))) flags.set(arg.slice(2), argv[++i]);
+      else if (i + 1 < argv.length && !argv[i + 1].startsWith("--") && !SWITCHES.has(arg.slice(2))) flags.set(arg.slice(2), argv[++i]);
       else flags.set(arg.slice(2), "true");
     } else positional.push(arg);
   }
   return { positional, flags };
 }
 function writeFileAtomic(file, data) {
-  fs2.mkdirSync(path2.dirname(file), { recursive: true });
-  const tmp = path2.join(path2.dirname(file), `.tmp-${process.pid}-${Date.now()}-${path2.basename(file)}`);
-  fs2.writeFileSync(tmp, data);
-  fs2.renameSync(tmp, file);
+  fs4.mkdirSync(path3.dirname(file), { recursive: true });
+  const tmp = path3.join(path3.dirname(file), `.tmp-${process.pid}-${Date.now()}-${path3.basename(file)}`);
+  fs4.writeFileSync(tmp, data);
+  fs4.renameSync(tmp, file);
 }
 function resolveRoot(given, { create = false } = {}) {
   if (!given) throw new CliError("MISSING_ROOT", "Give the dashboard folder (for example designs/<slug>).");
-  const root = path2.resolve(given);
-  const stat = fs2.statSync(root, { throwIfNoEntry: false });
+  const root = path3.resolve(given);
+  const stat = fs4.statSync(root, { throwIfNoEntry: false });
   if (stat && !stat.isDirectory()) throw new CliError("NOT_A_FOLDER", `${given} is a file; the dashboard is a folder.`);
   if (!stat) {
     if (!create) throw new CliError("NOT_FOUND", `${root} does not exist. Write the dashboard first: ${cmd("write-db", given, "batch.json")}.`);
-    fs2.mkdirSync(root, { recursive: true });
+    fs4.mkdirSync(root, { recursive: true });
   }
   return root;
 }
@@ -217,20 +903,20 @@ function docSegments(p) {
   if (segs.length % 2 !== 0) throw new CliError("INVALID_PATH", `${p} names a collection; a document path is collection/doc_id (for example datasets/sales).`);
   return segs;
 }
-var docFile = (root, segs) => path2.join(root, "db", ...segs.slice(0, -1), `${segs.at(-1)}.json`);
+var docFile = (root, segs) => path3.join(root, "db", ...segs.slice(0, -1), `${segs.at(-1)}.json`);
 function listDocFiles(root) {
   const out = /* @__PURE__ */ new Map();
-  const base = path2.join(root, "db");
+  const base = path3.join(root, "db");
   const walk = (dir, rel) => {
     let entries;
     try {
-      entries = fs2.readdirSync(dir, { withFileTypes: true });
+      entries = fs4.readdirSync(dir, { withFileTypes: true });
     } catch {
       return;
     }
     for (const e of entries) {
       if (e.name.startsWith(".")) continue;
-      const full = path2.join(dir, e.name);
+      const full = path3.join(dir, e.name);
       if (e.isDirectory()) walk(full, [...rel, e.name]);
       else if (e.isFile() && e.name.endsWith(".json")) {
         const segs = [...rel, e.name.slice(0, -5)];
@@ -247,7 +933,7 @@ function readDoc(root, p) {
   const file = docFile(root, segs);
   let text;
   try {
-    text = fs2.readFileSync(file, "utf8");
+    text = fs4.readFileSync(file, "utf8");
   } catch {
     return { path: segs.join("/"), exists: false, file };
   }
@@ -264,7 +950,7 @@ function readAllDocs(root) {
   const damaged = [];
   for (const [p, { file }] of listDocFiles(root)) {
     try {
-      const data = JSON.parse(fs2.readFileSync(file, "utf8"));
+      const data = JSON.parse(fs4.readFileSync(file, "utf8"));
       if (isObject(data)) docs.set(p, data);
       else damaged.push(p);
     } catch {
@@ -310,9 +996,9 @@ function resolveFileRefs(value, where) {
   if (!isObject(value)) return value;
   const keys = Object.keys(value);
   if (keys.length === 1 && keys[0] === "$file") {
-    const file = path2.resolve(String(value.$file));
+    const file = path3.resolve(String(value.$file));
     try {
-      return fs2.readFileSync(file, "utf8");
+      return fs4.readFileSync(file, "utf8");
     } catch {
       throw new CliError("FILE_NOT_FOUND", `${where}: {"$file": ${JSON.stringify(value.$file)}} \u2014 no such file (paths are relative to ${process.cwd()}).`);
     }
@@ -347,7 +1033,7 @@ function applyWrites(root, writes, { agent = true } = {}) {
       if (w.data === void 0 === (w.file_path === void 0)) throw new CliError("INVALID_WRITE", `${where} (${op}) needs exactly one of "data" or "file_path".`);
       if (w.file_path !== void 0) {
         try {
-          data = JSON.parse(fs2.readFileSync(path2.resolve(String(w.file_path)), "utf8"));
+          data = JSON.parse(fs4.readFileSync(path3.resolve(String(w.file_path)), "utf8"));
         } catch (error) {
           throw new CliError("INVALID_WRITE", `${where}.file_path ${JSON.stringify(w.file_path)}: ${error.code === "ENOENT" ? "no such file" : `not JSON (${error.message})`}.`);
         }
@@ -357,7 +1043,7 @@ function applyWrites(root, writes, { agent = true } = {}) {
       if (op === "set" && hasDeleteMarker(data)) throw new CliError("INVALID_WRITE", `${where}: {"__delete__": true} works only in an update; set writes the whole document.`);
     }
     const file = docFile(root, segs);
-    const existing = fs2.existsSync(file) ? readDoc(root, p) : { exists: false };
+    const existing = fs4.existsSync(file) ? readDoc(root, p) : { exists: false };
     let next = null;
     if (op === "set") next = data;
     else if (op === "update") next = mergePatch(existing.exists ? existing.data : {}, data);
@@ -370,7 +1056,7 @@ function applyWrites(root, writes, { agent = true } = {}) {
   });
   if (total > MAX_BATCH_BYTES) throw new CliError("BATCH_TOO_LARGE", `The batch writes ${kb(total)}; a batch is at most 1 MB. Split it.`);
   for (const w of planned) {
-    if (w.op === "delete") fs2.rmSync(w.file, { force: true });
+    if (w.op === "delete") fs4.rmSync(w.file, { force: true });
     else writeFileAtomic(w.file, `${JSON.stringify(w.next, null, 2)}
 `);
   }
@@ -382,10 +1068,10 @@ function applyWrites(root, writes, { agent = true } = {}) {
     ...w.op === "delete" && !w.existed ? { note: "there was no such document" } : {}
   }));
 }
-var blobFile = (root, id) => path2.join(root, "_blobs", id);
+var blobFile = (root, id) => path3.join(root, "_blobs", id);
 function readBlobMeta(root, id) {
   try {
-    return JSON.parse(fs2.readFileSync(`${blobFile(root, id)}.json`, "utf8"));
+    return JSON.parse(fs4.readFileSync(`${blobFile(root, id)}.json`, "utf8"));
   } catch {
     return null;
   }
@@ -393,7 +1079,7 @@ function readBlobMeta(root, id) {
 function putBlob(root, bytes, name, contentType) {
   const id = createHash("sha256").update(bytes).digest("hex").slice(0, 32);
   const file = blobFile(root, id);
-  if (!fs2.existsSync(file)) writeFileAtomic(file, bytes);
+  if (!fs4.existsSync(file)) writeFileAtomic(file, bytes);
   const meta = { name, contentType, bytes: bytes.length, uploadedAt: (/* @__PURE__ */ new Date()).toISOString() };
   writeFileAtomic(`${file}.json`, `${JSON.stringify(meta, null, 2)}
 `);
@@ -401,16 +1087,16 @@ function putBlob(root, bytes, name, contentType) {
 }
 function upload(root, given, flags) {
   if (!given) throw new CliError("MISSING_FILE", "Give the file to attach (CSV, TSV or JSON).");
-  const file = path2.resolve(given);
-  const stat = fs2.statSync(file, { throwIfNoEntry: false });
+  const file = path3.resolve(given);
+  const stat = fs4.statSync(file, { throwIfNoEntry: false });
   if (!stat) throw new CliError("FILE_NOT_FOUND", `No such file: ${given}`);
   if (!stat.isFile()) throw new CliError("NOT_A_FILE", `${given} is not a regular file.`);
   if (stat.size > MAX_DATA_BYTES) {
     throw new CliError("FILE_TOO_LARGE", `${given} is ${kb(stat.size)}; a file dataset over 8 MB is refused. Keep only the columns and rows the dashboard shows, or aggregate first.`);
   }
-  const name = flags.get("name") ?? path2.basename(file);
+  const name = flags.get("name") ?? path3.basename(file);
   const type = flags.get("type") ?? contentTypeOf(name);
-  const result = putBlob(root, fs2.readFileSync(file), name, type);
+  const result = putBlob(root, fs4.readFileSync(file), name, type);
   const ext = extOf(name);
   return {
     ...result,
@@ -429,11 +1115,11 @@ function referencesTo(root, id) {
 function deleteAsset(root, given) {
   const id = BLOB_URL.exec(String(given ?? ""))?.[1] ?? (BLOB_ID.test(String(given ?? "")) ? given : null);
   if (!id) throw new CliError("INVALID_ASSET", "Give the attached file as its url (/_blob/<id>) or id (32 hex).");
-  if (!fs2.existsSync(blobFile(root, id))) throw new CliError("NOT_FOUND", `No attached file ${id} in ${root}/_blobs.`);
+  if (!fs4.existsSync(blobFile(root, id))) throw new CliError("NOT_FOUND", `No attached file ${id} in ${root}/_blobs.`);
   const users = referencesTo(root, id);
   if (users.length > 0) throw new CliError("IN_USE", `${id} is still named by ${users.join(", ")}; change or delete those first.`);
-  fs2.rmSync(blobFile(root, id), { force: true });
-  fs2.rmSync(`${blobFile(root, id)}.json`, { force: true });
+  fs4.rmSync(blobFile(root, id), { force: true });
+  fs4.rmSync(`${blobFile(root, id)}.json`, { force: true });
   return { deleted: `/_blob/${id}` };
 }
 function readDb(root, given, flags) {
@@ -441,7 +1127,7 @@ function readDb(root, given, flags) {
     const files = listDocFiles(root);
     return {
       root,
-      documents: [...files.keys()].sort().map((p) => ({ path: p, bytes: fs2.statSync(files.get(p).file).size }))
+      documents: [...files.keys()].sort().map((p) => ({ path: p, bytes: fs4.statSync(files.get(p).file).size }))
     };
   }
   const segs = splitPath(given, "collection or document");
@@ -625,9 +1311,9 @@ function definedRuntimeTokens() {
   if (runtimeTokens) return runtimeTokens;
   runtimeTokens = /* @__PURE__ */ new Set();
   try {
-    for (const name of fs2.readdirSync(path2.join(EDITOR_DIR, "assets"))) {
+    for (const name of fs4.readdirSync(path3.join(EDITOR_DIR, "assets"))) {
       if (!name.endsWith(".css")) continue;
-      const css = fs2.readFileSync(path2.join(EDITOR_DIR, "assets", name), "utf8");
+      const css = fs4.readFileSync(path3.join(EDITOR_DIR, "assets", name), "utf8");
       for (const m of css.matchAll(/(--[A-Za-z0-9_-]+)\s*:/g)) runtimeTokens.add(m[1]);
     }
   } catch {
@@ -959,7 +1645,7 @@ function check(root) {
       continue;
     }
     const file = blobFile(root, blob);
-    const stat = fs2.statSync(file, { throwIfNoEntry: false });
+    const stat = fs4.statSync(file, { throwIfNoEntry: false });
     if (!stat) {
       issue(p, `source.url ${source.url}: no such attached file in _blobs/. Upload the file again and use the url it prints.`);
       continue;
@@ -971,7 +1657,7 @@ function check(root) {
     if (typeof source.name !== "string" || !source.name.trim()) issue(p, "source.name: the file\u2019s own name (it sets the format when format is left out).");
     if (source.format !== void 0 && !["csv", "tsv", "json"].includes(source.format)) issue(p, 'source.format is "csv", "tsv" or "json" (only when the name\u2019s extension doesn\u2019t say).');
     const format = ["csv", "tsv", "json"].includes(source.format) ? source.format : inferFormat(source.name);
-    const text = fs2.readFileSync(file, "utf8");
+    const text = fs4.readFileSync(file, "utf8");
     const table = format === "json" ? parseJsonTable(text) : parseDelimited(text, format === "tsv" ? "	" : ",");
     if (!table || table.columns.length === 0) {
       issue(p, `the file has no rows the page can read as ${format}${format === "json" ? " (an array of row objects, or one under rows/data/results)" : ""}.`);
@@ -1212,8 +1898,8 @@ function check(root) {
   const runs = docs.get(`data/users/${LOCAL_USER_ID}/runs`);
   if (runs) {
     const runsFile = docFile(root, ["data", "users", LOCAL_USER_ID, "runs"]);
-    const writtenAt = fs2.statSync(runsFile).mtime;
-    const pageChanged = [...docs.keys()].some((p) => /^(files|datasets)\//.test(p) && fs2.statSync(docFile(root, p.split("/"))).mtime > writtenAt);
+    const writtenAt = fs4.statSync(runsFile).mtime;
+    const pageChanged = [...docs.keys()].some((p) => /^(files|datasets)\//.test(p) && fs4.statSync(docFile(root, p.split("/"))).mtime > writtenAt);
     const failedSources = Object.entries(isObject(runs.datasets) ? runs.datasets : {}).filter(([, d]) => isObject(d) && d.status !== "ok");
     pageReport = {
       writtenAt: writtenAt.toISOString(),
@@ -1238,8 +1924,8 @@ function check(root) {
   let pageCheck;
   const checkDoc = docs.get(`data/users/${LOCAL_USER_ID}/check`);
   if (checkDoc) {
-    const writtenAt = fs2.statSync(docFile(root, ["data", "users", LOCAL_USER_ID, "check"])).mtime;
-    const changedSince = (re) => [...docs.keys()].some((p) => re.test(p) && fs2.statSync(docFile(root, p.split("/"))).mtime > writtenAt);
+    const writtenAt = fs4.statSync(docFile(root, ["data", "users", LOCAL_USER_ID, "check"])).mtime;
+    const changedSince = (re) => [...docs.keys()].some((p) => re.test(p) && fs4.statSync(docFile(root, p.split("/"))).mtime > writtenAt);
     const stale = changedSince(/^files\//) ? "a page file changed after the page wrote this; the open page checks again when it picks the change up, then rewrites or removes it" : changedSince(/^(datasets|dash)\//) ? "a dataset or dash document changed after the page wrote this; only a page-file write (or opening the page again) checks again" : checkDoc.status === "checking" && Date.now() - writtenAt.getTime() > CHECK_ABANDONED_MS ? "it has said checking for over 30 seconds: the page was closed while it checked; it checks again when it is opened" : void 0;
     pageCheck = {
       status: checkDoc.status,
@@ -1295,7 +1981,7 @@ function check(root) {
 var runningServer2 = (root) => runningServer(root, "dashboard", "/_api/session");
 function localUserName() {
   try {
-    return os.userInfo().username || "You";
+    return os2.userInfo().username || "You";
   } catch {
     return "You";
   }
@@ -1304,10 +1990,13 @@ function serverFlags(flags) {
   const out = [];
   if (flags.has("port")) out.push("--port", flags.get("port"));
   if (flags.has("host")) out.push("--host", flags.get("host"));
+  if (flags.has("agent-hook")) out.push("--agent-hook", flags.get("agent-hook"));
   return out;
 }
+var COMMENTS_ROUTE = "/__comments";
+var COMMENT_FILE = "files/index.html";
 async function serve(root, flags) {
-  if (!fs2.existsSync(path2.join(EDITOR_DIR, "index.html")) || !fs2.existsSync(path2.join(EDITOR_DIR, "local-host.js"))) {
+  if (!["index.html", "local-host.js", "comments.js"].every((name) => fs4.existsSync(path3.join(EDITOR_DIR, name)))) {
     throw new CliError("EDITOR_MISSING", `The editor page is missing (${EDITOR_DIR}); reinstall the skill.`);
   }
   const existing = await runningServer2(root);
@@ -1317,11 +2006,13 @@ async function serve(root, flags) {
   }
   const host = flags.get("host") ?? "127.0.0.1";
   const port = Number(flags.get("port") ?? 0);
+  const agentHook = flags.get("agent-hook");
+  if (agentHook === "true") throw new CliError("INVALID_AGENT_HOOK", '--agent-hook takes a command: --agent-hook "<command>".');
   if (!Number.isInteger(port) || port < 0 || port > 65535) throw new CliError("INVALID_PORT", "--port is a number from 0 to 65535.");
   const log = (line) => process.stderr.write(`[${(/* @__PURE__ */ new Date()).toISOString()}] ${line}
 `);
-  const dbDir = path2.join(root, "db");
-  fs2.mkdirSync(dbDir, { recursive: true });
+  const dbDir = path3.join(root, "db");
+  fs4.mkdirSync(dbDir, { recursive: true });
   const known = /* @__PURE__ */ new Map();
   const clients = /* @__PURE__ */ new Set();
   const send = (res, event, data) => res.write(`event: ${event}
@@ -1335,7 +2026,7 @@ data: ${JSON.stringify(data)}
     for (const [p, { file }] of files) {
       let stat;
       try {
-        stat = fs2.statSync(file);
+        stat = fs4.statSync(file);
       } catch {
         continue;
       }
@@ -1343,7 +2034,7 @@ data: ${JSON.stringify(data)}
       if (prev && prev.mtimeMs === stat.mtimeMs && prev.size === stat.size) continue;
       let data;
       try {
-        data = JSON.parse(fs2.readFileSync(file, "utf8"));
+        data = JSON.parse(fs4.readFileSync(file, "utf8"));
         if (!isObject(data)) throw new Error("not an object");
       } catch {
         continue;
@@ -1371,18 +2062,26 @@ data: ${JSON.stringify(data)}
   };
   let watcher = null;
   try {
-    watcher = fs2.watch(dbDir, { recursive: true }, soon);
+    watcher = fs4.watch(dbDir, { recursive: true }, soon);
     watcher.on("error", () => {
     });
   } catch (error) {
     log(`file watching unavailable (${error.message}); polling instead`);
   }
   const poll = setInterval(rescan, watcher ? 2e3 : 700);
+  const comments = createCommentsService({
+    root,
+    log,
+    userName: localUserName(),
+    locate: () => ({ file: COMMENT_FILE }),
+    ...agentHook ? { agentHook } : {},
+    allowWrite: sameOrigin
+  });
   const allowedHosts = (p) => /* @__PURE__ */ new Set([`127.0.0.1:${p}`, `localhost:${p}`, `[::1]:${p}`, `${host}:${p}`]);
   let hosts = /* @__PURE__ */ new Set();
   const json = (res, status, body) => sendJson(res, status, body);
   const serveFile = (req, res, file, type, cache) => {
-    fs2.stat(file, (error, stat) => {
+    fs4.stat(file, (error, stat) => {
       if (error || !stat.isFile()) return json(res, 404, { code: "not_found", message: "Not found" });
       sendFile(req, res, file, { "Content-Type": type, "Content-Length": stat.size, "Cache-Control": cache, "X-Content-Type-Options": "nosniff" });
     });
@@ -1393,9 +2092,10 @@ data: ${JSON.stringify(data)}
       const url2 = new URL(req.url ?? "/", "http://local");
       const p = url2.pathname;
       if (req.method === "POST" && !sameOrigin(req)) return json(res, 403, { code: "not_granted", message: "Cross-origin write refused." });
-      if (req.method === "GET" && (p === "/" || p === "/index.html")) return serveFile(req, res, path2.join(EDITOR_DIR, "index.html"), "text/html; charset=utf-8", "no-store");
-      if (req.method === "GET" && p === "/local-host.js") return serveFile(req, res, path2.join(EDITOR_DIR, "local-host.js"), "text/javascript; charset=utf-8", "no-store");
-      if (req.method === "GET" && /^\/assets\/[A-Za-z0-9_.-]+$/.test(p)) return serveFile(req, res, path2.join(EDITOR_DIR, p), contentTypeOf(p), "public, max-age=31536000, immutable");
+      if (req.method === "GET" && (p === "/" || p === "/index.html")) return serveFile(req, res, path3.join(EDITOR_DIR, "index.html"), "text/html; charset=utf-8", "no-store");
+      if (req.method === "GET" && (p === "/local-host.js" || p === "/comments.js")) return serveFile(req, res, path3.join(EDITOR_DIR, p.slice(1)), "text/javascript; charset=utf-8", "no-store");
+      if (p === COMMENTS_ROUTE || p.startsWith(`${COMMENTS_ROUTE}/`)) return await comments.handle(req, res, p.slice(COMMENTS_ROUTE.length));
+      if (req.method === "GET" && /^\/assets\/[A-Za-z0-9_.-]+$/.test(p)) return serveFile(req, res, path3.join(EDITOR_DIR, p), contentTypeOf(p), "public, max-age=31536000, immutable");
       if (p === "/favicon.ico") return res.writeHead(204).end();
       const blob = /^\/_blob\/([0-9a-f]{32})$/.exec(p);
       if (req.method === "GET" && blob) {
@@ -1468,6 +2168,7 @@ data: ${JSON.stringify(data)}
   const close = () => {
     clearInterval(poll);
     watcher?.close();
+    comments.close();
     for (const c of clients) c.end();
     server.close();
     server.closeAllConnections?.();
@@ -1487,14 +2188,14 @@ data: ${JSON.stringify(data)}
 async function open(root, flags) {
   const existing = await runningServer2(root);
   if (existing) {
-    print({ url: existing.url, root, pid: existing.pid, reused: true, log: path2.join(root, LOG_FILE), stop: cmd("stop", root) }, true);
+    print({ url: existing.url, root, pid: existing.pid, reused: true, log: path3.join(root, LOG_FILE), stop: cmd("stop", root) }, true);
     return;
   }
-  const logFile = path2.join(root, LOG_FILE);
-  const fd = fs2.openSync(logFile, "a");
-  const child = spawn(process.execPath, [SCRIPT, "serve", root, ...serverFlags(flags)], { detached: true, stdio: ["ignore", "ignore", fd] });
+  const logFile = path3.join(root, LOG_FILE);
+  const fd = fs4.openSync(logFile, "a");
+  const child = spawn2(process.execPath, [SCRIPT, "serve", root, ...serverFlags(flags)], { detached: true, stdio: ["ignore", "ignore", fd] });
   child.unref();
-  fs2.closeSync(fd);
+  fs4.closeSync(fd);
   let exited = false;
   child.once("exit", () => exited = true);
   const deadline = Date.now() + 15e3;
@@ -1502,25 +2203,125 @@ async function open(root, flags) {
     await new Promise((r) => setTimeout(r, 120));
     const state = readState(root);
     if (state?.pid === child.pid) {
-      const empty = !fs2.existsSync(docFile(root, ["files", "index.html"]));
+      const empty = !fs4.existsSync(docFile(root, ["files", "index.html"]));
       print({ url: state.url, root, pid: state.pid, log: logFile, stop: cmd("stop", root), ...empty ? { note: "files/index.html is not written yet: the page is empty until it is." } : {} }, true);
       return;
     }
     if (exited) break;
   }
-  const tail = fs2.existsSync(logFile) ? fs2.readFileSync(logFile, "utf8").split("\n").slice(-12).join("\n") : "";
+  const tail = fs4.existsSync(logFile) ? fs4.readFileSync(logFile, "utf8").split("\n").slice(-12).join("\n") : "";
   throw new CliError("SERVER_FAILED", `The editor server did not start. Run ${cmd("serve", root)} in the foreground to see why.${tail ? `
 ${tail}` : ""}`);
 }
 function stop(root) {
   const state = readState(root);
   if (!state || !alive(state.pid)) {
-    fs2.rmSync(path2.join(root, STATE_FILE), { force: true });
+    fs4.rmSync(path3.join(root, STATE_FILE), { force: true });
     print({ stopped: false, message: "No editor server is running for this folder." }, true);
     return;
   }
   process.kill(state.pid, "SIGTERM");
   print({ stopped: true, pid: state.pid }, true);
+}
+var WAIT_CHUNK_S = 300;
+function commentHints(root) {
+  return { reply: cmd("comment-reply", root, "<id>", "<text>"), resolve: cmd("comment-resolve", root, "<id>") };
+}
+async function listComments(root, all) {
+  const doc = await readComments(root);
+  const threads = all ? [...doc.threads].sort((x, y) => x.createdAt.localeCompare(y.createdAt)) : openThreads(doc);
+  const resolved = doc.threads.filter((t) => t.status === "resolved").length;
+  return {
+    root,
+    file: commentsPath(root),
+    threads: agentViews(doc, threads),
+    ...all || !resolved ? {} : { resolved: `${resolved} resolved, not shown (--all shows them)` },
+    ...threads.length ? commentHints(root) : {}
+  };
+}
+function dashboardTitle(root) {
+  let title;
+  try {
+    const meta = readDoc(root, "dash/meta");
+    title = meta.exists ? meta.data?.title : void 0;
+  } catch {
+  }
+  return typeof title === "string" && title.trim() ? title.trim() : path3.basename(root);
+}
+async function waitComments(root, flags) {
+  const timeout = flags.has("timeout") ? Number(flags.get("timeout")) : Infinity;
+  if (!(timeout > 0)) throw new CliError("INVALID_TIMEOUT", "--timeout is a number of seconds above 0.");
+  const deadline = Date.now() + timeout * 1e3;
+  let failures = 0;
+  for (; ; ) {
+    const state = await runningServer2(root);
+    if (!state) throw new CliError("NO_SERVER", `No editor server is running for this folder: start it with ${cmd("open", root)}, then wait again.`);
+    const left = Math.min(WAIT_CHUNK_S, (deadline - Date.now()) / 1e3);
+    if (left <= 0) return { root, threads: [], timedOut: true, next: cmd("comments", root, "--wait") };
+    let body;
+    try {
+      const response = await fetch(new URL(`__comments/agent/wait?timeout=${Math.max(1, Math.round(left))}`, state.url), {
+        signal: AbortSignal.timeout((left + 30) * 1e3)
+      });
+      if (response.status === 404) {
+        throw new CliError(
+          "SERVER_OUTDATED",
+          `The running editor server has no comments (an older version started it). Restart it: ${cmd("stop", root)}, then ${cmd("open", root)}.`
+        );
+      }
+      if (!response.ok) throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+      body = await response.json();
+      failures = 0;
+    } catch (error) {
+      if (error instanceof CliError) throw error;
+      if (++failures >= 3) throw new CliError("SERVER_GONE", `Lost the editor server: ${error.message}`);
+      await new Promise((resolve) => setTimeout(resolve, 1e3));
+      continue;
+    }
+    if (body.closed) continue;
+    const threads = body.threads ?? [];
+    if (threads.length) {
+      return {
+        root,
+        url: state.url,
+        title: dashboardTitle(root),
+        file: commentsPath(root),
+        threads,
+        ...commentHints(root),
+        next: cmd("comments", root, "--wait")
+      };
+    }
+  }
+}
+async function readStdin() {
+  if (process.stdin.isTTY) return "";
+  const chunks = [];
+  for await (const chunk of process.stdin) chunks.push(chunk);
+  return Buffer.concat(chunks).toString("utf8");
+}
+async function replyComment(root, id, words, resolve) {
+  if (!id) throw new CliError("MISSING_ID", `Give the comment id: ${cmd("comment-reply", root, "<id>", "<text>")}`);
+  const given = words.join(" ");
+  const text = (given === "" || given === "-" ? await readStdin() : given).replace(/\r\n?/g, "\n").trim();
+  if (!text) throw new CliError("EMPTY_REPLY", "The reply is empty: pass it as an argument, or as - with the text on stdin.");
+  if (text.length > LIMITS.text) throw new CliError("REPLY_TOO_LONG", `A reply is at most ${LIMITS.text} characters.`);
+  const thread = await updateComments(root, (doc) => {
+    const found = findThread(doc, id);
+    const now = (/* @__PURE__ */ new Date()).toISOString();
+    addMessage(found, AGENT_AUTHOR, text, now);
+    if (resolve) setStatus(found, "resolved", now);
+    return found;
+  });
+  return { replied: thread.id, status: thread.status, file: commentsPath(root) };
+}
+async function resolveComment(root, id, reopen) {
+  if (!id) throw new CliError("MISSING_ID", `Give the comment id: ${cmd("comment-resolve", root, "<id>")}`);
+  const thread = await updateComments(root, (doc) => {
+    const found = findThread(doc, id);
+    setStatus(found, reopen ? "open" : "resolved", (/* @__PURE__ */ new Date()).toISOString());
+    return found;
+  });
+  return { id: thread.id, status: thread.status, file: commentsPath(root) };
 }
 var USAGE = `claude-dashboard \u2014 local Artifact tool for the Dashboard type
 
@@ -1533,9 +2334,16 @@ Usage:
   node scripts/artifact.mjs check    <root>                      check documents, files and marks; exit 1 on problems
   node scripts/artifact.mjs open     <root> [--port n]           start the editor in the background; prints {"url"}
   node scripts/artifact.mjs serve    <root> [--port n]           the same server, in the foreground
+                                     [--agent-hook "<command>"]  open/serve: run this for each comment sent to the agent
+                                                                  (the comment as JSON on stdin)
   node scripts/artifact.mjs stop     <root>                      stop the background editor
+  node scripts/artifact.mjs comments <root> [--all]              the open comments people left in the page (--all: resolved too)
+  node scripts/artifact.mjs comments <root> --wait [--timeout s] wait for a comment sent to the agent from the open page
+  node scripts/artifact.mjs comment-reply <root> <id> <text|->   reply as the agent (-: text on stdin) [--resolve]
+  node scripts/artifact.mjs comment-resolve <root> <id> [--reopen]  mark a comment resolved (or open again)
 
-<root> is the dashboard's folder: documents at <root>/db/<collection>/<doc_id>.json, attached files in <root>/_blobs/.
+<root> is the dashboard's folder: documents at <root>/db/<collection>/<doc_id>.json, attached files in <root>/_blobs/,
+comments in <root>/comments.json.
 A batch is a JSON array (or {"writes": [...]}) of {op, path: "collection/doc_id" (or collection + doc_id), data | file_path};
 in data, {"$file": "path"} is replaced by that file's text. update merges fields; null or {"__delete__": true} removes one.
 Paths in a batch are relative to the current directory. Skill: ${SKILL_DIR}`;
@@ -1549,7 +2357,7 @@ async function main() {
       if (!from) throw new CliError("MISSING_BATCH", "Give the batch: a JSON file, or - to read it from stdin.");
       let text;
       try {
-        text = from === "-" ? fs2.readFileSync(0, "utf8") : fs2.readFileSync(path2.resolve(from), "utf8");
+        text = from === "-" ? fs4.readFileSync(0, "utf8") : fs4.readFileSync(path3.resolve(from), "utf8");
       } catch {
         throw new CliError("FILE_NOT_FOUND", `No such batch file: ${from}`);
       }
@@ -1591,6 +2399,17 @@ async function main() {
       return await serve(resolveRoot(positional[0]), flags) ? -1 : 0;
     case "stop":
       stop(resolveRoot(positional[0]));
+      return 0;
+    case "comments": {
+      const root = resolveRoot(positional[0]);
+      print(flags.has("wait") ? await waitComments(root, flags) : await listComments(root, flags.has("all")));
+      return 0;
+    }
+    case "comment-reply":
+      print(await replyComment(resolveRoot(positional[0]), positional[1], positional.slice(2), flags.has("resolve")), true);
+      return 0;
+    case "comment-resolve":
+      print(await resolveComment(resolveRoot(positional[0]), positional[1], flags.has("reopen")), true);
       return 0;
     case void 0:
     case "help":

@@ -27,11 +27,14 @@ such as `dsh-claude-dashboard@2.4.0`.
   prebuilt `scripts/`: the editor page and `artifact.mjs`, which is also its server).
 - `lib/index.js`: the plugin. It registers the skill with the Harness skill registry and, when the skill loads, tells the
   agent which Node executable runs `scripts/artifact.mjs`: the Host's own Node, the Node runtime the desktop app ships,
-  or `node` on PATH. Set `node` in the `claude-dashboard` row's config to choose another.
+  or `node` on PATH. Set `node` in the `claude-dashboard` row's config to choose another. Whenever the agent opens the
+  editor, the plugin also waits for comments, so a comment's **Send to agent** box is there: send one and the agent
+  wakes up, changes the dashboard, and replies in the comment.
+- `lib/client.js`: the part that runs in the app's window. It shows a comment sent to the agent as a card in the chat;
+  **View thread** on the card opens it in the editor.
 - `cordis.patch.yml`: the bundle layer that mounts the plugin row.
 
-The dashboard editor has no comments: tell the agent in the chat what to change. Its server listens on 127.0.0.1 only
-and reads and writes only the dashboard's folder.
+The editor server listens on 127.0.0.1 only and reads and writes only the dashboard's folder.
 
 ## License
 

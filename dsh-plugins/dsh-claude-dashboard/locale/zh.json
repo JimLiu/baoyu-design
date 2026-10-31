@@ -1,7 +1,7 @@
 {
   "meta": {
     "title": "Claude 数据看板",
-    "description": "加入 claude-dashboard 技能：Agent 根据你的数据文件做出数据看板（图表、数字和表格），并在本地看板编辑器里打开，来源面板会显示每个数字是从哪里来的。",
+    "description": "加入 claude-dashboard 技能：Agent 根据你的数据文件做出数据看板（图表、数字和表格），并在本地看板编辑器里打开，来源面板会显示每个数字是从哪里来的，你也可以把评论发给 Agent 修改。",
     "detail": "docs/DETAIL.zh.md"
   }
 }

@@ -255280,6 +255280,13 @@ function installEditorApp(runtime2) {
             })
           ]
         }),
+        // BaoCut: a seat for the comments button, right of Download. A page opened on its own (not in BaoCut's
+        // iframe) draws claude.ai's comments button into it (@baoyu-design/comments, ui/toolbar.tsx); elsewhere
+        // it stays empty.
+        SlidesAppJsx.jsx("span", {
+          "data-baoyu-comments-seat": "",
+          style: { display: "contents" }
+        }),
         toolbarMenus,
         SlidesAppJsx.jsx(runtime2.ToolbarWhenVisible, {
           children: SlidesAppJsx.jsx(runtime2.ArtifactToolbarDivider, {})
