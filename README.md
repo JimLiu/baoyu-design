@@ -37,6 +37,8 @@ These four skills write the Artifact type's own file format into a folder and op
 
 In the slides, canvas and design-system editors and on the dashboard page, choose **Comment** (or press **C**) to comment on an element or area. Comments stay in the project's local `comments.json`; the agent reads and replies through `artifact.mjs`. While it listens with `comments <root> --wait`, the editor offers **Send to agent** to send your comment for it to act on.
 
+To work together, `share <root>` (or `open <root> --lan`) opens the deck, canvas, design system or dashboard to your local network, the same Wi‑Fi or LAN, and prints a link per role: **editor** edits and comments, **commenter** comments without editing, **viewer** only looks. Whoever opens a link types a name and is in; what they change shows on everyone's page, and their comments land in the same `comments.json`. The person at this computer is the owner: the **Share** button lists who joined and who is online, changes someone's role or removes them, and turns each link off, back on or resets it. Guests get a Share button too, with the links they may pass on: their own role's and those below it. There is no account and nothing leaves your network; it is plain http, so anyone there with a link gets in.
+
 ### `claude-slides`: slide decks
 
 <img src="assets/screenshots/claude-slides-editor.webp" alt="A five-slide health class deck about sleep open in the claude-slides editor" width="880">
@@ -70,6 +72,7 @@ node skills/claude-slides/scripts/artifact.mjs open designs/q3-review           
 node skills/claude-slides/scripts/artifact.mjs check designs/q3-review            # validate the files
 node skills/claude-slides/scripts/artifact.mjs upload designs/q3-review hero.jpg  # store an image, print its /_blob/ URL
 node skills/claude-slides/scripts/artifact.mjs list                                 # find design systems on disk
+node skills/claude-slides/scripts/artifact.mjs share designs/q3-review           # open it to the local network, print a link per role
 ```
 
 A dashboard is written through the same script (`write-db`, `read-db`, `upload`, `check`, `open`) into its own store under `<root>/db/`. Each skill runs its own local server, and everything in `scripts/` ships prebuilt: plain JavaScript that runs on Node alone, with nothing to install or build.
@@ -120,6 +123,7 @@ A workspace that has its own copy of a skill (in `.agents/skills/` or `.dsh/skil
 - **Free yourself from the website.** You get the vast majority of `claude.ai/design`'s capabilities without ever leaving your editor — same methodology, same craft standards, same output format.
 - **Best with Opus 5.5.** The skill is a long, demanding design brief; the stronger the model, the better the result. Pair it with **Claude Opus 5.5** for the best output, and it still works well on other capable models.
 - **Edit side by side with the agent.** Each editor runs on `localhost`; your edits save back into the same files the agent writes, so you can take turns.
+- **Work together, no cloud.** Share an editor on your local network with a link per role; others edit, comment or watch, and you decide who stays in.
 - **Everything is yours.** Output lands in `designs/<slug>/` as plain files you can version, fork, export, or ship.
 
 ---

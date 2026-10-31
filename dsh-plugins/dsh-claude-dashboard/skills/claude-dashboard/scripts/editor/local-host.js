@@ -2,9 +2,13 @@
 "use strict";
 (() => {
   var UNAVAILABLE = Object.freeze({ available: false });
-  var user = { id: "local", name: "You" };
+  var user = { id: "local", name: "You", canEdit: true, owner: true };
   var sessionReady = fetch("/_api/session", { cache: "no-store" }).then((r) => r.ok ? r.json() : null).then((s) => {
-    if (s && typeof s.userName === "string" && s.userName) user.name = s.userName;
+    if (!s) return;
+    if (typeof s.userId === "string" && s.userId) user.id = s.userId;
+    if (typeof s.userName === "string" && s.userName) user.name = s.userName;
+    if (typeof s.canEdit === "boolean") user.canEdit = s.canEdit;
+    if (typeof s.role === "string") user.owner = s.role === "owner";
   }).catch(() => {
   });
   var clone = (v) => v === void 0 ? void 0 : JSON.parse(JSON.stringify(v));
@@ -135,11 +139,14 @@
     async delete() {
     }
   };
+  var EDIT_NAMES = /* @__PURE__ */ new Set(["data.write", "files.write", "assets.write"]);
   var users = {
-    id: async () => user.id,
+    id: async () => (await sessionReady, user.id),
     name: async () => (await sessionReady, user.name),
-    canEdit: async () => true,
-    can: async () => true
+    isOwner: async () => (await sessionReady, user.owner),
+    // The owner and editors hold the db's `admin` level: they write the shared documents, the page and its files.
+    canEdit: async () => (await sessionReady, user.canEdit),
+    can: async (name) => (await sessionReady, EDIT_NAMES.has(name) && user.canEdit)
   };
   var downloads = {
     async save({ filename, data }) {
@@ -159,7 +166,10 @@
   var capabilities = { db, assets, user: users, downloads, self };
   globalThis.claude = {
     ...capabilities,
-    use: async (name) => Object.hasOwn(capabilities, name) ? capabilities[name] : UNAVAILABLE
+    use: async (name) => {
+      if (name === "assets" && !(await sessionReady, user.canEdit)) return UNAVAILABLE;
+      return Object.hasOwn(capabilities, name) ? capabilities[name] : UNAVAILABLE;
+    }
   };
   var NativeFontFace = globalThis.FontFace;
   if (typeof NativeFontFace === "function") {

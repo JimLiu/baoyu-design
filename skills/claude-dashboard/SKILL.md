@@ -32,8 +32,9 @@ does every call; below, `A` is `<this skill's folder>/scripts/artifact.mjs`.
 | `node $A upload <root> <file> [--name n]` | Attaches a CSV, TSV or JSON file: `{"url": "/_blob/<id>", "bytes", "contentType", …}`. |
 | `node $A delete-asset <root> <url \| id>` | Removes an attached file no document names any more. |
 | `node $A check <root>` | Checks the documents, the page's files, and that each dataset mark's `data-where`/`data-row` finds its rows. Exit 1 while `problems` > 0. |
-| `node $A open <root> [--port n]` | Starts the editor on 127.0.0.1 in the background and returns `{"url", "pid", "stop", …}`. Run again, it reuses the one running. `--agent-hook "<command>"`: see Comments. |
-| `node $A serve <root> [--port n]` / `stop <root>` | The same server in the foreground / stops the background one. |
+| `node $A open <root> [--port n] [--lan]` | Starts the editor at 127.0.0.1:4740 (the next free port up when 4740 is taken; `--port n` starts from n, `--port 0` takes any) in the background and returns `{"url", "pid", "stop", …}`; `url` is the dashboard's own page; its path, `/dashboard/<id>/`, stays the same from one start to the next (`/` goes there). Run again, it reuses the one running. `--lan`: also on the local network (see Sharing). `--agent-hook "<command>"`: see Comments. |
+| `node $A serve <root> [--port n] [--lan]` / `stop <root>` | The same server in the foreground / stops the background one. |
+| `node $A share <root>` | Opens it to the local network and prints a link per role; `--disable` / `--enable` / `--reset <role>`, `--role <guest>=<role>`, `--off`. See Sharing. |
 | `node $A comments <root> [--all]` / `--wait` | The comments people left on the page / waits for one they send you. See Comments. |
 | `node $A comment-reply <root> <id> <text\|->` / `comment-resolve <root> <id>` | Answers one (`--resolve` closes it too) / closes one (`--reopen`). |
 
@@ -377,3 +378,43 @@ page.
   and you read them when asked. (`open <root> --agent-hook "<command>"` is the
   other way in: the server runs the command in `<root>` for each comment sent,
   the thread as JSON on stdin.)
+
+## Sharing
+
+`share <root>` opens the dashboard to the local network (the same Wi-Fi or LAN,
+as `http://<this computer's address>:4740/`), starting the server if it isn't
+running, and prints a link per role: `editor` edits and comments, `commenter`
+comments without editing, `viewer` only looks. `open <root> --lan` (or
+`serve --lan`) shares it as it starts.
+
+- The person at this computer is the owner: everything, plus the Share button
+  in the toolbar (the links, the people who joined and who is online, each
+  one's role, sharing on or off). On this computer (`127.0.0.1`) they stay the
+  owner even when they open a link; a link opened at the network address shows
+  what that role sees.
+- Give the person the links to pass on. Whoever opens one types a name and is
+  in as that role; what they change and comment lands in the same folder as the
+  owner's. The links survive a restart while the server gets its port back; if
+  not, `share <root>` prints the new ones to give out again.
+- Guests have a Share button too. It holds the links they may pass on, their own
+  role's and the ones below it (an editor's has all three, a commenter's the
+  commenter and viewer links, a viewer's the viewer link), and Copy link for the
+  page's address, which only people who already have access can open. Whoever
+  joins through a guest's link shows in the owner's panel like anyone else;
+  turning links off, resetting them, changing roles and removing people stay the
+  owner's.
+- `share <root> --disable <role>` / `--enable <role>` turns a link off or on
+  (`<role>`: one, `editor,viewer`, or `all`); off, it holds everyone who came
+  by it until it is on again. `--reset <role>` gives the role a new link: the
+  old one stops working and the people who came by it are out.
+  `--role <guest>=<role>` gives someone who joined another role (`<guest>`: an
+  id from the `guests` it prints). `--off` stops sharing on the network.
+- Who writes what follows the page's own store rules: the owner and editors
+  write the shared documents; commenters and viewers write nothing, their own
+  per-person documents (`data/users/<id>`) included, so a run, a check or other
+  per-person state they make in the page is not kept. Each person's
+  `data/users/<id>` is theirs alone to read.
+- Only the owner's page sends to you (Send to agent); what guests comment is
+  saved for you to read with `comments <root>`.
+- The links and the people who joined are in `<root>/.sharing.json`: leave it.
+  It is plain http on the local network: anyone there with a link gets in.

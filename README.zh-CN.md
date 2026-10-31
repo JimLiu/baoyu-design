@@ -37,6 +37,8 @@ https://github.com/user-attachments/assets/d5b4f39b-a701-49de-87b8-64f3c6ef9c61
 
 在幻灯片、画布、设计系统编辑器和仪表盘页面里，点击 **Comment**（或按 **C**）就能对元素或区域留下评论。评论保存在项目本地的 `comments.json`，Agent 通过 `artifact.mjs` 读取和回复。Agent 用 `comments <root> --wait` 等待评论时，编辑器会显示 **Send to agent**，让你把评论交给它处理。
 
+要和别人一起做，`share <root>`（或 `open <root> --lan`）把幻灯片、画布、设计系统或仪表盘开放到局域网（同一个 Wi‑Fi 或内网），每种角色打印一个链接：**editor** 能改也能评论，**commenter** 只能评论，**viewer** 只能看。拿到链接的人输个名字就进来了，他改的内容会出现在每个人的页面上，评论也写进同一份 `comments.json`。坐在这台电脑前的人是主人：**Share** 按钮里能看到谁加入了、谁在线，能改某个人的角色或把他移出去，能关掉、重新打开或重置每个链接。访客也有 Share 按钮，里面是他可以转发的链接：自己这一级和更低的角色。不用注册账号，内容不出你的网络；走的是局域网里的明文 http，网络里拿到链接的人都进得来。
+
 ### `claude-slides`：幻灯片
 
 <img src="assets/screenshots/claude-slides-editor.webp" alt="claude-slides 编辑器里打开的一份讲睡眠的 5 页健康课幻灯片" width="880">
@@ -70,6 +72,7 @@ node skills/claude-slides/scripts/artifact.mjs open designs/q3-review           
 node skills/claude-slides/scripts/artifact.mjs check designs/q3-review            # 校验文件
 node skills/claude-slides/scripts/artifact.mjs upload designs/q3-review hero.jpg  # 存入图片，打印它的 /_blob/ 地址
 node skills/claude-slides/scripts/artifact.mjs list                                 # 查找磁盘上的设计系统
+node skills/claude-slides/scripts/artifact.mjs share designs/q3-review           # 开放到局域网，每种角色打印一个链接
 ```
 
 仪表盘也用同一个脚本（`write-db`、`read-db`、`upload`、`check`、`open`）写入它自己在 `<root>/db/` 下的存储。每个技能都运行自己的本地服务器，`scripts/` 里的文件都是预先构建好的 JavaScript，只要有 Node 就能运行，不用安装依赖，也不用构建。
@@ -120,6 +123,7 @@ https://jimliu.github.io/baoyu-design/dsh-plugins/index.json
 - **摆脱对网站的依赖。** 不必离开编辑器，就能用上 `claude.ai/design` 绝大部分的功能 —— 同一套方法论、同样的工艺标准、同样的产出格式。
 - **搭配 Opus 5.5 效果最佳。** 这个技能本身是一份冗长且要求很高的设计指令，模型越强、效果越好。建议搭配 **Claude Opus 5.5** 获得最佳结果；在其他能力足够的模型上也能良好运行。
 - **和 Agent 轮流改。** 每个编辑器都跑在 `localhost` 上，你在编辑器里的修改会存回 Agent 写的同一批文件。
+- **在局域网里协作，不经过云。** 编辑器可以分享到局域网，每种角色一个链接；别人可以改、评论或旁观，谁能留下由你决定。
 - **一切都归你所有。** 产物落在 `designs/<slug>/` 下，是可以纳入版本控制、二次分叉、导出或直接上线的普通文件。
 
 ---

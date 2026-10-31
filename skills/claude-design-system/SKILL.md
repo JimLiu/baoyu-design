@@ -163,7 +163,8 @@ leave alone stays as it is, and removing a file is deleting it. The rest goes th
 - `upload <root> <file> --group <Group>` → `{url:"/_blob/<id>", record, indexPath, shownAs, …}`: stores a copy as `project/_blobs/<id>.<ext>`; the same bytes always get the same id. Write `record` into the index at `indexPath` (with the index, LAST). `<root>` must exist.
 - `check <root>` → `problems` (0: done); `issues` (each a `file` under `project/` and its fix) and `notes`, each when any; it exits 1 while any problem remains. The generated files and whether previews render are not checked.
 - `list [dir …]` → the design systems in the working directory (or the folders given, and those in `$CLAUDE_DESIGN_SYSTEMS`), each `{title, namespace, folder, root, readme, tokens}`.
-- `open <root>` → `{url, pid, stop, …}`: starts the page on this machine in the background (once; later calls reuse it, `reused: true`) and prints its address. `stop <root>` ends it (`serve <root>` runs it in the foreground instead). The page saves the user's edits (and the generated files) into the same folder, and shows yours as soon as you write them. `.artifact-server.json` and `.artifact-server.log` beside `project/` are its own: leave them; so is `comments.json` (the comments, see Comments), which only the comment commands below change.
+- `open <root>` → `{url, pid, stop, …}`: starts the page on this machine in the background (once; later calls reuse it, `reused: true`) and prints its address, 127.0.0.1:4730 (the next free port up when 4730 is taken; `--port n` starts from n, `--port 0` takes any). `stop <root>` ends it (`serve <root>` runs it in the foreground instead). The page saves the user's edits (and the generated files) into the same folder, and shows yours as soon as you write them. `.artifact-server.json` and `.artifact-server.log` beside `project/` are its own: leave them; so is `comments.json` (the comments, see Comments), which only the comment commands below change.
+- `share <root>` (or `open <root> --lan`): opens the page to the local network and prints a link per role (Sharing, below).
 
 Each result carries more keys than named here; its `next`, where it has one, says what to do with it.
 
@@ -242,6 +243,17 @@ People comment in the open editor: Comment (or C), then a click on a token, colo
 - `comment-reply <root> <id> <text>` (or `-`, the text on stdin): your reply, shown in the editor at once from "agent". Reply after the change is written (Revising a system), in a sentence or two: what changed, or why not. `--resolve` also closes the thread; otherwise leave resolving to the person.
 - `comment-resolve <root> <id>` closes one (`--reopen` opens it again).
 - Live, while the page is open: run `comments <root> --wait` as a background command that tells you when it exits. While it waits the editor offers **Send to agent**; when the person sends a comment, it prints that thread and exits. Handle it, reply, then start the wait again (its `next`). No background commands? Skip it: the page then just saves comments, without the button, and you read them when asked. (`open <root> --agent-hook "<command>"` is the other way in: the server runs the command in `<root>` for each comment sent, the thread as JSON on stdin.)
+
+## Sharing
+
+`share <root>` opens the system to the local network (the same Wi-Fi or LAN, as `http://<this computer's address>:4730/`), starting the server if it isn't running, and prints a link per role: `editor` edits and comments, `commenter` comments without editing, `viewer` only looks. `open <root> --lan` (or `serve --lan`) shares it as it starts.
+
+- The person at this computer is the owner: everything, plus the Share button in the bar across the top of the page, next to the comments button (the links, the people who joined and who is online, each one's role, sharing on or off). On this computer (`127.0.0.1`) they stay the owner even when they open a link; a link opened at the network address shows what that role sees.
+- Give the person the links to pass on. Whoever opens one types a name and is in as that role; what they change and comment lands in the same folder as the owner's. The links survive a restart while the server gets its port back; if not, `share <root>` prints the new ones to give out again.
+- Guests have a Share button too. It holds the links they may pass on, their own role's and the ones below it (an editor's has all three, a commenter's the commenter and viewer links, a viewer's the viewer link), and Copy link for the page's address, which only people who already have access can open. Whoever joins through a guest's link shows in the owner's panel like anyone else; turning links off, resetting them, changing roles and removing people stay the owner's.
+- `share <root> --disable <role>` / `--enable <role>` turns a link off or on (`<role>`: one, `editor,viewer`, or `all`); off, it holds everyone who came by it until it is on again. `--reset <role>` gives the role a new link: the old one stops working and the people who came by it are out. `--role <guest>=<role>` gives someone who joined another role (`<guest>`: an id from the `guests` it prints). `--off` stops sharing on the network.
+- Only the owner's page sends to you (Send to agent); what guests comment is saved for you to read with `comments <root>`.
+- The links and the people who joined are in `<root>/.sharing.json`: leave it. It is plain http on the local network: anyone there with a link gets in.
 
 ## The references
 
