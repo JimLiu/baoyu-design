@@ -2893,6 +2893,11 @@ async function listComments(a, all) {
     ...threads.length ? commentHints(a) : {}
   };
 }
+async function artifactTitle(a) {
+  const info = await readInfo(a.project).catch(() => null);
+  const title = typeof info?.title === "string" ? info.title.trim() : "";
+  return title && title !== "project" ? title : path11.basename(a.root);
+}
 async function waitComments(a, flags) {
   const timeout = flags.has("timeout") ? Number(flags.get("timeout")) : Infinity;
   if (!(timeout > 0)) throw new CliError("INVALID_TIMEOUT", "--timeout is a number of seconds above 0.");
@@ -2927,7 +2932,17 @@ async function waitComments(a, flags) {
     }
     if (body.closed) continue;
     const threads = body.threads ?? [];
-    if (threads.length) return { root: a.root, file: commentsPath(a.root), threads, ...commentHints(a), next: script("comments", a.root, "--wait") };
+    if (threads.length) {
+      return {
+        root: a.root,
+        url: state.url,
+        title: await artifactTitle(a),
+        file: commentsPath(a.root),
+        threads,
+        ...commentHints(a),
+        next: script("comments", a.root, "--wait")
+      };
+    }
   }
 }
 async function readStdin() {

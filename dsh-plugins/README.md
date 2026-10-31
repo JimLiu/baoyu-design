@@ -63,8 +63,9 @@ The desktop app's own profile only accepts plugins added from its Plugins page.
    as it makes them. To change more, ask in the chat or leave a comment.
 5. **Send comments to the agent** (see the Comments column above):
    - **Send to agent**: add a comment on the page, tick **Send to agent**, and send it. The agent picks the comment up
-     even when the chat is idle, makes the change, and replies in the comment. The box only shows while the agent is
-     waiting for comments, and it starts waiting each time it gives you a link.
+     even when the chat is idle, makes the change, and replies in the comment. The comment also shows in the chat as a
+     card; **View thread** on the card opens it in the editor. The box only shows while the agent is waiting for
+     comments, and it starts waiting each time it gives you a link.
    - **None**: this editor has no comments. Tell the agent in the chat what to change and where.
 
 To come back later, open a session in the same workspace and ask the agent to open the deck, design or dashboard
@@ -73,7 +74,8 @@ again. It starts the editor and gives you a new link.
 ## Update
 
 Get the new version into the same folder, with `git pull` in the repository, or download the ZIP again and unzip it over
-the old one. Then, on the Plugins page, turn the plugin off and back on, or restart the app, and start a new session.
+the old one. Then quit and reopen the app, and start a new session. Turning the plugin off and on in the Plugins page
+is not enough when the new version changes what the chat shows, such as the comment cards.
 
 If the new copy is in a different folder, uninstall the plugin and add it again with the new path.
 

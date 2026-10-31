@@ -1,5 +1,7 @@
 // dsh-claude-design-system 2.3.0: built from baoyu-design.
 var define_PLUGIN_default = { name: "claude-design-system", provider: "dsh-claude-design-system", skills: [{ name: "claude-design-system", description: "Create and revise design systems in the Design System artifact format (project/design-system.json, tokens.json, a README brand book, component previews, fonts and asset groups) as local files, then open them in a local design-system page where the user can browse and edit tokens, type, components and assets. Use when the user asks for a design system or brand kit in this format, built from a code repository, a design tool or scratch, names claude-design-system or the Design System type, or wants to revise a folder that holds project/design-system.json. claude-slides and claude-design install these systems. A free-form HTML style guide, UI kit or token page is baoyu-design's.", comments: true }] };
+import { spawn } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { statSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { delimiter, dirname, isAbsolute, join, sep } from "node:path";
@@ -70,35 +72,191 @@ function runtimeSection(skill, skillDir, node) {
     "app a chat link opens in the right sidebar's Browser, next to this conversation."
   ];
   if (skill.comments) {
-    const why = skill.commentsBy === "mention" ? [
-      "A comment, reply or edit in the viewer that says `@agent` is sent to you, and only this wait hands it to you",
-      "(the viewer has no Send to agent box; one sent while nothing waits comes back from the next wait at once). So",
-      "each time you give the user the viewer's link, also start this wait with the bash tool's"
-    ] : [
-      "The editor shows **Send to agent** on a comment only while you wait for one. So each time you give the user the",
-      "editor's link, also start this wait with the bash tool's"
-    ];
+    const sent = skill.commentsBy === "mention" ? "A comment, reply or edit in the viewer that says `@agent` is sent to you (the viewer has no Send to agent box)." : "The editor shows **Send to agent** on a comment while comments can reach you; a comment sent with it is sent to you.";
     lines.push(
       "",
       "### Comments sent to you from the editor",
       "",
-      ...why,
-      '`run_in_background: true` (that is the "background command that tells you when it exits"; one per `<root>`: skip',
-      "it when `job_list` already shows one running for that folder):",
-      "",
-      "```sh",
-      run("comments", '"<root>"', "--wait"),
-      "```",
-      "",
-      "It runs, with no timeout, until the person sends a comment, then exits, and its completion notice wakes you. Then:",
-      "read the threads with `job_output`, handle them as Comments says",
-      skill.commentsBy === "mention" ? "(read the block, change the doc with `update`, then `comment-reply`), and" : "(change the files, then `comment-reply`), and",
-      "start the same wait again in the background. If the wait ends with `NO_SERVER`, the editor was stopped: leave it",
-      "stopped. Never run the wait in the foreground, and do not poll `job_output` while it runs.",
+      sent,
+      "Here DeepSeek Harness waits for them for you: after you run `open` it runs `comments <root> --wait` itself, and",
+      "each comment sent to you arrives in this conversation as a message with the threads (it wakes you when you are",
+      "idle). Handle it as Comments says",
+      skill.commentsBy === "mention" ? "(read the block, change the doc with `update`, then `comment-reply`)." : "(change the files, then `comment-reply`).",
+      "So do not start `comments --wait` yourself, where Comments says to: run `open` in the foreground (not",
+      "`run_in_background`), and the wait starts with it. It stops when the editor stops; after `stop`, the next `open`",
+      "starts it again.",
       ...skill.commentsBy === "mention" ? ["", "When you first give the link, tell the user that a comment with `@agent` in it reaches you (type `@` and pick agent)."] : []
     );
   }
   return lines.join("\n");
+}
+const COMMENT_SOURCE = "baoyu-design-comment";
+const SUMMARY_MAX = 120;
+const SESSION_CHECK_MS = 6e4;
+const RETRY_MS = 5e3;
+const MAX_QUICK_FAILURES = 3;
+const regexpEscape = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+function jsonObject(text) {
+  const trimmed = text.trim();
+  const starts = [0];
+  for (let i = trimmed.indexOf("\n{"); i >= 0; i = trimmed.indexOf("\n{", i + 1)) starts.push(i + 1);
+  for (const start of starts) {
+    if (trimmed[start] !== "{") continue;
+    const end = trimmed.lastIndexOf("}");
+    for (let stop = end; stop > start; stop = trimmed.lastIndexOf("}", stop - 1)) {
+      try {
+        const value = JSON.parse(trimmed.slice(start, stop + 1));
+        if (value && typeof value === "object" && !Array.isArray(value)) return value;
+      } catch {
+      }
+    }
+  }
+  return null;
+}
+function bashStdout(result) {
+  const value = result.value;
+  if (typeof value === "string") return value;
+  if (value && typeof value === "object") {
+    if (value.kind !== "foreground" || value.exitCode !== 0) return null;
+    return typeof value.stdout?.text === "string" ? value.stdout.text : null;
+  }
+  const text = result.content.map((block) => block.type === "text" ? block.text ?? "" : "").join("\n");
+  return text || null;
+}
+const bound = (text) => text.length <= SUMMARY_MAX ? text : `${text.slice(0, SUMMARY_MAX - 1)}…`;
+function commentMessage(skill, plugin, out, root) {
+  const title = typeof out.title === "string" && out.title ? out.title : root.split(/[\\/]/).pop() || root;
+  const url = typeof out.url === "string" ? out.url : "";
+  const threads = (out.threads ?? []).map((t) => {
+    const mine = (t.messages ?? []).filter((m) => m.from === "user");
+    return { id: t.id, where: t.where ?? "", text: (mine[mine.length - 1] ?? t.messages?.[t.messages.length - 1])?.text ?? "" };
+  });
+  const { next: _next, timedOut: _timedOut, ...rest } = out;
+  const how = skill.commentsBy === "mention" ? "read the block, change the doc with `update`, then `comment-reply`" : "change the files, then `comment-reply`";
+  const text = [
+    `Comments sent to you from the editor of "${title}" (${url || root}):`,
+    "",
+    "```json",
+    JSON.stringify(rest, null, 2),
+    "```",
+    "",
+    `Handle them as Comments says (${how}; run the script as "Running the calls in DeepSeek Harness" says).`,
+    "DeepSeek Harness is already waiting for the next comments: do not run `comments --wait`."
+  ].join("\n");
+  const first = threads[0];
+  const summary = bound(`Comment on "${title}": ${first ? first.text.replace(/\s+/g, " ") : ""}`.trim());
+  const message = {
+    role: "user",
+    id: randomUUID(),
+    content: [{ type: "text", text }],
+    source: { kind: COMMENT_SOURCE, form: "notice", summary, plugin, title, url, root, threads }
+  };
+  return Object.freeze(message);
+}
+class CommentWatcher {
+  watches = /* @__PURE__ */ new Map();
+  check;
+  ctx;
+  skill;
+  script;
+  node;
+  constructor(ctx, skill, script, node) {
+    this.ctx = ctx;
+    this.skill = skill;
+    this.script = script;
+    this.node = node;
+    this.check = setInterval(() => this.dropGoneSessions(), SESSION_CHECK_MS);
+    this.check.unref?.();
+  }
+  log(level, message) {
+    this.ctx.logger?.[level]?.(`${PLUGIN.name}: ${message}`);
+  }
+  agent(session) {
+    return this.ctx.get("agents")?.get(session);
+  }
+  /** The agent ran this skill's `open`: see whether its output names an editor, and wait for its comments. */
+  observe(exec, result) {
+    if (exec.name !== "bash" || exec.agent === void 0 || result.isError) return;
+    const args = exec.arguments;
+    const command = args?.command;
+    if (typeof command !== "string" || args?.run_in_background === true) return;
+    if (!new RegExp(`${regexpEscape(this.script)}["']?\\s+open(?:\\s|$)`).test(command)) return;
+    const stdout = bashStdout(result);
+    const opened = stdout === null ? null : jsonObject(stdout);
+    if (typeof opened?.root !== "string" || typeof opened.url !== "string") return;
+    this.watch(String(exec.agent.id), opened.root);
+  }
+  watch(session, root) {
+    const key = `${session}\0${root}`;
+    if (this.watches.has(key)) return;
+    const watch = { child: null, stopped: false, quickFailures: 0 };
+    this.watches.set(key, watch);
+    this.log("info", `waiting for comments on ${root}`);
+    this.run(key, session, root, watch);
+  }
+  stop(key, watch, why) {
+    if (watch.stopped) return;
+    watch.stopped = true;
+    if (watch.retry) clearTimeout(watch.retry);
+    watch.child?.kill();
+    watch.child = null;
+    if (this.watches.get(key) === watch) this.watches.delete(key);
+    this.log("info", `stopped waiting for comments (${why})`);
+  }
+  run(key, session, root, watch) {
+    if (watch.stopped) return;
+    if (this.agent(session) === void 0) return this.stop(key, watch, "the session is gone");
+    const env = { ...process.env };
+    if (this.node.env) {
+      const [name2, value] = this.node.env.split("=");
+      if (name2) env[name2] = value ?? "";
+    }
+    const started = Date.now();
+    const child = spawn(this.node.path, [this.script, "comments", root, "--wait"], { env, stdio: ["ignore", "pipe", "pipe"], windowsHide: true });
+    watch.child = child;
+    let stdout = "";
+    let stderr = "";
+    child.stdout?.setEncoding("utf8").on("data", (chunk) => stdout += chunk);
+    child.stderr?.setEncoding("utf8").on("data", (chunk) => stderr += chunk);
+    child.on("error", (error) => this.stop(key, watch, `the wait did not start: ${error.message}`));
+    child.on("close", (code) => {
+      if (watch.child === child) watch.child = null;
+      if (watch.stopped) return;
+      if (code === 0) {
+        watch.quickFailures = 0;
+        const out = jsonObject(stdout);
+        if (out && Array.isArray(out.threads) && out.threads.length > 0) this.deliver(session, out, root);
+        this.run(key, session, root, watch);
+        return;
+      }
+      const failure = jsonObject(stderr);
+      const reason = typeof failure?.code === "string" ? failure.code : `exit ${code ?? "signal"}`;
+      if (failure && typeof failure.code === "string") return this.stop(key, watch, reason);
+      if (Date.now() - started < RETRY_MS && ++watch.quickFailures > MAX_QUICK_FAILURES) return this.stop(key, watch, reason);
+      watch.retry = setTimeout(() => this.run(key, session, root, watch), RETRY_MS);
+    });
+  }
+  deliver(session, out, root) {
+    const agent = this.agent(session);
+    if (agent === void 0) return;
+    const message = commentMessage(this.skill, PLUGIN.provider, out, root);
+    try {
+      if (agent.status === "idle") agent.followup(message);
+      else agent.inject(message);
+    } catch (error) {
+      this.log("warn", `could not hand the comments to the agent: ${error.message}`);
+    }
+  }
+  dropGoneSessions() {
+    for (const [key, watch] of [...this.watches]) {
+      const session = key.slice(0, key.indexOf("\0"));
+      if (this.agent(session) === void 0) this.stop(key, watch, "the session is gone");
+    }
+  }
+  dispose() {
+    clearInterval(this.check);
+    for (const [key, watch] of [...this.watches]) this.stop(key, watch, "the plugin stopped");
+  }
 }
 function skillBody(raw, path) {
   const frontmatter = /^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/u.exec(raw);
@@ -136,10 +294,20 @@ function apply(ctx, config = {}) {
     }
   };
   ctx.skills.registerProvider(() => provider);
+  for (const skill of PLUGIN.skills) {
+    if (!skill.comments) continue;
+    const script = join(packageRoot, "skills", skill.name, "scripts", "artifact.mjs");
+    const watcher = new CommentWatcher(ctx, skill, script, node);
+    ctx.on("tools/result", (exec, result) => watcher.observe(exec, result));
+    ctx.effect(() => () => watcher.dispose(), `${PLUGIN.name}: comment waits`);
+  }
 }
 export {
+  COMMENT_SOURCE,
   apply,
+  commentMessage,
   inject,
+  jsonObject,
   name,
   resolveNode,
   runtimeSection
