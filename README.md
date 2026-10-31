@@ -11,7 +11,7 @@ https://github.com/user-attachments/assets/d5b4f39b-a701-49de-87b8-64f3c6ef9c61
 
 ![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg) ![Best with Opus 5.5](https://img.shields.io/badge/Best%20with-Opus%205.5-d97757) ![Harness](https://img.shields.io/badge/Cursor%20%C2%B7%20Claude%20Code%20%C2%B7%20Codex-supported-1f6feb)
 
-This repo brings claude.ai's **Artifact types** to local agents: editable slide decks, design canvases, design systems and data dashboards, each opened in its own editor that runs on your machine. A fifth skill, `dataviz`, is the chart guide the agent reads before it draws any chart, in these skills or anywhere else.
+This repo brings claude.ai's **Artifact types** to local agents: editable slide decks, design canvases, design systems and data dashboards, each opened in its own editor that runs on your machine. A fifth skill, `dataviz`, is the chart guide the agent reads before it draws any chart, in these skills or anywhere else. The four editors also ship as [DeepSeek Harness plugins](#deepseek-harness-plugins).
 
 The original `baoyu-design` skill (self‑contained HTML mockups and prototypes) has been archived to [`archive/baoyu-design/`](archive/baoyu-design/).
 
@@ -73,6 +73,27 @@ node skills/claude-slides/scripts/artifact.mjs list                             
 ```
 
 A dashboard is written through the same script (`write-db`, `read-db`, `upload`, `check`, `open`) into its own store under `<root>/db/`. Each skill runs its own local server, and everything in `scripts/` ships prebuilt: plain JavaScript that runs on Node alone, with nothing to install or build.
+
+---
+
+## DeepSeek Harness plugins
+
+The four editor skills also come as [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) plugins, in [`dsh-plugins/`](dsh-plugins/): `dsh-claude-slides`, `dsh-claude-design`, `dsh-claude-design-system` and `dsh-claude-dashboard`. Each plugin carries its skill exactly as this repo publishes it, prebuilt editor included, so Claude Design and the other editors run on your DeepSeek agent.
+
+In the slides, canvas and design-system editors, a comment goes straight to the agent: whenever the agent gives you an editor link, the plugin has it wait for comments in a background job. Mark up the page, tick **Send to agent**, and the agent wakes up, reads your comment, makes the change and replies in the comment thread.
+
+To install one:
+
+1. Get the repo: `git clone https://github.com/JimLiu/baoyu-design` (or download it).
+2. In the DeepSeek Harness app, open **Plugins** → install, and enter the absolute path of a plugin folder, such as `…/baoyu-design/dsh-plugins/dsh-claude-design`. From the command line, for a CLI profile such as `web`:
+
+   ```bash
+   dsh plugin --profile web add /absolute/path/to/baoyu-design/dsh-plugins/dsh-claude-design
+   ```
+
+3. Start a new session and ask for a deck, a canvas, a design system or a dashboard, or type `/claude-design` (`/claude-slides` and so on).
+
+A workspace that has its own copy of a skill (in `.agents/skills/` or `.dsh/skills/`) uses that copy instead of the plugin's. Each plugin's README in `dsh-plugins/` has the details.
 
 ---
 

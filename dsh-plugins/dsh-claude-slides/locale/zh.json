@@ -1,0 +1,7 @@
+{
+  "meta": {
+    "title": "Claude 幻灯片",
+    "description": "加入 claude-slides 技能：Agent 把可编辑的幻灯片写成本地文件，并在本地幻灯片编辑器里打开，你可以放映、修改，导出 PDF、HTML 或 PowerPoint。",
+    "detail": "docs/DETAIL.zh.md"
+  }
+}

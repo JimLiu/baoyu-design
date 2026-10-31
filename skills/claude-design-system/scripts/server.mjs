@@ -630,7 +630,7 @@ data: ${JSON.stringify(snap)}
     for (const client of clients) client.end();
     clients.clear();
   }
-  return { handle, presence, close };
+  return { handle, presence, deliver, close };
 }
 
 import fs3 from "node:fs";

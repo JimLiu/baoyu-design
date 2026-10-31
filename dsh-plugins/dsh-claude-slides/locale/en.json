@@ -1,0 +1,7 @@
+{
+  "meta": {
+    "title": "Claude Slides",
+    "description": "Adds the claude-slides skill: the agent writes editable slide decks as files and opens them in a local slide editor where you can present, edit, and export PDF, HTML, or PowerPoint.",
+    "detail": "docs/DETAIL.md"
+  }
+}

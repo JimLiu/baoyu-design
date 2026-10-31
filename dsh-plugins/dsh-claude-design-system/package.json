@@ -1,0 +1,50 @@
+{
+  "name": "dsh-claude-design-system",
+  "version": "2.3.0",
+  "description": "DeepSeek Harness plugin: the claude-design-system skill from baoyu-design. The agent writes design systems (tokens, type, components, assets) as files and opens them in a local design-system page.",
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "skill",
+    "design-system",
+    "design-tokens",
+    "brand"
+  ],
+  "homepage": "https://github.com/JimLiu/baoyu-design",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JimLiu/baoyu-design.git",
+    "directory": "dsh-plugins/dsh-claude-design-system"
+  },
+  "license": "MIT",
+  "author": "Jim Liu 宝玉",
+  "type": "module",
+  "main": "lib/index.js",
+  "icon": "./icon.svg",
+  "exports": {
+    ".": "./lib/index.js",
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./locale/*.json": "./locale/*.json",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "locale/*.json",
+    "docs",
+    "skills",
+    "cordis.patch.yml",
+    "icon.svg",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20",
+    "dsh": ">=0.2.0-0"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  }
+}

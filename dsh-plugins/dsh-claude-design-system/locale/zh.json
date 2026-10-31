@@ -1,0 +1,7 @@
+{
+  "meta": {
+    "title": "Claude 设计系统",
+    "description": "加入 claude-design-system 技能：Agent 把设计系统（设计令牌、字体样式、组件、素材和品牌手册）写成本地文件，并在本地页面里打开，你可以浏览、修改，也可以把评论发给 Agent 修改。",
+    "detail": "docs/DETAIL.zh.md"
+  }
+}

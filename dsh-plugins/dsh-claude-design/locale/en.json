@@ -1,0 +1,7 @@
+{
+  "meta": {
+    "title": "Claude Design",
+    "description": "Adds the claude-design skill: the agent writes editable design canvases (artboards side by side) as files and opens them in a local canvas editor where you can retype copy, adjust tweaks, and send comments to the agent.",
+    "detail": "docs/DETAIL.md"
+  }
+}

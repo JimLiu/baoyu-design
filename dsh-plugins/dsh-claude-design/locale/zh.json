@@ -1,0 +1,7 @@
+{
+  "meta": {
+    "title": "Claude 设计稿",
+    "description": "加入 claude-design 技能：Agent 把可编辑的设计画布（多个画板并排）写成本地文件，并在本地画布编辑器里打开，你可以改文字、调参数，也可以把评论发给 Agent 修改。",
+    "detail": "docs/DETAIL.zh.md"
+  }
+}

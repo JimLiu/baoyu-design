@@ -1,0 +1,7 @@
+{
+  "meta": {
+    "title": "Claude Design System",
+    "description": "Adds the claude-design-system skill: the agent writes design systems (tokens, type, components, assets, a brand book) as files and opens them in a local page where you can browse and edit them, and send comments to the agent.",
+    "detail": "docs/DETAIL.md"
+  }
+}

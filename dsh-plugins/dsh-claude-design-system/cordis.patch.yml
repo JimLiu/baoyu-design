@@ -1,0 +1,7 @@
+# dsh-claude-design-system bundle patch: installing the package (the Plugins page, or
+# `dsh plugin --profile <name> add <spec>`) adds it to the profile's bundles,
+# and this layer mounts its one plugin row, which registers the claude-design-system
+# skill with the profile's skill registry.
+- insert:
+    - id: claude-design-system
+      name: dsh-claude-design-system

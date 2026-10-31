@@ -1,0 +1,7 @@
+{
+  "meta": {
+    "title": "Claude Dashboard",
+    "description": "Adds the claude-dashboard skill: the agent builds data-backed dashboards (charts, numbers and tables over your data files) and opens them in a local dashboard editor whose Sources panel shows where every number comes from.",
+    "detail": "docs/DETAIL.md"
+  }
+}
