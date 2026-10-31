@@ -4,6 +4,20 @@
 
 本文档记录 `baoyu-design` 的重要变更。
 
+## 2.4.0 - 2026-10-30
+
+### 新功能
+- 四个编辑器的 DeepSeek Harness 插件发布到 npm：`dsh-claude-slides`、`dsh-claude-design`、`dsh-claude-design-system` 和 `dsh-claude-dashboard`。在应用里打开 **Plugins** → **Add plugin**，填插件名就能装。每个插件带着本仓库发布的那份技能和预先构建好的编辑器；插件文件夹也在 `dsh-plugins/` 里。
+- DeepSeek Harness 插件里，Agent 每次打开编辑器，插件都会开始等评论，所以对话空闲时勾 **Send to agent** 也能叫醒 Agent。发给 Agent 的评论会以卡片的形式出现在对话里，点卡片上的 **View thread** 会在编辑器里打开这条评论。
+- 评论：评论发给 Agent 以后，会自动打开这条评论，显示 "Working…"，直到 Agent 回复。编辑器地址里加 `?comment=<id>` 会打开那条评论；`comments --wait` 也会输出编辑器地址和作品标题。
+- 评论：All comments 面板里，鼠标移到一条评论上会出现"解决"按钮和更多菜单（编辑、重新打开、删除整条评论），选中的那条一直显示；编辑和删除确认都在这一行里展开。在面板菜单里按 Escape 只关菜单。
+
+### 文档
+- `dsh-plugins/README.zh-CN.md`：按插件名安装、使用、更新、卸载和常见问题。
+
+### 维护
+- 打版本 tag 时，由 GitHub Actions 把 DeepSeek Harness 插件发布到 npm。
+
 ## 2.3.0 - 2026-10-30
 
 ### 变更

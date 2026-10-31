@@ -4,6 +4,20 @@ English | [中文](./CHANGELOG.zh.md)
 
 All notable changes to `baoyu-design` are tracked in this file.
 
+## 2.4.0 - 2026-10-30
+
+### Features
+- DeepSeek Harness plugins for the four editors, published to npm: `dsh-claude-slides`, `dsh-claude-design`, `dsh-claude-design-system` and `dsh-claude-dashboard`. In the app, open **Plugins** → **Add plugin** and enter a plugin's name. Each plugin carries its skill as this repo publishes it, prebuilt editor included; the folders are also in `dsh-plugins/`.
+- In the DeepSeek Harness plugins, the plugin waits for comments whenever the agent opens an editor, so **Send to agent** wakes the agent even when the chat is idle. A comment sent to the agent shows in the chat as a card, and **View thread** on the card opens the editor at that thread.
+- Comments: after a comment is sent to the agent, its thread opens and shows "Working…" until the agent replies. `?comment=<id>` in an editor's address opens that thread, and `comments --wait` also prints the editor's address and the artifact's title.
+- Comments: in the All comments panel, resolve and a more menu (Edit, Reopen, Delete thread) show when you hover a row and stay on the selected one; editing and the delete confirmation open in the row. Escape in a panel menu closes only the menu.
+
+### Documentation
+- `dsh-plugins/README.md`: installing by name, using, updating, uninstalling, and what to do when something doesn't work.
+
+### Maintenance
+- A version tag publishes the DeepSeek Harness plugins to npm from GitHub Actions.
+
 ## 2.3.0 - 2026-10-30
 
 ### Changed
