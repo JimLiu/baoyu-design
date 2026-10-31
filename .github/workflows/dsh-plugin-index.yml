@@ -1,0 +1,69 @@
+name: DSH plugin index
+
+# Publishes the plugin market index of the DeepSeek Harness plugins to GitHub Pages, at
+# https://jimliu.github.io/baoyu-design/dsh-plugins/index.json: the file the app's Discover tab reads to list the
+# plugins, install them and show when an update is out. It lists the versions on npm, so it runs once
+# "Publish DSH plugins" has finished for a version tag, and on demand (Run workflow) to refresh it.
+#
+# It runs in the default branch's context, not the tag's: the github-pages environment only takes deployments from
+# the default branch. Pages must be set to deploy from GitHub Actions (Settings → Pages → Source).
+
+on:
+  workflow_run:
+    workflows: ["Publish DSH plugins"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  index:
+    name: Build and deploy the index
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}dsh-plugins/index.json
+
+    steps:
+      - name: Check out the published commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      # DSH's own validator of the index format, at the version the desktop app ships.
+      - name: Install the index validator
+        run: npm install --no-save --no-package-lock --legacy-peer-deps @deepseek-ai/dsh-plugin-market-index@0.2.1-rc.5
+
+      - name: Write the index
+        run: |
+          wait=()
+          if [ "$GITHUB_EVENT_NAME" = "workflow_run" ]; then
+            # Right after a publish the registry can lag: wait until it lists the version just published.
+            wait=(--wait "$(node -p "require('./package.json').version")")
+          fi
+          node .github/scripts/dsh-plugin-index.mjs --out _site/dsh-plugins/index.json "${wait[@]}"
+
+      - name: Set up Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload the site
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - name: Deploy
+        id: deploy
+        uses: actions/deploy-pages@v4

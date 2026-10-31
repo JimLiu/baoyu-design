@@ -103,7 +103,13 @@ node skills/claude-slides/scripts/artifact.mjs list                             
 dsh plugin --profile web add dsh-claude-design
 ```
 
-**更新。** 应用不会自动更新插件。在插件页卸载插件，再按包名重新添加，然后退出应用再重新打开。新版本发布后的一天内，按包名装到的还是上一个版本；想马上用新版本，就在包名后面加上版本号，比如 `dsh-claude-design@2.4.0`（版本号见 [更新日志](CHANGELOG.zh.md)）。
+**从「发现」安装。** 应用的实验功能「发现」（Discover）可以列出这些插件，点一下就装，有新版本时也会标出来。在插件页点 **Experimental plugins**（实验性插件）旁边的 **More**（更多），打开 **Custom plugin markets**（自定义插件市场）；再到「发现」里点 **Add index source**（添加索引源），加上这个索引：
+
+```text
+https://jimliu.github.io/baoyu-design/dsh-plugins/index.json
+```
+
+**更新。** 应用不会自动更新插件；加了索引以后，「发现」会把有新版本的插件标成 **Update available**（有新版本）。在插件页卸载插件，再从「发现」或按包名重新安装，然后退出应用再重新打开。新版本发布后的一天内，按包名装到的还是上一个版本；从「发现」安装能马上装到新版本，在包名后面加上版本号也可以，比如 `dsh-claude-design@2.4.0`（版本号见 [更新日志](CHANGELOG.zh.md)）。
 
 工作区里如果有自己的同名技能（在 `.agents/skills/` 或 `.dsh/skills/` 下），会用那一份，不用插件里的。一步一步的安装（包括从文件夹安装）、使用、更新、卸载和常见问题，见 [`dsh-plugins/`](dsh-plugins/README.zh-CN.md)。
 

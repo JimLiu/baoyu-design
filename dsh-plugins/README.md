@@ -12,7 +12,7 @@ sidebar, next to the chat.
 | [Claude Slides](dsh-claude-slides/)<br>`/claude-slides` | [`dsh-claude-slides`](https://www.npmjs.com/package/dsh-claude-slides) | The agent writes editable slide decks as files and opens them in a local slide editor where you can present, edit, and export PDF, HTML, or PowerPoint. | Send to agent |
 | [Claude Design](dsh-claude-design/)<br>`/claude-design` | [`dsh-claude-design`](https://www.npmjs.com/package/dsh-claude-design) | The agent writes editable design canvases (artboards side by side) as files and opens them in a local canvas editor where you can retype copy, adjust tweaks, and send comments to the agent. | Send to agent |
 | [Claude Design System](dsh-claude-design-system/)<br>`/claude-design-system` | [`dsh-claude-design-system`](https://www.npmjs.com/package/dsh-claude-design-system) | The agent writes design systems (tokens, type, components, assets, a brand book) as files and opens them in a local page where you can browse and edit them, and send comments to the agent. | Send to agent |
-| [Claude Dashboard](dsh-claude-dashboard/)<br>`/claude-dashboard` | [`dsh-claude-dashboard`](https://www.npmjs.com/package/dsh-claude-dashboard) | The agent builds data-backed dashboards (charts, numbers and tables over your data files) and opens them in a local dashboard editor whose Sources panel shows where every number comes from. | None |
+| [Claude Dashboard](dsh-claude-dashboard/)<br>`/claude-dashboard` | [`dsh-claude-dashboard`](https://www.npmjs.com/package/dsh-claude-dashboard) | The agent builds data-backed dashboards (charts, numbers and tables over your data files) and opens them in a local dashboard editor whose Sources panel shows where every number comes from, and where you can send comments to the agent. | Send to agent |
 
 All you need is the DeepSeek Harness desktop app. The plugins run on the Node.js the app ships with, so there is nothing
 else to install.
@@ -27,6 +27,22 @@ else to install.
 4. **Quit and reopen the app.** The chat shows comments sent to the agent as cards only after a restart.
 
 To install several plugins, repeat steps 1 to 3 for each, then restart once.
+
+**From the Discover tab.** The app can also list these plugins for you, install them with a click, and tell you when a
+new version is out. Discover is an experimental feature of the app and starts switched off:
+
+1. On the Plugins page, click **More** beside **Experimental plugins** and switch on **Custom plugin markets**. The page
+   now has a **Discover** tab.
+2. In **Discover**, click **Add index source**, paste this address in **Index URL**, and click **Add**:
+
+   ```text
+   https://jimliu.github.io/baoyu-design/dsh-plugins/index.json
+   ```
+
+3. Click **Install** on a plugin's card, confirm, and finish in the install dialog that opens. Then turn the plugin on
+   and restart the app, as in steps 3 and 4.
+
+The index is updated each time a new version is published to npm.
 
 **Command line.** To install into a CLI profile, such as `web`:
 
@@ -65,16 +81,18 @@ again. It starts the editor and gives you a new link.
 
 ## Update
 
-The app doesn't update these plugins by itself. To get a new version:
+The app doesn't update these plugins by itself. If you added the index in [Discover](#install), a plugin's card there
+says **Update available** when a new version is out. To get it:
 
 1. On the Plugins page, open the plugin and click **Uninstall**. The decks, designs and dashboards you made stay in their
    workspace folders.
-2. Add it again by name, as in [Install](#install).
+2. Install it again: click **Install** on its card in **Discover**, or add it by name, as in [Install](#install).
 3. Quit and reopen the app, and start a new session.
 
-For a day after a release, adding a plugin by name still gets the previous version: the app's package manager (pnpm)
-holds new releases back for 24 hours. To get the new one sooner, enter the name with the version, such as
-`dsh-claude-slides@2.4.0`. The versions are in the [changelog](../CHANGELOG.md).
+Discover installs the new version right away. For a day after a release, adding a plugin by name still gets the
+previous version: the app's package manager (pnpm) holds new releases back for 24 hours. To get the new one sooner,
+enter the name with the version, such as `dsh-claude-slides@2.4.0`. The versions are in the
+[changelog](../CHANGELOG.md).
 
 A plugin added from a folder: get the new version into the same folder, with `git pull` in the repository or by
 unzipping the new ZIP over the old one, then quit and reopen the app and start a new session.
@@ -94,6 +112,9 @@ workspace folders.
   which registry the app asked; if neither npm nor npmmirror can be reached, check your network or proxy. For a folder,
   check that the path is complete (it starts with `/`, or a drive letter on Windows) and that it points to the plugin's
   own folder, the one with `package.json` in it.
+- **Discover can't read the index.** In **Discover**, open the market menu and pick **Manage index sources…**: the
+  reason shows under the address. The index is on GitHub Pages (`github.io`); if your network can't reach it, add the
+  plugins by name instead.
 - **The app says the plugin is already installed.** To install it again, for example to update it, uninstall it first.
 - **The link doesn't load, or Send to agent is missing.** This happens after the app restarts, for example. Ask the
   agent to open the editor again. That starts the editor and the wait for comments again.

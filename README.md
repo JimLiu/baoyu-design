@@ -103,7 +103,13 @@ To install into a CLI profile, such as `web`:
 dsh plugin --profile web add dsh-claude-design
 ```
 
-**Updating.** The app doesn't update plugins by itself. On the Plugins page, uninstall the plugin, add it again by name, then quit and reopen the app. For a day after a release the app still installs the previous version; to get the new one sooner, enter the name with the version, such as `dsh-claude-design@2.4.0` (the versions are in the [changelog](CHANGELOG.md)).
+**From the Discover tab.** The app's experimental Discover tab can list the plugins, install them with a click and show when an update is out. On the Plugins page, click **More** beside **Experimental plugins** and switch on **Custom plugin markets**; then in **Discover**, click **Add index source** and add this index:
+
+```text
+https://jimliu.github.io/baoyu-design/dsh-plugins/index.json
+```
+
+**Updating.** The app doesn't update plugins by itself; with the index added, Discover marks a plugin **Update available**. On the Plugins page, uninstall the plugin, install it again from Discover or by name, then quit and reopen the app. For a day after a release, adding by name still gets the previous version; Discover gets the new one right away, and so does entering the name with the version, such as `dsh-claude-design@2.4.0` (the versions are in the [changelog](CHANGELOG.md)).
 
 A workspace that has its own copy of a skill (in `.agents/skills/` or `.dsh/skills/`) uses that copy instead of the plugin's. Step by step, with installing from a folder, uninstalling and what to do when something doesn't work: [`dsh-plugins/`](dsh-plugins/README.md).
 
