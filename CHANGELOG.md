@@ -4,6 +4,25 @@ English | [中文](./CHANGELOG.zh.md)
 
 All notable changes to `baoyu-design` are tracked in this file.
 
+## 2.6.0 - 2026-11-01
+
+### Features
+- Version history in `claude-slides`, `claude-design`, `claude-design-system` and `claude-dashboard`: every change is kept as a version in the project's `history/` folder, with who made it (a guest by the name they typed, the owner, or **Agent** for a change made to the files on this computer). The **History** button, beside Share, lists the versions by day; open one to see what it changed line by line, preview the whole thing as it was, or restore all of it or one part as a new version.
+- When one person's save replaces another's change, the version records whose change it replaced and that person gets a notice with **Compare** and **Bring back**. Bring back puts back only what was replaced and leaves the other person's other changes.
+- Who is here: while others have the page open, their avatars sit beside History. In the slides and canvas editors each card says which slide or artboard the person is on and whether they are editing, and their cursors and selections show; when someone starts editing what you are looking at, you get a short note. Nothing is locked. The agent shows up there too for a short while after it changes the files.
+- Someone else's save updates your page in place in the slides, design and design-system editors, instead of reloading it.
+- Two people on the same slide, artboard or file: the two are merged first, element by element on a canvas and line by line in slides and design-system files (a token file token by token), so changes to different elements or lines both stay. Only when the merge cannot sort it out, such as both changing the same line, a bar asks whether to use theirs, keep yours, or keep both.
+- `claude-dashboard`: a write from the page merges with what others saved since, field by field and, for a page file, line by line; only a change to the same value gets a notice. Editing a page saves against the version the draft started from.
+- The agent is called **Agent**, with a robot avatar, in History, in the avatars and on the comment buttons (**Send to Agent**).
+
+### Fixes
+- `open` works beside a TUN-mode proxy, whose interface answered on every port and made `open` fail with `PORT_IN_USE`; share links leave out that interface's address ([#23](https://github.com/JimLiu/baoyu-design/issues/23)).
+- `comments --wait --timeout` no longer exits at random with `SERVER_GONE` ("The value of \"delay\" is out of range").
+- DeepSeek Harness plugins: the comments wait starts even when the agent runs `open` through shell variables, and a comment sent while the agent is still working waits until its turn is over instead of arriving mid-turn.
+
+### Documentation
+- Each editor's `SKILL.md` has a History section: where the versions are, what the notices mean, and how to read `history/index.json` when asked who changed something. The READMEs describe the history, the notices, who is here and the merging.
+
 ## 2.5.0 - 2026-10-31
 
 ### Features
