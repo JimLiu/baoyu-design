@@ -1,4 +1,4 @@
-// dsh-claude-dashboard 2.6.0: built from baoyu-design.
+// dsh-claude-dashboard 2.6.1: built from baoyu-design.
 window.__ModuleLoader__.load({
 	id: "dsh-claude-dashboard",
 	factory: (require) => {

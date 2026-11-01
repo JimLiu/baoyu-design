@@ -4,6 +4,11 @@ English | [中文](./CHANGELOG.zh.md)
 
 All notable changes to `baoyu-design` are tracked in this file.
 
+## 2.6.1 - 2026-11-01
+
+### Fixes
+- `claude-dashboard`: when someone else saved the page while you were editing it, and you click **Save** after "This dashboard changed. Save to overwrite that change", it now counts as your choice, as **Keep mine** does in slides. History marks the version "Saved over <name>'s change", the other person's notice says you saved over their change (not that you changed it right after them), and you get no notice yourself. Edits to different lines are still merged and both kept, and **Bring back** still restores only the lines that were replaced.
+
 ## 2.6.0 - 2026-11-01
 
 ### Features
