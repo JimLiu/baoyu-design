@@ -23,9 +23,10 @@
         const seen = store2.get(path);
         const told = expected.get(path);
         expected.delete(path);
-        const from = told && Date.now() - told.at < EXPECT_MS ? told.base : wrote.get(path);
+        const fresh = told !== void 0 && Date.now() - told.at < EXPECT_MS;
+        const from = fresh ? told.base : wrote.get(path);
         const base = from ?? (seen === void 0 ? void 0 : JSON.parse(seen));
-        const body = JSON.stringify({ op, path, data, base });
+        const body = JSON.stringify({ op, path, data, base, ...fresh && told.chosen ? { chosen: true } : {} });
         const sent = JSON.parse(body);
         const after = !isObject(sent.data) ? void 0 : op === "set" ? sent.data : isObject(sent.base) ? patched(sent.base, sent.data) : void 0;
         const before = wrote.get(path);
@@ -48,8 +49,8 @@
       changed(path) {
         for (const p of path === void 0 ? [...wrote.keys()] : [path]) if (!writing.has(p)) wrote.delete(p);
       },
-      expect(path, base) {
-        if (isObject(base)) expected.set(path, { base: JSON.parse(JSON.stringify(base)), at: Date.now() });
+      expect(path, base, chosen) {
+        if (isObject(base)) expected.set(path, { base: JSON.parse(JSON.stringify(base)), at: Date.now(), chosen: chosen === true });
       }
     };
   }
@@ -297,7 +298,7 @@
   }
   var store = /* @__PURE__ */ new Map();
   var bases = writeBases(store);
-  window.__baoyuWriteBase = (path, base) => bases.expect(path, base);
+  window.__baoyuWriteBase = (path, base, chosen) => bases.expect(path, base, chosen);
   var live = false;
   var subs = /* @__PURE__ */ new Set();
   var source = null;

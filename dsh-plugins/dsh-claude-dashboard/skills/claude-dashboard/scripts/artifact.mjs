@@ -1683,7 +1683,8 @@ var DbHistory = class {
   /**
    * Whose values on these documents this change replaced. A merged write says (`merged`: path → its base and the values
    * it replaced; the notice goes to the person behind the document's last version, when that is someone else, and keeps
-   * the base so bringing the lost values back leaves the rest). Otherwise a guess, for a change another person made in
+   * the base so bringing the lost values back leaves the rest; chosen when its person saw that version and saved over
+   * it). Otherwise a guess, for a change another person made in
    * the last minute: part of it is gone when merging it (the document before it → theirs) into this one changes this
    * one. The document before it is the notice's base. Their change a deletion: it is gone when the document is back.
    */
@@ -1699,7 +1700,10 @@ var DbHistory = class {
       const lost = { path: p, lost: last.sha, n: v.n, by: "human", user: { ...v.user }, soft: true };
       const merge = merged.get(p);
       if (merge) {
-        if (merge.conflicts.length) out.push(last.sha === null ? lost : { ...lost, base: this.history.put(docBytes(merge.base)) });
+        if (!merge.conflicts.length) continue;
+        const { soft: _soft, ...hard } = lost;
+        const over = merge.chosen ? { ...hard, chosen: true } : lost;
+        out.push(last.sha === null ? over : { ...over, base: this.history.put(docBytes(merge.base)) });
         continue;
       }
       if (now - Date.parse(v.at) > OVERLAP_MS) continue;
@@ -4208,7 +4212,7 @@ data: ${JSON.stringify(data)}
             const mine = body.op === "delete" ? null : body.op === "update" ? mergePatch(body.base, body.data) : body.data;
             const merged = mergeWrite(body.base, mine, now.exists ? now.data : null);
             write = merged.result === null ? { op: "delete", path: given } : { op: "set", path: given, data: merged.result };
-            merge = { base: body.base, conflicts: merged.conflicts };
+            merge = { base: body.base, conflicts: merged.conflicts, ...body.chosen === true ? { chosen: true } : {} };
           }
         }
         history.attribute(segs.join("/"), whoOf(viewer), merge);

@@ -446,7 +446,9 @@ who changed which document, and when.
   (Compare, Bring back, Dismiss). A page file (`files/…`) is merged by
   line: two people editing different paragraphs keep both, and only lines
   both changed count as the same value. That holds for the page editor's
-  "Save to overwrite that change" too: it replaces only those lines.
+  "Save to overwrite that change" too: it replaces only those lines. The
+  saver saw the change and chose to save, so the first person's notice says
+  they saved over it, and History marks the version "Saved over …".
   Compare and Bring back cover only those values or lines; the later
   person's other changes stay. A delete counts too: deleting a document
   someone changed since the page read it, or changing one someone deleted
