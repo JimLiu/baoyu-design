@@ -3143,7 +3143,8 @@ async function waitComments(a, flags) {
     let body;
     try {
       const response = await fetch(new URL(`__comments/agent/wait?timeout=${Math.max(1, Math.round(left))}`, state.url), {
-        signal: AbortSignal.timeout((left + 30) * 1e3)
+        // A whole number of ms: AbortSignal.timeout refuses a fraction (and --timeout leaves one in `left`).
+        signal: AbortSignal.timeout(Math.ceil((left + 30) * 1e3))
       });
       if (response.status === 404) {
         throw new CliError(

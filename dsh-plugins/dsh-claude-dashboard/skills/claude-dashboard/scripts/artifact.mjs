@@ -2,10 +2,10 @@
 // claude-dashboard: local Artifact tool (prebuilt; do not edit).
 
 import { spawn as spawn2 } from "node:child_process";
-import { createHash as createHash3 } from "node:crypto";
-import fs6 from "node:fs";
+import { createHash as createHash4 } from "node:crypto";
+import fs7 from "node:fs";
 import http from "node:http";
-import path5 from "node:path";
+import path6 from "node:path";
 import { fileURLToPath } from "node:url";
 import vm from "node:vm";
 
@@ -72,10 +72,14 @@ var PortsTaken = class extends Error {
     this.to = to;
   }
 };
+var isBenchmarkRange = (address) => /^198\.1[89]\./.test(address);
 function lanAddresses() {
   const out = [];
   for (const list of Object.values(os.networkInterfaces())) {
-    for (const entry of list ?? []) if (entry.family === "IPv4" && !entry.internal && !entry.address.startsWith("169.254.")) out.push(entry.address);
+    for (const entry of list ?? []) {
+      if (entry.family !== "IPv4" || entry.internal || entry.address.startsWith("169.254.") || isBenchmarkRange(entry.address)) continue;
+      out.push(entry.address);
+    }
   }
   return [...new Set(out)];
 }
@@ -86,10 +90,28 @@ function answers(host, port) {
       socket.destroy();
       resolve(taken);
     };
-    socket.setTimeout(300, () => done(true));
+    socket.setTimeout(300, () => done(false));
     socket.once("connect", () => done(true));
-    socket.once("error", (error) => done(!["ECONNREFUSED", "EADDRNOTAVAIL", "ENETUNREACH", "EHOSTUNREACH"].includes(error.code ?? "")));
+    socket.once("error", (error) => done(!["ECONNREFUSED", "EADDRNOTAVAIL", "EAFNOSUPPORT", "ENETUNREACH", "EHOSTUNREACH"].includes(error.code ?? "")));
   });
+}
+async function answersAnyPort(address) {
+  const server = net.createServer();
+  let port;
+  try {
+    port = await new Promise((resolve, reject) => {
+      server.once("error", reject);
+      server.listen(0, address, () => {
+        const bound = server.address();
+        resolve(typeof bound === "object" && bound ? bound.port : 0);
+      });
+    });
+  } catch {
+    return false;
+  } finally {
+    await new Promise((resolve) => server.close(() => resolve()));
+  }
+  return port > 0 && answers(address, port);
 }
 async function listenFree(server, from, host, first) {
   if (from === 0) return listen(server, 0, host);
@@ -97,7 +119,9 @@ async function listenFree(server, from, host, first) {
   const range = Array.from({ length: to - from + 1 }, (_, i) => from + i);
   const ports = first ? [first, ...range.filter((port) => port !== first)] : range;
   const wildcard = host === "0.0.0.0" || host === "::";
-  const probes = [.../* @__PURE__ */ new Set([...wildcard ? [] : [host], "127.0.0.1", "::1", ...lanAddresses()])];
+  const lan = lanAddresses().filter((address) => address !== host);
+  const answering = await Promise.all(lan.map(answersAnyPort));
+  const probes = [.../* @__PURE__ */ new Set([...wildcard ? [] : [host], "127.0.0.1", "::1", ...lan.filter((_, i) => !answering[i])])];
   for (const port of ports) {
     if ((await Promise.all(probes.map((address) => answers(address, port)))).some(Boolean)) continue;
     try {
@@ -519,7 +543,7 @@ var ShareHost = class {
     }
     if (method === "GET" && p === "/__share/me") return sendJson(response, 200, this.me(viewer)), true;
     if (method === "GET" && p === "/__share/boot.js") {
-      const body = this.bootScript(viewer);
+      const body = this.bootScript(viewer, new URL(request.url ?? "/", "http://local").searchParams);
       response.writeHead(200, { "Content-Type": "text/javascript; charset=utf-8", "Content-Length": Buffer.byteLength(body), "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" }).end(body);
       return true;
     }
@@ -536,24 +560,27 @@ var ShareHost = class {
     sendJson(response, 404, { code: "not_found", message: "Not found" });
     return true;
   }
-  /** The tags a page puts first in its <head>: the boot script and the Share panel (the owner's, or a guest's). */
-  headTags(_viewer) {
-    let tags = '<script src="/__share/boot.js"></script>';
+  /**
+   * The tags a page puts first in its <head>: the boot script and the Share panel (the owner's, or a guest's). `query`
+   * ("?…") goes to the boot script, for `globals`.
+   */
+  headTags(_viewer, query = "") {
+    let tags = `<script src="/__share/boot.js${query.replace(/[<>"']/g, "").replace(/&/g, "&amp;")}"></script>`;
     if (fs3.existsSync(this.options.uiFile)) tags += '<script type="module" src="/__share/ui.js"></script>';
     return tags;
   }
   /** `html` with the head tags first in its <head>; null when it has none. */
-  injectHead(html, viewer) {
+  injectHead(html, viewer, query = "") {
     const at = html.search(/<head(\s[^>]*)?>/i);
     if (at < 0) return null;
     const end = html.indexOf(">", at) + 1;
-    return html.slice(0, end) + this.headTags(viewer) + html.slice(end);
+    return html.slice(0, end) + this.headTags(viewer, query) + html.slice(end);
   }
   /** What the page runs before anything else (see SECURE_CONTEXT_SHIM and GUEST_WATCH). */
-  bootScript(viewer) {
+  bootScript(viewer, query = new URLSearchParams()) {
     const share2 = { ...this.me(viewer), noun: this.options.noun, title: this.options.title(), ...this.options.reactions ? { reactions: true } : {} };
     let js = `${SECURE_CONTEXT_SHIM}window.__baoyuShare=${script(share2)};`;
-    for (const [name, value] of Object.entries(this.options.globals?.(viewer) ?? {})) js += `window[${script(name)}]=${script(value)};`;
+    for (const [name, value] of Object.entries(this.options.globals?.(viewer, query) ?? {})) js += `window[${script(name)}]=${script(value)};`;
     if (viewer.guest) js += GUEST_WATCH;
     return js;
   }
@@ -750,6 +777,1154 @@ var ZH = (noun) => ({
   ownerHere: `\u4F60\u5728\u5206\u4EAB${noun.zhThis}\u7684\u7535\u8111\u4E0A\u3002\u4EE5\u6240\u6709\u8005\u8EAB\u4EFD\u6253\u5F00\uFF1A`
 });
 
+var MAX_EDIT = 2e3;
+function editScript(a, b) {
+  const n = a.length;
+  const m = b.length;
+  const limit = Math.min(n + m, MAX_EDIT);
+  const offset = limit + 1;
+  const v = new Int32Array(2 * limit + 3);
+  const trace = [];
+  let found = -1;
+  for (let d = 0; d <= limit; d++) {
+    trace.push(v.slice(offset - d - 1, offset + d + 2));
+    for (let k = -d; k <= d; k += 2) {
+      let x2 = k === -d || k !== d && v[offset + k - 1] < v[offset + k + 1] ? v[offset + k + 1] : v[offset + k - 1] + 1;
+      let y2 = x2 - k;
+      while (x2 < n && y2 < m && a[x2] === b[y2]) {
+        x2++;
+        y2++;
+      }
+      v[offset + k] = x2;
+      if (x2 >= n && y2 >= m) {
+        found = d;
+        break;
+      }
+    }
+    if (found >= 0) break;
+  }
+  if (found < 0) return null;
+  const ops = [];
+  let x = n;
+  let y = m;
+  for (let d = found; d > 0; d--) {
+    const prev = trace[d];
+    const at = (k2) => prev[k2 + d + 1];
+    const k = x - y;
+    const prevK = k === -d || k !== d && at(k - 1) < at(k + 1) ? k + 1 : k - 1;
+    const prevX = at(prevK);
+    const prevY = prevX - prevK;
+    while (x > prevX && y > prevY) {
+      ops.push("=");
+      x--;
+      y--;
+    }
+    ops.push(x === prevX ? "+" : "-");
+    x = prevX;
+    y = prevY;
+  }
+  while (x > 0 && y > 0) {
+    ops.push("=");
+    x--;
+    y--;
+  }
+  return ops.reverse();
+}
+function hunksOf(base, side, mine) {
+  const ops = editScript(base, side);
+  if (!ops) return null;
+  const out = [];
+  let open2 = null;
+  let i = 0;
+  let j = 0;
+  for (const op of ops) {
+    if (op === "=") {
+      open2 = null;
+      i++;
+      j++;
+      continue;
+    }
+    if (!open2) out.push(open2 = { start: i, end: i, lines: [], mine });
+    if (op === "-") open2.end = ++i;
+    else open2.lines.push(side[j++]);
+  }
+  return out.flatMap(
+    (h) => h.end - h.start > 1 && h.lines.length === h.end - h.start ? h.lines.flatMap((line, k) => {
+      const at = h.start + k;
+      return line === base[at] ? [] : [{ start: at, end: at + 1, lines: [line], mine }];
+    }) : [h]
+  );
+}
+function applyHunks(base, start, end, hunks) {
+  const out = [];
+  let at = start;
+  for (const h of hunks) {
+    out.push(...base.slice(at, h.start), ...h.lines);
+    at = h.end;
+  }
+  out.push(...base.slice(at, end));
+  return out;
+}
+function mergeText(base, mine, current, at, conflicts) {
+  const lines = base.split("\n");
+  const ours = hunksOf(lines, mine.split("\n"), true);
+  const theirs = ours && hunksOf(lines, current.split("\n"), false);
+  if (!ours || !theirs) return null;
+  const all = [...ours, ...theirs].sort((x, y) => x.start - y.start || x.end - y.end);
+  const out = [];
+  const lost = [];
+  let done = 0;
+  for (let i = 0; i < all.length; ) {
+    const region = [all[i++]];
+    const start = region[0].start;
+    let end = region[0].end;
+    for (; i < all.length; i++) {
+      const h = all[i];
+      if (!(h.start < end || h.start === h.end && start === end && h.start === start)) break;
+      region.push(h);
+      end = Math.max(end, h.end);
+    }
+    out.push(...lines.slice(done, start));
+    const mineLines = applyHunks(lines, start, end, region.filter((h) => h.mine));
+    if (region.every((h) => h.mine === region[0].mine)) out.push(...applyHunks(lines, start, end, region));
+    else {
+      const theirLines = applyHunks(lines, start, end, region.filter((h) => !h.mine));
+      if (mineLines.join("\n") !== theirLines.join("\n")) lost.push(`${at}@${start + 1}`);
+      out.push(...mineLines);
+    }
+    done = end;
+  }
+  out.push(...lines.slice(done));
+  conflicts.push(...lost);
+  return out.join("\n");
+}
+
+var isObject = (v) => typeof v === "object" && v !== null && !Array.isArray(v);
+var canon = (v) => {
+  if (v === void 0) return void 0;
+  if (Array.isArray(v)) return `[${v.map((x) => canon(x) ?? "null").join(",")}]`;
+  if (isObject(v)) {
+    return `{${Object.keys(v).filter((k) => v[k] !== void 0).sort().map((k) => `${JSON.stringify(k)}:${canon(v[k])}`).join(",")}}`;
+  }
+  return JSON.stringify(v);
+};
+var same = (a, b) => canon(a) === canon(b);
+var byId = (v) => {
+  if (!Array.isArray(v)) return null;
+  const out = /* @__PURE__ */ new Map();
+  for (const item of v) {
+    if (!isObject(item) || typeof item.id !== "string" || out.has(item.id)) return null;
+    out.set(item.id, item);
+  }
+  return out;
+};
+var parseJson = (text) => {
+  if (typeof text !== "string") return null;
+  try {
+    return { value: JSON.parse(text) };
+  } catch {
+    return null;
+  }
+};
+var layoutLike = (value, like) => {
+  if (!like.includes("\n")) return JSON.stringify(value);
+  const indent = /\n([ \t]+)\S/.exec(like)?.[1] ?? "  ";
+  return JSON.stringify(value, null, indent) + (like.endsWith("\n") ? "\n" : "");
+};
+function mergeDoc(base, mine, current) {
+  if (current === null) return { result: mine, conflicts: [] };
+  const conflicts = [];
+  const result = mergeValue(base, mine, current, "", conflicts);
+  return { result: isObject(result) ? result : mine, conflicts };
+}
+function mergeWrite(base, mine, current) {
+  if (mine === null) return { result: null, conflicts: current === null || same(current, base) ? [] : ["."] };
+  if (current === null) return same(mine, base) ? { result: null, conflicts: [] } : { result: mine, conflicts: ["."] };
+  return mergeDoc(base, mine, current);
+}
+function mergeValue(base, mine, current, at, conflicts) {
+  if (same(mine, base)) return current;
+  if (same(current, base) || same(mine, current)) return mine;
+  if (isObject(base) && isObject(mine) && isObject(current)) return mergeObject(base, mine, current, at, conflicts);
+  const b = byId(base);
+  const m = byId(mine);
+  const c = byId(current);
+  if (b && m && c) return mergeList(b, m, c, mine, current, at, conflicts);
+  if (typeof base === "string" && typeof mine === "string" && typeof current === "string") {
+    const text = mergeText(base, mine, current, at || ".", conflicts);
+    if (text !== null) return text;
+  }
+  conflicts.push(at || ".");
+  return mine;
+}
+function mergeObject(base, mine, current, at, conflicts) {
+  const out = {};
+  const keys = [.../* @__PURE__ */ new Set([...Object.keys(mine), ...Object.keys(current), ...Object.keys(base)])];
+  const jsonText = mine.kind === "json" && current.kind === "json" && base.kind === "json";
+  for (const k of keys) {
+    if (k === "__proto__") continue;
+    const where = at ? `${at}.${k}` : k;
+    let v;
+    const texts = jsonText && k === "text" ? [parseJson(base.text), parseJson(mine.text), parseJson(current.text)] : null;
+    if (texts && texts[0] && texts[1] && texts[2] && !same(mine.text, base.text) && !same(current.text, base.text)) {
+      const merged = mergeValue(texts[0].value, texts[1].value, texts[2].value, where, conflicts);
+      v = same(merged, texts[1].value) ? mine.text : same(merged, texts[2].value) ? current.text : layoutLike(merged, mine.text);
+    } else {
+      v = mergeValue(base[k], mine[k], current[k], where, conflicts);
+    }
+    if (v !== void 0) out[k] = v;
+  }
+  return out;
+}
+function mergeList(base, mine, current, mineList, currentList, at, conflicts) {
+  const merged = /* @__PURE__ */ new Map();
+  for (const id of /* @__PURE__ */ new Set([...mine.keys(), ...current.keys(), ...base.keys()])) {
+    const v = mergeValue(base.get(id), mine.get(id), current.get(id), `${at}[${id}]`, conflicts);
+    if (v !== void 0) merged.set(id, v);
+  }
+  const order = mineList.map((item) => item.id).filter((id) => merged.has(id));
+  currentList.forEach((item, i) => {
+    const id = item.id;
+    if (!merged.has(id) || order.includes(id)) return;
+    let after = -1;
+    for (let j = i - 1; j >= 0 && after < 0; j--) after = order.indexOf(currentList[j].id);
+    order.splice(after + 1, 0, id);
+  });
+  return order.map((id) => merged.get(id));
+}
+var utf8 = new TextDecoder("utf-8", { fatal: true });
+
+import { createHash as createHash3, randomBytes } from "node:crypto";
+import fs4 from "node:fs";
+import path4 from "node:path";
+var HISTORY_DIR = "history";
+var INDEX = "index.json";
+var OBJECTS = "objects";
+var IDLE_MS = 3e4;
+var SPAN_MS = 5 * 6e4;
+var MAX_VERSIONS = 500;
+var MAX_NOTICES = 50;
+var NOTICE_DAYS = 7;
+var AGENT = { by: "agent", user: { id: "agent", name: "Agent" } };
+var SYSTEM = { by: "system", user: { id: "system", name: "" } };
+var sha256 = (bytes) => createHash3("sha256").update(bytes).digest("hex");
+var SHA = /^[0-9a-f]{64}$/;
+var isRecord3 = (value) => typeof value === "object" && value !== null && !Array.isArray(value);
+function writeAtomic(file, data) {
+  fs4.mkdirSync(path4.dirname(file), { recursive: true });
+  const tmp = path4.join(path4.dirname(file), `.${path4.basename(file)}.${process.pid}.${randomBytes(4).toString("hex")}.tmp`);
+  try {
+    fs4.writeFileSync(tmp, data);
+    fs4.renameSync(tmp, file);
+  } catch (error) {
+    fs4.rmSync(tmp, { force: true });
+    throw error;
+  }
+}
+var emptyIndex = () => ({ format: 1, next: 1, base: {}, versions: [], notices: [] });
+function readUser(value) {
+  return isRecord3(value) && typeof value.id === "string" && typeof value.name === "string" ? { id: value.id, name: value.name } : null;
+}
+var isAuthor = (value) => value === "human" || value === "agent" || value === "system";
+function parseIndex(raw) {
+  const index = emptyIndex();
+  if (!isRecord3(raw)) return index;
+  if (isRecord3(raw.base)) {
+    for (const [p, s] of Object.entries(raw.base)) if (typeof s === "string" && SHA.test(s)) index.base[p] = s;
+  }
+  if (Array.isArray(raw.versions)) {
+    for (const v of raw.versions) {
+      if (!isRecord3(v) || typeof v.n !== "number" || !isAuthor(v.by) || typeof v.at !== "string" || !isRecord3(v.changes)) continue;
+      const user = readUser(v.user);
+      if (!user) continue;
+      const changes = {};
+      for (const [p, s] of Object.entries(v.changes)) if (s === null || typeof s === "string" && SHA.test(s)) changes[p] = s;
+      const version = { n: v.n, first: typeof v.first === "string" ? v.first : v.at, at: v.at, by: v.by, user, changes };
+      if (typeof v.role === "string") version.role = v.role;
+      if (typeof v.restoredFrom === "number") version.restoredFrom = v.restoredFrom;
+      if (version.restoredFrom !== void 0 && v.restoredPart === true) version.restoredPart = true;
+      if (Array.isArray(v.overwrote)) {
+        const list = [];
+        for (const o of v.overwrote) {
+          const who = isRecord3(o) ? readUser(o.user) : null;
+          if (!isRecord3(o) || !who || typeof o.path !== "string" || o.lost !== null && typeof o.lost !== "string" || typeof o.n !== "number" || !isAuthor(o.by)) continue;
+          list.push({
+            path: o.path,
+            lost: o.lost,
+            n: o.n,
+            by: o.by,
+            user: who,
+            ...o.soft === true ? { soft: true } : {},
+            ...o.chosen === true ? { chosen: true } : {},
+            ...typeof o.base === "string" && SHA.test(o.base) ? { base: o.base } : {}
+          });
+        }
+        if (list.length) version.overwrote = list;
+      }
+      index.versions.push(version);
+    }
+  }
+  index.versions.sort((a, b) => a.n - b.n);
+  const last = index.versions.at(-1);
+  index.next = Math.max(typeof raw.next === "number" ? raw.next : 1, (last?.n ?? 0) + 1);
+  if (Array.isArray(raw.notices)) {
+    for (const n of raw.notices) {
+      if (!isRecord3(n) || typeof n.id !== "string" || typeof n.to !== "string" || typeof n.path !== "string" || typeof n.n !== "number") continue;
+      if (n.kind !== "overwritten" && n.kind !== "overwrote") continue;
+      const by = readUser(n.by);
+      const lost = isRecord3(n.lost) ? n.lost : null;
+      const lostUser = lost ? readUser(lost.user) : null;
+      if (!by || !lost || !lostUser || lost.sha !== null && typeof lost.sha !== "string" || typeof lost.n !== "number" || !isAuthor(lost.by)) continue;
+      index.notices.push({
+        id: n.id,
+        to: n.to,
+        at: typeof n.at === "string" ? n.at : (/* @__PURE__ */ new Date(0)).toISOString(),
+        kind: n.kind,
+        path: n.path,
+        n: n.n,
+        by,
+        byAuthor: isAuthor(n.byAuthor) ? n.byAuthor : "human",
+        lost: { sha: lost.sha, n: lost.n, by: lost.by, user: lostUser },
+        ...n.soft === true ? { soft: true } : {},
+        ...typeof n.base === "string" && SHA.test(n.base) ? { base: n.base } : {}
+      });
+    }
+  }
+  return index;
+}
+var History = class {
+  dir;
+  index;
+  /** path → sha: what the files hold after the newest version. */
+  headState;
+  constructor(root) {
+    this.dir = path4.join(root, HISTORY_DIR);
+    let raw = null;
+    try {
+      raw = JSON.parse(fs4.readFileSync(path4.join(this.dir, INDEX), "utf8"));
+    } catch {
+    }
+    this.index = parseIndex(raw);
+    this.headState = this.fold(Infinity);
+    this.index.notices = this.index.notices.filter((n) => (this.headState.get(n.path) ?? null) !== n.lost.sha);
+  }
+  get empty() {
+    return this.index.versions.length === 0 && Object.keys(this.index.base).length === 0;
+  }
+  /** What the files hold now, as far as the history knows (path → sha). */
+  head() {
+    return this.headState;
+  }
+  versions() {
+    return this.index.versions;
+  }
+  version(n) {
+    return this.index.versions.find((v) => v.n === n);
+  }
+  /** The files after the versions numbered up to `upto` (the base and every version at or below it). */
+  fold(upto) {
+    const state = new Map(Object.entries(this.index.base));
+    for (const version of this.index.versions) {
+      if (version.n > upto) break;
+      for (const [p, s] of Object.entries(version.changes)) {
+        if (s === null) state.delete(p);
+        else state.set(p, s);
+      }
+    }
+    return state;
+  }
+  /** The files right after version `n`; null when it is not kept. */
+  stateAt(n) {
+    return this.version(n) ? this.fold(n) : null;
+  }
+  /** The files right before version `n`. */
+  stateBefore(n) {
+    return this.fold(n - 1);
+  }
+  /** The content with this sha, from the objects. */
+  read(sha) {
+    if (!SHA.test(sha)) return null;
+    try {
+      return fs4.readFileSync(path4.join(this.dir, OBJECTS, sha));
+    } catch {
+      return null;
+    }
+  }
+  /** Keeps a content that no version holds (an overwrite's `base`); its sha. */
+  put(bytes) {
+    const sha = sha256(bytes);
+    this.putObject(sha, bytes);
+    return sha;
+  }
+  size(sha) {
+    if (!SHA.test(sha)) return null;
+    try {
+      return fs4.statSync(path4.join(this.dir, OBJECTS, sha)).size;
+    } catch {
+      return null;
+    }
+  }
+  /** The newest version that changed `path`, with what it left there. */
+  lastChange(p) {
+    for (let i = this.index.versions.length - 1; i >= 0; i--) {
+      const version = this.index.versions[i];
+      if (p in version.changes) return { version, sha: version.changes[p] };
+    }
+    return null;
+  }
+  /**
+   * Records changes: path → its content now (null: deleted). Those equal to the head are left out; nothing left, no
+   * version (null). The rest join the open version of the same person, or start a new one.
+   */
+  record(changes, who, extra = {}, now = /* @__PURE__ */ new Date()) {
+    const changed = {};
+    for (const [p, bytes] of changes) {
+      const sha = bytes === null ? null : sha256(bytes);
+      if ((this.headState.get(p) ?? null) === sha) continue;
+      if (bytes !== null && sha !== null) this.putObject(sha, bytes);
+      changed[p] = sha;
+    }
+    if (Object.keys(changed).length === 0) return null;
+    const iso = now.toISOString();
+    const last = this.index.versions.at(-1);
+    const joins = !!last && who.by !== "system" && last.by === who.by && last.user.id === who.user.id && last.restoredFrom === void 0 && extra.restoredFrom === void 0 && now.getTime() - Date.parse(last.at) < IDLE_MS && now.getTime() - Date.parse(last.first) < SPAN_MS;
+    let version;
+    if (joins) {
+      version = last;
+      version.at = iso;
+      Object.assign(version.changes, changed);
+      if (who.user.name) version.user = { ...who.user };
+    } else {
+      version = { n: this.index.next++, first: iso, at: iso, by: who.by, user: { ...who.user }, changes: changed };
+      if (who.role) version.role = who.role;
+      if (extra.restoredFrom !== void 0) version.restoredFrom = extra.restoredFrom;
+      if (extra.restoredFrom !== void 0 && extra.restoredPart) version.restoredPart = true;
+      this.index.versions.push(version);
+    }
+    for (const [p, s] of Object.entries(changed)) {
+      if (s === null) this.headState.delete(p);
+      else this.headState.set(p, s);
+    }
+    this.index.notices = this.index.notices.filter(
+      (n) => !(n.path in changed && (changed[n.path] === n.lost.sha || extra.restoredFrom !== void 0 && n.to === who.user.id))
+    );
+    if (extra.overwrote?.length) {
+      version.overwrote = [...(version.overwrote ?? []).filter((o) => !extra.overwrote.some((x) => x.path === o.path)), ...extra.overwrote];
+      this.notify(version, who, extra.overwrote, now);
+    }
+    this.prune(now);
+    this.save();
+    return version;
+  }
+  /** Notices for an overwrite: to whoever lost their change (the agent's go to the owner), and a hard one's saver unless they chose it. */
+  notify(version, who, overwrote, now) {
+    const at = now.toISOString();
+    for (const o of overwrote) {
+      const lost = { sha: o.lost, n: o.n, by: o.by, user: o.user };
+      const victim = o.by === "agent" ? "local" : o.user.id;
+      const fields = {
+        at,
+        path: o.path,
+        n: version.n,
+        by: { ...who.user },
+        byAuthor: who.by,
+        lost,
+        ...o.soft ? { soft: true } : {},
+        ...o.base ? { base: o.base } : {}
+      };
+      const same3 = (n) => n.path === o.path && n.n === version.n;
+      this.index.notices = this.index.notices.filter((n) => !same3(n));
+      if (victim !== who.user.id) this.index.notices.push({ id: randomBytes(6).toString("hex"), to: victim, kind: "overwritten", ...fields });
+      if (!o.soft && !o.chosen) this.index.notices.push({ id: randomBytes(6).toString("hex"), to: who.user.id, kind: "overwrote", ...fields });
+    }
+  }
+  /** The notices for this person, newest first. */
+  noticesFor(userId) {
+    return this.index.notices.filter((n) => n.to === userId).reverse();
+  }
+  notice(id) {
+    return this.index.notices.find((n) => n.id === id);
+  }
+  /** Dismisses one of this person's notices; false when they have none by that id. */
+  dismiss(userId, id) {
+    const before = this.index.notices.length;
+    this.index.notices = this.index.notices.filter((n) => !(n.id === id && n.to === userId));
+    if (this.index.notices.length === before) return false;
+    this.save();
+    return true;
+  }
+  /**
+   * What to write to bring version `n` back: path → content (null: delete), for `paths` (default: every file it or the
+   * head holds), only where the head differs. null when the version is not kept or a content is missing.
+   */
+  restoreTo(n, paths, tracked = () => true) {
+    const target = this.stateAt(n);
+    if (!target) return null;
+    const out = /* @__PURE__ */ new Map();
+    const all = paths ?? [.../* @__PURE__ */ new Set([...target.keys(), ...this.headState.keys()])];
+    for (const p of all) {
+      if (!tracked(p)) continue;
+      const want = target.get(p) ?? null;
+      if ((this.headState.get(p) ?? null) === want) continue;
+      if (want === null) {
+        out.set(p, null);
+        continue;
+      }
+      const bytes = this.read(want);
+      if (!bytes) return null;
+      out.set(p, bytes);
+    }
+    return out;
+  }
+  /** Each version's changes as added, edited or deleted (what the file held before it decides). */
+  fileChanges() {
+    const out = /* @__PURE__ */ new Map();
+    const state = new Map(Object.entries(this.index.base));
+    for (const version of this.index.versions) {
+      const list = [];
+      for (const [p, s] of Object.entries(version.changes)) {
+        const had = state.has(p);
+        list.push({ path: p, op: s === null ? "deleted" : had ? "edited" : "added" });
+        if (s === null) state.delete(p);
+        else state.set(p, s);
+      }
+      out.set(version.n, list);
+    }
+    return out;
+  }
+  putObject(sha, bytes) {
+    const file = path4.join(this.dir, OBJECTS, sha);
+    if (fs4.existsSync(file)) return;
+    writeAtomic(file, bytes);
+  }
+  /** Past MAX_VERSIONS the oldest fold into the base; old notices go; contents no one holds are removed. */
+  prune(now) {
+    let folded = false;
+    while (this.index.versions.length > MAX_VERSIONS) {
+      const old = this.index.versions.shift();
+      for (const [p, s] of Object.entries(old.changes)) {
+        if (s === null) delete this.index.base[p];
+        else this.index.base[p] = s;
+      }
+      folded = true;
+    }
+    const oldest = now.getTime() - NOTICE_DAYS * 864e5;
+    const kept = this.index.versions[0]?.n ?? Infinity;
+    const perPerson = /* @__PURE__ */ new Map();
+    this.index.notices = this.index.notices.filter((n) => Date.parse(n.at) >= oldest && n.lost.n >= kept).reverse().filter((n) => {
+      const count = (perPerson.get(n.to) ?? 0) + 1;
+      perPerson.set(n.to, count);
+      return count <= MAX_NOTICES;
+    }).reverse();
+    if (folded) this.collect();
+  }
+  /** Removes the objects that neither the base, a version nor a notice holds (with the base an overwrite was made on). */
+  collect() {
+    const keep = new Set(Object.values(this.index.base));
+    for (const version of this.index.versions) {
+      for (const s of Object.values(version.changes)) if (s) keep.add(s);
+      for (const o of version.overwrote ?? []) if (o.base) keep.add(o.base);
+    }
+    for (const notice of this.index.notices) {
+      if (notice.lost.sha) keep.add(notice.lost.sha);
+      if (notice.base) keep.add(notice.base);
+    }
+    let names;
+    try {
+      names = fs4.readdirSync(path4.join(this.dir, OBJECTS));
+    } catch {
+      return;
+    }
+    for (const name of names) if (SHA.test(name) && !keep.has(name)) fs4.rmSync(path4.join(this.dir, OBJECTS, name), { force: true });
+  }
+  save() {
+    writeAtomic(path4.join(this.dir, INDEX), `${JSON.stringify(this.index)}
+`);
+  }
+};
+var MAX_DIFF_BYTES = 1024 * 1024;
+var CONTEXT = 3;
+var MAX_DIFF_LINES = 3e3;
+var MAX_LINE = 2e3;
+var decoder = new TextDecoder("utf-8", { fatal: true });
+function textOf(bytes) {
+  if (bytes === null) return null;
+  if (bytes.includes(0)) return void 0;
+  try {
+    return decoder.decode(bytes);
+  } catch {
+    return void 0;
+  }
+}
+var splitLines = (text) => text === null || text === "" ? [] : text.replace(/\r\n?/g, "\n").replace(/\n$/, "").split("\n");
+function diffContents(before, after) {
+  if ((before?.length ?? 0) > MAX_DIFF_BYTES || (after?.length ?? 0) > MAX_DIFF_BYTES) return { tooLarge: true, added: 0, removed: 0, lines: [] };
+  const a = textOf(before);
+  const b = textOf(after);
+  if (a === void 0 || b === void 0) return { binary: true, added: 0, removed: 0, lines: [] };
+  const left = splitLines(a);
+  const right = splitLines(b);
+  let head = 0;
+  while (head < left.length && head < right.length && left[head] === right[head]) head++;
+  let tail = 0;
+  while (tail < left.length - head && tail < right.length - head && left[left.length - 1 - tail] === right[right.length - 1 - tail]) tail++;
+  const middle = editScript(left.slice(head, left.length - tail), right.slice(head, right.length - tail));
+  if (!middle) return { tooLarge: true, added: 0, removed: 0, lines: [] };
+  const ops = [...Array(head).fill("="), ...middle, ...Array(tail).fill("=")];
+  const all = [];
+  let i = 0;
+  let j = 0;
+  let added = 0;
+  let removed = 0;
+  const cut = (s) => s.length > MAX_LINE ? `${s.slice(0, MAX_LINE)}\u2026` : s;
+  for (const op of ops) {
+    if (op === "=") all.push([" ", cut(right[j++])]), i++;
+    else if (op === "-") all.push(["-", cut(left[i++])]), removed++;
+    else all.push(["+", cut(right[j++])]), added++;
+  }
+  const keep = new Uint8Array(all.length);
+  all.forEach(([kind], at) => {
+    if (kind === " ") return;
+    for (let x = Math.max(0, at - CONTEXT); x <= Math.min(all.length - 1, at + CONTEXT); x++) keep[x] = 1;
+  });
+  const lines = [];
+  let skipped = 0;
+  let truncated = false;
+  for (let at = 0; at < all.length; at++) {
+    if (!keep[at]) {
+      skipped++;
+      continue;
+    }
+    if (skipped) lines.push(["~", String(skipped)]);
+    skipped = 0;
+    if (lines.length >= MAX_DIFF_LINES) {
+      truncated = true;
+      break;
+    }
+    lines.push(all[at]);
+  }
+  if (skipped && !truncated) lines.push(["~", String(skipped)]);
+  return { added, removed, lines, ...truncated ? { truncated: true } : {} };
+}
+
+var whoOf = (viewer) => ({ by: "human", user: { id: viewer.user.id, name: viewer.user.name }, role: viewer.role });
+var MAX_BODY = 64 << 10;
+var HistoryHost = class {
+  history;
+  options;
+  constructor(options) {
+    this.options = options;
+    this.history = options.history;
+  }
+  /** What the page's boot script tells the panel (window.__baoyuHistory); `preview` on a version's preview page. */
+  bootGlobal(viewer, preview) {
+    const global = { base: this.options.base, canRestore: canEditAs(viewer.role), me: viewer.user.id };
+    const version = preview === void 0 ? void 0 : this.history.version(preview);
+    if (version) {
+      const newest = this.history.versions().at(-1);
+      global.preview = { n: version.n, at: version.at, by: version.by, name: version.user.name, current: version === newest, current_url: this.options.base };
+    }
+    return global;
+  }
+  notices(viewer, label) {
+    const head = this.history.head();
+    const gone = (n) => !head.has(n.path) && this.history.version(n.n)?.changes[n.path] === null;
+    return this.history.noticesFor(viewer.user.id).map((n) => noticeView(n, label, this.history.version(n.lost.n)?.at, gone(n)));
+  }
+  list(viewer) {
+    const label = this.options.labels();
+    const versions = this.history.versions();
+    const changes = this.history.fileChanges();
+    const newest = versions.at(-1);
+    const rows = [...versions].reverse().map((v) => ({
+      n: v.n,
+      first: v.first,
+      at: v.at,
+      by: v.by,
+      name: v.user.name,
+      userId: v.user.id,
+      ...v.role ? { role: v.role } : {},
+      ...v.restoredFrom !== void 0 ? { restoredFrom: v.restoredFrom } : {},
+      ...v.restoredPart ? { restoredPart: true } : {},
+      ...v === newest ? { current: true } : {},
+      preview: this.options.previewUrl(v.n),
+      files: (changes.get(v.n) ?? []).map((c) => ({ path: c.path, op: c.op, label: label(c.path) })),
+      ...v.overwrote?.length ? { overwrote: v.overwrote.map((o) => ({ path: o.path, label: label(o.path), name: o.user.name, by: o.by, n: o.n, ...o.soft ? { soft: true } : {} })) } : {}
+    }));
+    return { me: viewer.user.id, canRestore: canEditAs(viewer.role), rows, notices: this.notices(viewer, label) };
+  }
+  /** Answers `__history…` (`sub` is what follows it); false for a path it doesn't know. */
+  async handle(request, response, sub, viewer) {
+    const method = request.method ?? "GET";
+    const url = new URL(request.url ?? "/", "http://local");
+    if (method === "POST" && !sameOrigin(request)) {
+      request.resume();
+      sendJson(response, 403, { code: "not_granted", message: "Cross-origin write refused." });
+      return true;
+    }
+    if (method === "GET" && (sub === "" || sub === "/")) return sendJson(response, 200, this.list(viewer)), true;
+    if (sub === "/notices") {
+      if (method === "GET") return sendJson(response, 200, { notices: this.notices(viewer, this.options.labels()) }), true;
+      if (method !== "POST") return sendJson(response, 405, { code: "method_not_allowed", message: "GET or POST" }), true;
+      const body = await this.body(request, response);
+      if (!body) return true;
+      if (typeof body.dismiss !== "string") return sendJson(response, 400, { code: "invalid_argument", message: "Expected {dismiss: id}." }), true;
+      this.history.dismiss(viewer.user.id, body.dismiss);
+      return sendJson(response, 200, { notices: this.notices(viewer, this.options.labels()) }), true;
+    }
+    const versionRoute = /^\/(\d+)\/(diff|restore)$/.exec(sub);
+    if (versionRoute) {
+      const n = Number(versionRoute[1]);
+      const version = this.history.version(n);
+      if (!version) return sendJson(response, 404, { code: "not_found", message: `There is no version ${n} (it may be too old to keep).` }), true;
+      if (versionRoute[2] === "diff") {
+        if (method !== "GET") return sendJson(response, 405, { code: "method_not_allowed", message: "GET" }), true;
+        const p = url.searchParams.get("path") ?? "";
+        if (!(p in version.changes)) return sendJson(response, 404, { code: "not_found", message: `Version ${n} did not change ${p}.` }), true;
+        const before = this.history.stateBefore(n).get(p) ?? null;
+        const after = version.changes[p] ?? null;
+        return sendJson(response, 200, this.diff(p, before, after)), true;
+      }
+      if (method !== "POST") return sendJson(response, 405, { code: "method_not_allowed", message: "POST" }), true;
+      if (!canEditAs(viewer.role)) return sendJson(response, 403, { code: "not_writer", message: "Only the owner and editors can bring a version back." }), true;
+      const body = await this.body(request, response);
+      if (!body) return true;
+      const paths = Array.isArray(body.paths) ? body.paths.filter((p) => typeof p === "string") : void 0;
+      const changes = this.history.restoreTo(n, paths, this.options.tracked);
+      if (!changes) return sendJson(response, 409, { code: "unavailable", message: `Version ${n} can't be brought back: a file it holds is missing from the history.` }), true;
+      const made = await this.options.apply(changes, whoOf(viewer), { restoredFrom: n });
+      this.options.log(`history: ${viewer.user.name} brought back version ${n}${paths ? ` (${paths.join(", ")})` : ""}${made ? ` as version ${made.n}` : " (nothing to change)"}`);
+      return sendJson(response, 200, { version: made?.n ?? null, changed: [...changes.keys()] }), true;
+    }
+    const noticeRoute = /^\/notice\/([0-9a-f]{6,32})\/(diff|recover)$/.exec(sub);
+    if (noticeRoute) {
+      const notice = this.history.notice(noticeRoute[1]);
+      if (!notice || notice.to !== viewer.user.id) return sendJson(response, 404, { code: "not_found", message: "No such notice." }), true;
+      if (noticeRoute[2] === "diff") {
+        if (method !== "GET") return sendJson(response, 405, { code: "method_not_allowed", message: "GET" }), true;
+        const now2 = this.history.head().get(notice.path) ?? null;
+        const nowBytes = now2 === null ? null : this.history.read(now2);
+        const back2 = this.recovered(notice, nowBytes);
+        if (now2 && !nowBytes || !back2) return sendJson(response, 200, { path: notice.path, label: this.options.labels()(notice.path), missing: true, added: 0, removed: 0, lines: [], now: now2 }), true;
+        return sendJson(response, 200, { ...this.diffBytes(notice.path, nowBytes, back2.bytes), now: now2 }), true;
+      }
+      if (method !== "POST") return sendJson(response, 405, { code: "method_not_allowed", message: "POST" }), true;
+      if (!canEditAs(viewer.role)) return request.resume(), sendJson(response, 403, { code: "not_writer", message: "Only the owner and editors can change the files." }), true;
+      const body = await this.body(request, response);
+      if (!body) return true;
+      const now = this.history.head().get(notice.path) ?? null;
+      if ("now" in body && body.now !== now) {
+        return sendJson(response, 409, { code: "changed", message: "This changed while you were looking. Compare again." }), true;
+      }
+      const back = this.recovered(notice, now === null ? null : this.history.read(now));
+      if (!back) return sendJson(response, 409, { code: "unavailable", message: "That content is no longer in the history." }), true;
+      const made = await this.options.apply(/* @__PURE__ */ new Map([[notice.path, back.bytes]]), whoOf(viewer), { restoredFrom: notice.lost.n, ...back.part ? { restoredPart: true } : {} });
+      this.history.dismiss(viewer.user.id, notice.id);
+      this.options.log(`history: ${viewer.user.name} brought back ${notice.lost.user.name}'s ${back.bytes === null ? "deletion of " : ""}${notice.path} (version ${notice.lost.n}${back.part ? ", what was replaced" : ""})`);
+      return sendJson(response, 200, { version: made?.n ?? null }), true;
+    }
+    return false;
+  }
+  /** Before → after of one file, with the versions' names for the panel's header. */
+  diff(p, before, after) {
+    const read = (sha) => sha === null ? null : this.history.read(sha);
+    const a = read(before);
+    const b = read(after);
+    if (before && !a || after && !b) return { path: p, label: this.options.labels()(p), missing: true, added: 0, removed: 0, lines: [] };
+    return this.diffBytes(p, a, b);
+  }
+  diffBytes(p, a, b) {
+    const [x, y] = this.options.diffSides ? this.options.diffSides(p, a, b) : [a, b];
+    return { path: p, label: this.options.labels()(p), ...diffContents(x, y) };
+  }
+  /**
+   * What bringing a notice's lost content back writes to its file (`now`: what the file holds): the lost content merged
+   * into it when the notice has a base and the server can merge (`part` when that is not the whole lost content), else
+   * the whole lost content; a deletion deletes it again (bytes null). null: not in the history.
+   */
+  recovered(notice, now) {
+    if (notice.lost.sha === null) return { bytes: null, part: false };
+    const lost = this.history.read(notice.lost.sha);
+    if (!lost) return null;
+    const base = notice.base ? this.history.read(notice.base) : null;
+    const merged = base && this.options.recover ? this.options.recover(notice.path, base, lost, now) : null;
+    return merged ? { bytes: merged, part: !merged.equals(lost) } : { bytes: lost, part: false };
+  }
+  async body(request, response) {
+    try {
+      const raw = (await readBody(request, MAX_BODY)).toString("utf8");
+      const body = raw.trim() ? JSON.parse(raw) : {};
+      if (typeof body === "object" && body !== null && !Array.isArray(body)) return body;
+    } catch {
+    }
+    sendJson(response, 400, { code: "invalid_argument", message: "Expected a JSON object." });
+    return null;
+  }
+};
+function noticeView(n, label, lostAt, gone) {
+  return {
+    ...lostAt ? { lostAt } : {},
+    id: n.id,
+    kind: n.kind,
+    at: n.at,
+    path: n.path,
+    label: label(n.path),
+    n: n.n,
+    name: n.by.name,
+    by: n.byAuthor,
+    lostName: n.lost.user.name,
+    lostBy: n.lost.by,
+    lostN: n.lost.n,
+    ...n.soft ? { soft: true } : {},
+    // Bringing it back puts back only what was replaced (a write with a base); into a deleted file, all of it.
+    ...n.base && !gone ? { part: true } : {},
+    ...gone ? { removed: true } : {},
+    // What was replaced is a deletion: bringing it back deletes the file again.
+    ...n.lost.sha === null ? { deleted: true } : {}
+  };
+}
+var plain = (text) => ({ en: text, zh: text });
+
+var OVERLAP_MS = 6e4;
+var docBytes = (data) => Buffer.from(`${JSON.stringify(data, null, 2)}
+`);
+var parse = (bytes) => {
+  if (bytes === null) return null;
+  try {
+    const value = JSON.parse(bytes.toString("utf8"));
+    return typeof value === "object" && value !== null && !Array.isArray(value) ? value : null;
+  } catch {
+    return null;
+  }
+};
+var same2 = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+var DbHistory = class {
+  history;
+  host;
+  options;
+  /**
+   * Document → who is writing it from the page, and what the write is (a restore; a merged write: the document it was
+   * made on and the values in it that replaced someone else's), until the rescan after it.
+   */
+  pending;
+  /** The first rescan also looks for documents deleted while no server ran. */
+  first;
+  constructor(options) {
+    this.options = options;
+    this.history = new History(options.root);
+    this.pending = /* @__PURE__ */ new Map();
+    this.first = true;
+    this.host = new HistoryHost({
+      history: this.history,
+      labels: () => {
+        const named = options.labels();
+        return (p) => named(p) ?? plain(p);
+      },
+      base: options.base,
+      previewUrl: (n) => `${options.base}?at=${n}`,
+      apply: async (changes, who, extra) => this.apply(changes, who, extra),
+      tracked: options.tracked,
+      diffSides: textSides,
+      recover: (_path, base, lost, now) => {
+        const b = parse(base);
+        const l = parse(lost);
+        const n = parse(now);
+        if (!b || !l) return null;
+        return n ? docBytes(mergeDoc(b, l, n).result) : lost;
+      },
+      log: options.log
+    });
+  }
+  /**
+   * A page's write of `path` by `who`, until `settle`: the rescan in between records it as theirs. `merge`: the write was
+   * merged (mergeDoc) from this base, and these are the values in it that replaced someone else's (empty: nothing lost).
+   */
+  attribute(path7, who, merge) {
+    this.pending.set(path7, { who, ...merge ? { merge } : {} });
+  }
+  /** After the page's write and its rescan (the write may have changed nothing, or failed). */
+  settle(path7) {
+    this.pending.delete(path7);
+  }
+  /** Records the rescan's changes; `present` says which documents are on disk now (for the first rescan). */
+  record(changes, present) {
+    const groups = /* @__PURE__ */ new Map();
+    const fallback = this.history.empty ? SYSTEM : AGENT;
+    const add = (who, restore, p, bytes, merge) => {
+      const key = `${who.by}\0${who.user.id}\0${restore.restoredFrom ?? ""}\0${restore.restoredPart ? "part" : ""}`;
+      let group = groups.get(key);
+      if (!group) groups.set(key, group = { who, restore, files: /* @__PURE__ */ new Map(), merged: /* @__PURE__ */ new Map() });
+      group.files.set(p, bytes);
+      if (merge) group.merged.set(p, merge);
+    };
+    for (const c of changes) {
+      if (!this.options.tracked(c.path)) continue;
+      const by = this.pending.get(c.path);
+      const restore = by?.restoredFrom !== void 0 ? { restoredFrom: by.restoredFrom, ...by.restoredPart ? { restoredPart: true } : {} } : {};
+      add(by?.who ?? fallback, restore, c.path, c.data === null ? null : docBytes(c.data), by?.merge);
+    }
+    if (this.first) {
+      this.first = false;
+      for (const p of this.history.head().keys()) if (this.options.tracked(p) && !present(p) && !changes.some((c) => c.path === p)) add(fallback, {}, p, null);
+    }
+    const made = [];
+    for (const group of groups.values()) {
+      const overwrote = group.who.by !== "system" && group.restore.restoredFrom === void 0 ? this.overlaps(group.files, group.who, group.merged) : [];
+      const version = this.history.record(group.files, group.who, { ...group.restore, ...overwrote.length ? { overwrote } : {} });
+      if (!version) continue;
+      made.push(version);
+      if (group.who.by !== "human") {
+        const what = group.who.by === "agent" ? "changed outside the page" : "the documents as they were";
+        this.options.log(`history: version ${version.n} (${what}): ${[...group.files.keys()].join(", ")}`);
+      }
+    }
+    return made;
+  }
+  /**
+   * Whose values on these documents this change replaced. A merged write says (`merged`: path → its base and the values
+   * it replaced; the notice goes to the person behind the document's last version, when that is someone else, and keeps
+   * the base so bringing the lost values back leaves the rest). Otherwise a guess, for a change another person made in
+   * the last minute: part of it is gone when merging it (the document before it → theirs) into this one changes this
+   * one. The document before it is the notice's base. Their change a deletion: it is gone when the document is back.
+   */
+  overlaps(files, who, merged) {
+    const now = Date.now();
+    const out = [];
+    for (const [p, bytes] of files) {
+      const last = this.history.lastChange(p);
+      if (!last) continue;
+      const v = last.version;
+      if (v.by !== "human" || v.user.id === who.user.id || v.restoredFrom !== void 0) continue;
+      if ((this.history.head().get(p) ?? null) !== last.sha) continue;
+      const lost = { path: p, lost: last.sha, n: v.n, by: "human", user: { ...v.user }, soft: true };
+      const merge = merged.get(p);
+      if (merge) {
+        if (merge.conflicts.length) out.push(last.sha === null ? lost : { ...lost, base: this.history.put(docBytes(merge.base)) });
+        continue;
+      }
+      if (now - Date.parse(v.at) > OVERLAP_MS) continue;
+      if (last.sha === null) {
+        if (bytes !== null) out.push(lost);
+        continue;
+      }
+      const theirs = parse(this.history.read(last.sha));
+      const was = parse(this.history.read(this.history.stateBefore(v.n).get(p) ?? "") ?? null) ?? {};
+      const next = parse(bytes) ?? {};
+      if (!theirs || same(mergeDoc(was, theirs, next).result, next)) continue;
+      out.push({ ...lost, base: this.history.stateBefore(v.n).get(p) ?? this.history.put(docBytes({})) });
+    }
+    return out;
+  }
+  /** A restore (or a recovered notice): writes the documents as `who`'s; the rescan after records them. */
+  apply(changes, who, extra) {
+    const paths = [];
+    try {
+      for (const [p, bytes] of changes) {
+        const data = bytes === null ? null : parse(bytes);
+        if (bytes !== null && data === null) continue;
+        this.pending.set(p, { who, ...extra.restoredFrom !== void 0 ? { restoredFrom: extra.restoredFrom, ...extra.restoredPart ? { restoredPart: true } : {} } : {} });
+        paths.push(p);
+        this.options.write(p, data);
+      }
+      this.options.rescan();
+      const versions = this.history.versions();
+      const newest = versions.at(-1);
+      return newest && newest.user.id === who.user.id && newest.restoredFrom === extra.restoredFrom && paths.some((p) => p in newest.changes) ? newest : null;
+    } finally {
+      for (const p of paths) this.pending.delete(p);
+    }
+  }
+  /**
+   * On a version's page (?at=n): the documents as that version left them in place of the kept ones now, the page's
+   * own as they are. null: there is no such version.
+   */
+  docsAt(n, current) {
+    const state = this.history.stateAt(n);
+    if (!state) return null;
+    const out = /* @__PURE__ */ new Map();
+    for (const [p, data] of current) if (!this.options.tracked(p)) out.set(p, data);
+    for (const [p, sha] of state) {
+      if (!this.options.tracked(p)) continue;
+      const data = parse(this.history.read(sha));
+      if (data) out.set(p, data);
+    }
+    return out;
+  }
+  /** window.__baoyuHistory for this person; `query` is the page's (?at=n on a version's page). */
+  bootGlobal(viewer, query) {
+    return this.host.bootGlobal(viewer, previewOf(query));
+  }
+};
+function previewOf(query) {
+  const at = query.get("at");
+  return at !== null && /^\d{1,9}$/.test(at) ? Number(at) : void 0;
+}
+function textSides(_path, before, after) {
+  const a = parse(before);
+  const b = parse(after);
+  const textOf2 = (d) => d && typeof d.text === "string" ? d.text : null;
+  const rest = (d) => {
+    if (!d) return null;
+    const { text: _text, ...others } = d;
+    return others;
+  };
+  const ta = textOf2(a);
+  const tb = textOf2(b);
+  if ((ta !== null || a === null) && (tb !== null || b === null) && (a === null || b === null || same2(rest(a), rest(b)))) {
+    return [ta === null ? null : Buffer.from(ta), tb === null ? null : Buffer.from(tb)];
+  }
+  return [before, after];
+}
+
+var PEER_ID = /^[A-Za-z0-9_-]{8,64}$/;
+function agentWhere(main2, count, label) {
+  const where = main2 ? label(main2) : null;
+  if (!where || count <= 1) return where;
+  return { en: `${where.en} and ${count - 1} more`, zh: `${where.zh} \u7B49 ${count} \u5904` };
+}
+var AGENT_COLOR = "#d25f25";
+var MAX_PEERS = 64;
+var MAX_PATCH_BYTES = 16 << 10;
+var MAX_FIELDS = 12;
+var MAX_PRESENCE_BYTES = 6 << 10;
+var BROADCAST_MS = 50;
+var LEAVE_GRACE_MS = 4e3;
+var AGENT_LINGER_MS = 2e4;
+var AGENT_PEER = "agent-claude";
+var PresenceHub = class {
+  peers = /* @__PURE__ */ new Map();
+  listeners = /* @__PURE__ */ new Set();
+  agent = null;
+  timer = null;
+  /** Adds a page's stream; `send` writes one SSE frame to it. Returns what to call when the stream closes. */
+  join(peer, viewer, send) {
+    let entry = this.peers.get(peer);
+    if (entry && entry.viewer.user.id !== viewer.user.id) {
+      entry = void 0;
+      peer = "";
+    }
+    if (peer && !entry && this.peers.size < MAX_PEERS) {
+      entry = { viewer, presence: {}, updatedAt: Date.now(), streams: 0 };
+      this.peers.set(peer, entry);
+    }
+    if (entry) {
+      entry.streams += 1;
+      if (entry.leaving) clearTimeout(entry.leaving);
+      entry.leaving = void 0;
+    }
+    this.listeners.add(send);
+    send(this.frame());
+    this.schedule();
+    let open2 = true;
+    return () => {
+      if (!open2) return;
+      open2 = false;
+      this.listeners.delete(send);
+      if (!entry) return;
+      entry.streams -= 1;
+      if (entry.streams > 0) return;
+      const leaving = entry;
+      leaving.leaving = setTimeout(() => {
+        if (this.peers.get(peer) === leaving && leaving.streams === 0) {
+          this.peers.delete(peer);
+          this.schedule();
+        }
+      }, LEAVE_GRACE_MS);
+      leaving.leaving.unref?.();
+    };
+  }
+  /** Merges a page's patch into its presence; false when the peer isn't this person's open page or the patch is bad. */
+  update(peer, viewer, patch) {
+    const entry = this.peers.get(peer);
+    if (!entry || entry.viewer.user.id !== viewer.user.id) return false;
+    if (typeof patch !== "object" || patch === null || Array.isArray(patch)) return false;
+    const next = { ...entry.presence };
+    for (const [key, value] of Object.entries(patch)) {
+      if (value === null || value === void 0) delete next[key];
+      else next[key] = value;
+    }
+    if (Object.keys(next).length > MAX_FIELDS || Buffer.byteLength(JSON.stringify(next)) > MAX_PRESENCE_BYTES) return false;
+    entry.presence = next;
+    entry.updatedAt = Date.now();
+    this.schedule();
+    return true;
+  }
+  /** The agent changed the artifact: it shows on the list (with `context`, where it worked) for a while. */
+  agentActive(agent = {}) {
+    if (this.agent) clearTimeout(this.agent.timer);
+    const presence = { who: { n: agent.name ?? "Agent", c: AGENT_COLOR } };
+    if (agent.context) presence.context = agent.context;
+    if (agent.where) presence.where = agent.where;
+    const timer = setTimeout(() => {
+      this.agent = null;
+      this.schedule();
+    }, AGENT_LINGER_MS);
+    timer.unref?.();
+    this.agent = { presence, updatedAt: Date.now(), timer };
+    this.schedule();
+  }
+  /** Everyone on the list now. */
+  list() {
+    const views = [];
+    for (const [peer, entry] of this.peers) {
+      const who = entry.presence.who;
+      const presence = { ...entry.presence, who: { ...typeof who === "object" && who !== null && !Array.isArray(who) ? who : {}, n: entry.viewer.user.name } };
+      views.push({ peer, by: entry.viewer.user.id, name: entry.viewer.user.name, role: entry.viewer.role, presence, updatedAt: entry.updatedAt });
+    }
+    if (this.agent) {
+      const name = String(this.agent.presence.who.n ?? "Agent");
+      views.push({ peer: AGENT_PEER, by: "agent", name, kind: "agent", presence: this.agent.presence, updatedAt: this.agent.updatedAt });
+    }
+    return views;
+  }
+  /** Answers POST `__presence` ({peer, patch}); GET gives the list. */
+  async handle(request, response, viewer) {
+    const method = request.method ?? "GET";
+    if (method === "GET") return sendJson(response, 200, { peers: this.list() });
+    if (method !== "POST") {
+      request.resume();
+      return sendJson(response, 405, { code: "method_not_allowed", message: "GET or POST" });
+    }
+    if (!sameOrigin(request)) {
+      request.resume();
+      return sendJson(response, 403, { code: "not_granted", message: "Cross-origin write refused." });
+    }
+    let body;
+    try {
+      body = JSON.parse((await readBody(request, MAX_PATCH_BYTES)).toString("utf8"));
+    } catch {
+      return sendJson(response, 400, { code: "invalid_argument", message: `Expected {peer, patch} under ${MAX_PATCH_BYTES} bytes.` });
+    }
+    const { peer, patch } = typeof body === "object" && body !== null ? body : {};
+    if (typeof peer !== "string" || !PEER_ID.test(peer)) return sendJson(response, 400, { code: "invalid_argument", message: "Expected {peer, patch}." });
+    if (!this.update(peer, viewer, patch)) return sendJson(response, 409, { code: "not_joined", message: "That page is not open here (its event stream is closed)." });
+    response.writeHead(204, { "Cache-Control": "no-store" }).end();
+  }
+  /** Ends the timers (the server is closing). */
+  close() {
+    if (this.timer) clearTimeout(this.timer);
+    if (this.agent) clearTimeout(this.agent.timer);
+    for (const entry of this.peers.values()) if (entry.leaving) clearTimeout(entry.leaving);
+    this.peers.clear();
+    this.listeners.clear();
+  }
+  frame() {
+    return `event: peers
+data: ${JSON.stringify({ peers: this.list() })}
+
+`;
+  }
+  schedule() {
+    if (this.timer) return;
+    this.timer = setTimeout(() => {
+      this.timer = null;
+      const frame = this.frame();
+      for (const send of this.listeners) send(frame);
+    }, BROADCAST_MS);
+    this.timer.unref?.();
+  }
+};
+
 async function shareCall(url, action, fail2) {
   const response = await fetch(new URL("/__share", url), action ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(action) } : {});
   const body = await response.json().catch(() => ({}));
@@ -840,7 +2015,7 @@ function randomHex(bytes) {
   return Array.from(buf, (b) => b.toString(16).padStart(2, "0")).join("");
 }
 var newId = (prefix) => `${prefix}_${randomHex(5)}`;
-var isRecord3 = (v) => typeof v === "object" && v !== null && !Array.isArray(v);
+var isRecord4 = (v) => typeof v === "object" && v !== null && !Array.isArray(v);
 var isText = (v, max) => typeof v === "string" && v.length <= max;
 function cleanText(v) {
   if (typeof v !== "string") return null;
@@ -848,7 +2023,7 @@ function cleanText(v) {
   return text !== "" && text.length <= LIMITS.text ? text : null;
 }
 function readNewThread(body) {
-  if (!isRecord3(body)) return null;
+  if (!isRecord4(body)) return null;
   const text = cleanText(body.text);
   if (text === null || !isText(body.anchor, LIMITS.anchor) || body.anchor === "" || !isText(body.label, LIMITS.label)) return null;
   if (body.detail !== void 0 && !isText(body.detail, LIMITS.detail)) return null;
@@ -866,7 +2041,7 @@ function readNewThread(body) {
   };
 }
 function readReply(body) {
-  if (!isRecord3(body)) return null;
+  if (!isRecord4(body)) return null;
   const text = cleanText(body.text);
   if (text === null) return null;
   if (body.send !== void 0 && typeof body.send !== "boolean") return null;
@@ -874,10 +2049,10 @@ function readReply(body) {
 }
 var readEdit = readReply;
 function readStatus(body) {
-  return isRecord3(body) && (body.status === "open" || body.status === "resolved") ? body.status : null;
+  return isRecord4(body) && (body.status === "open" || body.status === "resolved") ? body.status : null;
 }
 function readAgentRequest(body) {
-  if (!isRecord3(body)) return null;
+  if (!isRecord4(body)) return null;
   const text = cleanText(body.text);
   if (text === null) return null;
   if (body.label !== void 0 && !isText(body.label, LIMITS.label)) return null;
@@ -888,14 +2063,14 @@ function readAgentRequest(body) {
 }
 function parseDoc(text) {
   const data = JSON.parse(text);
-  if (!isRecord3(data) || data.version !== COMMENTS_VERSION || !Array.isArray(data.threads)) {
+  if (!isRecord4(data) || data.version !== COMMENTS_VERSION || !Array.isArray(data.threads)) {
     throw new CommentsError("COMMENTS_FILE_INVALID", `not a version ${COMMENTS_VERSION} comments file (expected {"version": 1, "threads": [...]})`, 500);
   }
   const threads = data.threads.filter(
-    (t) => isRecord3(t) && typeof t.id === "string" && typeof t.anchor === "string" && typeof t.label === "string" && (t.status === "open" || t.status === "resolved") && Array.isArray(t.messages) && t.messages.every((m) => isRecord3(m) && typeof m.text === "string" && isRecord3(m.author) && (m.author.kind === "user" || m.author.kind === "agent"))
+    (t) => isRecord4(t) && typeof t.id === "string" && typeof t.anchor === "string" && typeof t.label === "string" && (t.status === "open" || t.status === "resolved") && Array.isArray(t.messages) && t.messages.every((m) => isRecord4(m) && typeof m.text === "string" && isRecord4(m.author) && (m.author.kind === "user" || m.author.kind === "agent"))
   );
   for (const t of threads) {
-    if (!isRecord3(t.location)) t.location = {};
+    if (!isRecord4(t.location)) t.location = {};
     for (const m of t.messages) if (m.author.principal !== void 0 && typeof m.author.principal !== "string") delete m.author.principal;
   }
   return { version: COMMENTS_VERSION, threads };
@@ -1005,16 +2180,16 @@ function agentViews(doc, threads) {
 }
 
 import { spawn } from "node:child_process";
-import fs5 from "node:fs";
+import fs6 from "node:fs";
 import os3 from "node:os";
 
-import fs4 from "node:fs";
+import fs5 from "node:fs";
 import fsp from "node:fs/promises";
-import path4 from "node:path";
+import path5 from "node:path";
 var LOCK_STALE_MS = 1e4;
 var LOCK_WAIT_MS = 5e3;
 var LOCK_RETRY_MS = 20;
-var commentsPath = (root) => path4.join(root, COMMENTS_FILE);
+var commentsPath = (root) => path5.join(root, COMMENTS_FILE);
 async function readComments(root) {
   let text;
   try {
@@ -1053,8 +2228,8 @@ async function lock(root) {
     await new Promise((resolve) => setTimeout(resolve, LOCK_RETRY_MS));
   }
 }
-async function writeAtomic(file, text) {
-  const temp = path4.join(path4.dirname(file), `.${path4.basename(file)}.${process.pid}.${Date.now().toString(36)}.tmp`);
+async function writeAtomic2(file, text) {
+  const temp = path5.join(path5.dirname(file), `.${path5.basename(file)}.${process.pid}.${Date.now().toString(36)}.tmp`);
   await fsp.writeFile(temp, text);
   try {
     await fsp.rename(temp, file);
@@ -1070,8 +2245,8 @@ async function updateComments(root, change) {
     const before = formatDoc(doc);
     const result = await change(doc);
     const after = formatDoc(doc);
-    const exists = fs4.existsSync(commentsPath(root));
-    if (after !== before && (exists || doc.threads.length > 0)) await writeAtomic(commentsPath(root), after);
+    const exists = fs5.existsSync(commentsPath(root));
+    if (after !== before && (exists || doc.threads.length > 0)) await writeAtomic2(commentsPath(root), after);
     return result;
   } finally {
     await unlock();
@@ -1081,6 +2256,7 @@ async function updateComments(root, change) {
 var AGENT_GRACE_MS = 6e4;
 var AGENT_BUSY_MS = 30 * 6e4;
 var REQUEST_TTL_MS = 30 * 6e4;
+var REQUESTS_KEPT = 32;
 var WAIT_DEFAULT_S = 300;
 var WAIT_MAX_S = 3600;
 var PRESENCE_CHECK_MS = 5e3;
@@ -1145,6 +2321,7 @@ function createCommentsService(options) {
   const waiters = [];
   const hookRunning = /* @__PURE__ */ new Set();
   const requests = [];
+  const requestFates = /* @__PURE__ */ new Map();
   let lastDoc = emptyDoc();
   let lastWaitEnded = 0;
   let lastSent = "";
@@ -1157,7 +2334,7 @@ function createCommentsService(options) {
     const listening = waiters.length > 0;
     const busy = lastDoc.threads.some(
       (t) => t.status === "open" && t.agent?.status === "delivered" && at - Date.parse(t.agent.deliveredAt ?? t.agent.sentAt) < AGENT_BUSY_MS
-    );
+    ) || [...requestFates.values()].some((f) => f.state === "working" && at - f.at < AGENT_BUSY_MS);
     const hook = Boolean(agentHook);
     return { available: listening || busy || hook || at - lastWaitEnded < AGENT_GRACE_MS, listening, busy, hook };
   }
@@ -1206,10 +2383,16 @@ data: ${JSON.stringify(snap)}
     if (!waiter.response.writableEnded) sendJson2(waiter.response, 200, body);
     lastWaitEnded = Date.now();
   }
+  function setRequestState(id, state) {
+    requestFates.delete(id);
+    requestFates.set(id, { state, at: Date.now() });
+    while (requestFates.size > REQUESTS_KEPT) requestFates.delete(requestFates.keys().next().value);
+  }
   function dropStaleRequests() {
     const oldest = Date.now() - REQUEST_TTL_MS;
     while (requests.length > 0 && Date.parse(requests[0].sentAt) < oldest) {
       const dropped = requests.shift();
+      setRequestState(dropped.id, "over");
       log(`comments: dropped request ${dropped.id}: no agent took it in ${REQUEST_TTL_MS / 6e4} minutes`);
     }
   }
@@ -1236,6 +2419,7 @@ data: ${JSON.stringify(snap)}
         return;
       }
       finishWaiter(waiter, { threads: views, ...handed.length > 0 ? { requests: handed } : {} });
+      for (const request of handed) setRequestState(request.id, "working");
       log(`comments: sent to the agent (wait): ${[...views, ...handed].map((v) => v.id).join(", ")}`);
       await broadcast();
       return;
@@ -1283,6 +2467,7 @@ data: ${JSON.stringify(snap)}
     }
     for (const request of requests.splice(0)) {
       hookRunning.add(request.id);
+      setRequestState(request.id, "working");
       const child = spawn(command, {
         shell: true,
         cwd: root,
@@ -1303,6 +2488,7 @@ data: ${JSON.stringify(snap)}
         settled = true;
         hookRunning.delete(request.id);
         requests.unshift(request);
+        setRequestState(request.id, "queued");
         log(`comments: the agent hook ${why} for ${request.id}; the request stays waiting${stderr ? `: ${stderr.trim()}` : ""}`);
       };
       child.on("error", (error) => failed(`failed to start (${error.message})`));
@@ -1321,7 +2507,7 @@ data: ${JSON.stringify(snap)}
   };
   let watcher = null;
   try {
-    watcher = fs5.watch(root, (_event, name) => {
+    watcher = fs6.watch(root, (_event, name) => {
       if (name === null || name === COMMENTS_FILE) changed();
     });
     watcher.on("error", () => {
@@ -1333,7 +2519,7 @@ data: ${JSON.stringify(snap)}
   }
   let lastStat = "";
   const poll = setInterval(() => {
-    fs5.stat(commentsPath(root), (error, info) => {
+    fs6.stat(commentsPath(root), (error, info) => {
       const stat = error ? "none" : `${info.mtimeMs}:${info.size}`;
       if (stat !== lastStat) {
         const first = lastStat === "";
@@ -1368,15 +2554,25 @@ data: ${JSON.stringify(snap)}
     sendJson2(response, 201, { thread: created });
     await afterChange(Boolean(input.send));
   }
-  async function ask(request, response) {
-    const input = readAgentRequest(await readJson(request));
-    if (!input) throw new CommentsError("INVALID_REQUEST", "expected {text} with a non-empty text");
+  function enqueue(input) {
     if (!presence().available) throw new CommentsError("AGENT_UNAVAILABLE", "no agent is waiting: copy the request for the chat instead", 409);
     const queued = { id: newId("r"), ...input, sentAt: now() };
     requests.push(queued);
+    setRequestState(queued.id, "queued");
     log(`comments: request ${queued.id}${input.label ? ` (${input.label})` : ""} for the agent`);
+    return queued;
+  }
+  async function ask(request, response) {
+    const input = readAgentRequest(await readJson(request));
+    if (!input) throw new CommentsError("INVALID_REQUEST", "expected {text} with a non-empty text");
+    const queued = enqueue(input);
     sendJson2(response, 202, { request: queued });
     await deliver();
+  }
+  async function sendRequest(input) {
+    const queued = enqueue(input);
+    await deliver();
+    return queued;
   }
   async function events(request, response, viewer) {
     response.writeHead(200, {
@@ -1400,6 +2596,7 @@ data: ${JSON.stringify(snap)}
     const seconds = Number.isFinite(asked) && asked > 0 ? Math.min(asked, WAIT_MAX_S) : WAIT_DEFAULT_S;
     const waiter = { response, done: false };
     waiters.push(waiter);
+    for (const [id, fate] of requestFates) if (fate.state === "working") setRequestState(id, "over");
     waiter.timer = setTimeout(() => {
       finishWaiter(waiter, { threads: [] });
       void broadcast();
@@ -1538,12 +2735,17 @@ data: ${JSON.stringify(snap)}
     for (const client of clients.keys()) client.end();
     clients.clear();
   }
-  return { handle, presence, deliver, close };
+  function requestStates() {
+    const states = {};
+    for (const [id, fate] of requestFates) if (fate.state !== "over") states[id] = fate.state;
+    return states;
+  }
+  return { handle, presence, deliver, sendRequest, requestStates, close };
 }
 
 var SCRIPT = fileURLToPath(import.meta.url);
-var SKILL_DIR = path5.dirname(path5.dirname(SCRIPT));
-var EDITOR_DIR = path5.join(path5.dirname(SCRIPT), "editor");
+var SKILL_DIR = path6.dirname(path6.dirname(SCRIPT));
+var EDITOR_DIR = path6.join(path6.dirname(SCRIPT), "editor");
 var LOCAL_USER_ID = "local";
 var MAX_DOC_BYTES = 256 * 1024;
 var MAX_FILE_CHARS = 262144;
@@ -1581,10 +2783,10 @@ var CliError = class extends Error {
     this.code = code;
   }
 };
-var isObject = (v) => typeof v === "object" && v !== null && !Array.isArray(v);
+var isObject2 = (v) => typeof v === "object" && v !== null && !Array.isArray(v);
 var bytesOf = (value) => Buffer.byteLength(JSON.stringify(value), "utf8");
 var kb = (n) => n >= 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)} MB` : `${Math.ceil(n / 1024)} KB`;
-var extOf = (name) => path5.extname(name).slice(1).toLowerCase();
+var extOf = (name) => path6.extname(name).slice(1).toLowerCase();
 var contentTypeOf = (name) => CONTENT_TYPES[extOf(name)] ?? "application/octet-stream";
 var quote = (s) => /^[A-Za-z0-9_./:@%+=-]+$/.test(s) ? s : `'${s.replace(/'/g, `'\\''`)}'`;
 var cmd = (name, ...args) => ["node", quote(SCRIPT), name, ...args.map(quote)].join(" ");
@@ -1608,19 +2810,19 @@ function parseArgs(argv) {
   return { positional, flags };
 }
 function writeFileAtomic(file, data) {
-  fs6.mkdirSync(path5.dirname(file), { recursive: true });
-  const tmp = path5.join(path5.dirname(file), `.tmp-${process.pid}-${Date.now()}-${path5.basename(file)}`);
-  fs6.writeFileSync(tmp, data);
-  fs6.renameSync(tmp, file);
+  fs7.mkdirSync(path6.dirname(file), { recursive: true });
+  const tmp = path6.join(path6.dirname(file), `.tmp-${process.pid}-${Date.now()}-${path6.basename(file)}`);
+  fs7.writeFileSync(tmp, data);
+  fs7.renameSync(tmp, file);
 }
 function resolveRoot(given, { create = false } = {}) {
   if (!given) throw new CliError("MISSING_ROOT", "Give the dashboard folder (for example designs/<slug>).");
-  const root = path5.resolve(given);
-  const stat = fs6.statSync(root, { throwIfNoEntry: false });
+  const root = path6.resolve(given);
+  const stat = fs7.statSync(root, { throwIfNoEntry: false });
   if (stat && !stat.isDirectory()) throw new CliError("NOT_A_FOLDER", `${given} is a file; the dashboard is a folder.`);
   if (!stat) {
     if (!create) throw new CliError("NOT_FOUND", `${root} does not exist. Write the dashboard first: ${cmd("write-db", given, "batch.json")}.`);
-    fs6.mkdirSync(root, { recursive: true });
+    fs7.mkdirSync(root, { recursive: true });
   }
   return root;
 }
@@ -1638,20 +2840,20 @@ function docSegments(p) {
   if (segs.length % 2 !== 0) throw new CliError("INVALID_PATH", `${p} names a collection; a document path is collection/doc_id (for example datasets/sales).`);
   return segs;
 }
-var docFile = (root, segs) => path5.join(root, "db", ...segs.slice(0, -1), `${segs.at(-1)}.json`);
+var docFile = (root, segs) => path6.join(root, "db", ...segs.slice(0, -1), `${segs.at(-1)}.json`);
 function listDocFiles(root) {
   const out = /* @__PURE__ */ new Map();
-  const base = path5.join(root, "db");
+  const base = path6.join(root, "db");
   const walk = (dir, rel) => {
     let entries;
     try {
-      entries = fs6.readdirSync(dir, { withFileTypes: true });
+      entries = fs7.readdirSync(dir, { withFileTypes: true });
     } catch {
       return;
     }
     for (const e of entries) {
       if (e.name.startsWith(".")) continue;
-      const full = path5.join(dir, e.name);
+      const full = path6.join(dir, e.name);
       if (e.isDirectory()) walk(full, [...rel, e.name]);
       else if (e.isFile() && e.name.endsWith(".json")) {
         const segs = [...rel, e.name.slice(0, -5)];
@@ -1668,13 +2870,13 @@ function readDoc(root, p) {
   const file = docFile(root, segs);
   let text;
   try {
-    text = fs6.readFileSync(file, "utf8");
+    text = fs7.readFileSync(file, "utf8");
   } catch {
     return { path: segs.join("/"), exists: false, file };
   }
   try {
     const data = JSON.parse(text);
-    if (!isObject(data)) throw new Error("not an object");
+    if (!isObject2(data)) throw new Error("not an object");
     return { path: segs.join("/"), exists: true, data, file, bytes: Buffer.byteLength(text) };
   } catch (error) {
     throw new CliError("DAMAGED_DOCUMENT", `${file} is not a JSON object (${error.message}). Rewrite it with set.`);
@@ -1685,8 +2887,8 @@ function readAllDocs(root) {
   const damaged = [];
   for (const [p, { file }] of listDocFiles(root)) {
     try {
-      const data = JSON.parse(fs6.readFileSync(file, "utf8"));
-      if (isObject(data)) docs.set(p, data);
+      const data = JSON.parse(fs7.readFileSync(file, "utf8"));
+      if (isObject2(data)) docs.set(p, data);
       else damaged.push(p);
     } catch {
       damaged.push(p);
@@ -1694,20 +2896,20 @@ function readAllDocs(root) {
   }
   return { docs, damaged };
 }
-var isDeleteMarker = (v) => v === null || isObject(v) && v.__delete__ === true && Object.keys(v).length === 1;
+var isDeleteMarker = (v) => v === null || isObject2(v) && v.__delete__ === true && Object.keys(v).length === 1;
 function mergePatch(target, patch) {
-  const out = isObject(target) ? { ...target } : {};
+  const out = isObject2(target) ? { ...target } : {};
   for (const [k, v] of Object.entries(patch)) {
     if (k === "__proto__") continue;
     if (isDeleteMarker(v)) delete out[k];
-    else if (isObject(v)) out[k] = mergePatch(out[k], v);
+    else if (isObject2(v)) out[k] = mergePatch(out[k], v);
     else out[k] = v;
   }
   return out;
 }
 function hasDeleteMarker(v) {
   if (Array.isArray(v)) return v.some(hasDeleteMarker);
-  if (!isObject(v)) return false;
+  if (!isObject2(v)) return false;
   if (v.__delete__ === true) return true;
   return Object.values(v).some(hasDeleteMarker);
 }
@@ -1728,12 +2930,12 @@ function documentProblem(segs, data) {
 }
 function resolveFileRefs(value, where) {
   if (Array.isArray(value)) return value.map((v, i) => resolveFileRefs(v, `${where}[${i}]`));
-  if (!isObject(value)) return value;
+  if (!isObject2(value)) return value;
   const keys = Object.keys(value);
   if (keys.length === 1 && keys[0] === "$file") {
-    const file = path5.resolve(String(value.$file));
+    const file = path6.resolve(String(value.$file));
     try {
-      return fs6.readFileSync(file, "utf8");
+      return fs7.readFileSync(file, "utf8");
     } catch {
       throw new CliError("FILE_NOT_FOUND", `${where}: {"$file": ${JSON.stringify(value.$file)}} \u2014 no such file (paths are relative to ${process.cwd()}).`);
     }
@@ -1748,7 +2950,7 @@ function applyWrites(root, writes, { agent = true } = {}) {
   let total = 0;
   writes.forEach((w, i) => {
     const where = `writes[${i}]`;
-    if (!isObject(w)) throw new CliError("INVALID_WRITE", `${where} is not an object.`);
+    if (!isObject2(w)) throw new CliError("INVALID_WRITE", `${where} is not an object.`);
     const op = w.op;
     if (!["set", "update", "delete"].includes(op)) throw new CliError("INVALID_WRITE", `${where}.op is ${JSON.stringify(op)}; use set, update or delete.`);
     const given = w.path ?? (w.collection !== void 0 && w.doc_id !== void 0 ? `${w.collection}/${w.doc_id}` : void 0);
@@ -1768,17 +2970,17 @@ function applyWrites(root, writes, { agent = true } = {}) {
       if (w.data === void 0 === (w.file_path === void 0)) throw new CliError("INVALID_WRITE", `${where} (${op}) needs exactly one of "data" or "file_path".`);
       if (w.file_path !== void 0) {
         try {
-          data = JSON.parse(fs6.readFileSync(path5.resolve(String(w.file_path)), "utf8"));
+          data = JSON.parse(fs7.readFileSync(path6.resolve(String(w.file_path)), "utf8"));
         } catch (error) {
           throw new CliError("INVALID_WRITE", `${where}.file_path ${JSON.stringify(w.file_path)}: ${error.code === "ENOENT" ? "no such file" : `not JSON (${error.message})`}.`);
         }
       } else data = w.data;
-      if (!isObject(data)) throw new CliError("INVALID_WRITE", `${where}.data must be a JSON object (the document's fields).`);
+      if (!isObject2(data)) throw new CliError("INVALID_WRITE", `${where}.data must be a JSON object (the document's fields).`);
       data = agent ? resolveFileRefs(data, `${where}.data`) : data;
       if (op === "set" && hasDeleteMarker(data)) throw new CliError("INVALID_WRITE", `${where}: {"__delete__": true} works only in an update; set writes the whole document.`);
     }
     const file = docFile(root, segs);
-    const existing = fs6.existsSync(file) ? readDoc(root, p) : { exists: false };
+    const existing = fs7.existsSync(file) ? readDoc(root, p) : { exists: false };
     let next = null;
     if (op === "set") next = data;
     else if (op === "update") next = mergePatch(existing.exists ? existing.data : {}, data);
@@ -1791,7 +2993,7 @@ function applyWrites(root, writes, { agent = true } = {}) {
   });
   if (total > MAX_BATCH_BYTES) throw new CliError("BATCH_TOO_LARGE", `The batch writes ${kb(total)}; a batch is at most 1 MB. Split it.`);
   for (const w of planned) {
-    if (w.op === "delete") fs6.rmSync(w.file, { force: true });
+    if (w.op === "delete") fs7.rmSync(w.file, { force: true });
     else writeFileAtomic(w.file, `${JSON.stringify(w.next, null, 2)}
 `);
   }
@@ -1803,18 +3005,18 @@ function applyWrites(root, writes, { agent = true } = {}) {
     ...w.op === "delete" && !w.existed ? { note: "there was no such document" } : {}
   }));
 }
-var blobFile = (root, id) => path5.join(root, "_blobs", id);
+var blobFile = (root, id) => path6.join(root, "_blobs", id);
 function readBlobMeta(root, id) {
   try {
-    return JSON.parse(fs6.readFileSync(`${blobFile(root, id)}.json`, "utf8"));
+    return JSON.parse(fs7.readFileSync(`${blobFile(root, id)}.json`, "utf8"));
   } catch {
     return null;
   }
 }
 function putBlob(root, bytes, name, contentType) {
-  const id = createHash3("sha256").update(bytes).digest("hex").slice(0, 32);
+  const id = createHash4("sha256").update(bytes).digest("hex").slice(0, 32);
   const file = blobFile(root, id);
-  if (!fs6.existsSync(file)) writeFileAtomic(file, bytes);
+  if (!fs7.existsSync(file)) writeFileAtomic(file, bytes);
   const meta = { name, contentType, bytes: bytes.length, uploadedAt: (/* @__PURE__ */ new Date()).toISOString() };
   writeFileAtomic(`${file}.json`, `${JSON.stringify(meta, null, 2)}
 `);
@@ -1822,16 +3024,16 @@ function putBlob(root, bytes, name, contentType) {
 }
 function upload(root, given, flags) {
   if (!given) throw new CliError("MISSING_FILE", "Give the file to attach (CSV, TSV or JSON).");
-  const file = path5.resolve(given);
-  const stat = fs6.statSync(file, { throwIfNoEntry: false });
+  const file = path6.resolve(given);
+  const stat = fs7.statSync(file, { throwIfNoEntry: false });
   if (!stat) throw new CliError("FILE_NOT_FOUND", `No such file: ${given}`);
   if (!stat.isFile()) throw new CliError("NOT_A_FILE", `${given} is not a regular file.`);
   if (stat.size > MAX_DATA_BYTES) {
     throw new CliError("FILE_TOO_LARGE", `${given} is ${kb(stat.size)}; a file dataset over 8 MB is refused. Keep only the columns and rows the dashboard shows, or aggregate first.`);
   }
-  const name = flags.get("name") ?? path5.basename(file);
+  const name = flags.get("name") ?? path6.basename(file);
   const type = flags.get("type") ?? contentTypeOf(name);
-  const result = putBlob(root, fs6.readFileSync(file), name, type);
+  const result = putBlob(root, fs7.readFileSync(file), name, type);
   const ext = extOf(name);
   return {
     ...result,
@@ -1850,11 +3052,11 @@ function referencesTo(root, id) {
 function deleteAsset(root, given) {
   const id = BLOB_URL.exec(String(given ?? ""))?.[1] ?? (BLOB_ID.test(String(given ?? "")) ? given : null);
   if (!id) throw new CliError("INVALID_ASSET", "Give the attached file as its url (/_blob/<id>) or id (32 hex).");
-  if (!fs6.existsSync(blobFile(root, id))) throw new CliError("NOT_FOUND", `No attached file ${id} in ${root}/_blobs.`);
+  if (!fs7.existsSync(blobFile(root, id))) throw new CliError("NOT_FOUND", `No attached file ${id} in ${root}/_blobs.`);
   const users = referencesTo(root, id);
   if (users.length > 0) throw new CliError("IN_USE", `${id} is still named by ${users.join(", ")}; change or delete those first.`);
-  fs6.rmSync(blobFile(root, id), { force: true });
-  fs6.rmSync(`${blobFile(root, id)}.json`, { force: true });
+  fs7.rmSync(blobFile(root, id), { force: true });
+  fs7.rmSync(`${blobFile(root, id)}.json`, { force: true });
   return { deleted: `/_blob/${id}` };
 }
 function readDb(root, given, flags) {
@@ -1862,7 +3064,7 @@ function readDb(root, given, flags) {
     const files = listDocFiles(root);
     return {
       root,
-      documents: [...files.keys()].sort().map((p) => ({ path: p, bytes: fs6.statSync(files.get(p).file).size }))
+      documents: [...files.keys()].sort().map((p) => ({ path: p, bytes: fs7.statSync(files.get(p).file).size }))
     };
   }
   const segs = splitPath(given, "collection or document");
@@ -1942,12 +3144,12 @@ function parseJsonTable(text) {
   }
   let rows = value;
   let declared = [];
-  if (isObject(value)) {
+  if (isObject2(value)) {
     rows = ["rows", "data", "results"].map((k) => Object.hasOwn(value, k) ? value[k] : void 0).find(Array.isArray);
     if (Array.isArray(value.columns)) declared = value.columns.filter((c) => typeof c === "string");
   }
   if (!Array.isArray(rows)) return null;
-  const records = rows.filter(isObject);
+  const records = rows.filter(isObject2);
   const found = /* @__PURE__ */ new Set();
   for (const r of records) for (const k of Object.keys(r)) found.add(k);
   const columns = [.../* @__PURE__ */ new Set([...declared.filter((c) => found.has(c)), ...found])];
@@ -2046,9 +3248,9 @@ function definedRuntimeTokens() {
   if (runtimeTokens) return runtimeTokens;
   runtimeTokens = /* @__PURE__ */ new Set();
   try {
-    for (const name of fs6.readdirSync(path5.join(EDITOR_DIR, "assets"))) {
+    for (const name of fs7.readdirSync(path6.join(EDITOR_DIR, "assets"))) {
       if (!name.endsWith(".css")) continue;
-      const css = fs6.readFileSync(path5.join(EDITOR_DIR, "assets", name), "utf8");
+      const css = fs7.readFileSync(path6.join(EDITOR_DIR, "assets", name), "utf8");
       for (const m of css.matchAll(/(--[A-Za-z0-9_-]+)\s*:/g)) runtimeTokens.add(m[1]);
     }
   } catch {
@@ -2223,7 +3425,7 @@ function isLookFontStack(value) {
 }
 function checkLookSet(value, theme, issue, warn) {
   if (value === void 0) return false;
-  if (!isObject(value)) {
+  if (!isObject2(value)) {
     issue(`${theme} is an object of colors ({ground, card, text, \u2026}); the ${theme} set is dropped.`);
     return false;
   }
@@ -2289,14 +3491,14 @@ function checkLook(look, issue, warn) {
   };
   length("corners", look.corners, 0, LOOK_MAX_CORNERS);
   if (look.sizes !== void 0) {
-    if (!isObject(look.sizes)) lookIssue("sizes is an object: {caption, body, heading, title}.");
+    if (!isObject2(look.sizes)) lookIssue("sizes is an object: {caption, body, heading, title}.");
     else {
       for (const key of Object.keys(look.sizes)) if (!(key in LOOK_SIZES)) lookWarn(`sizes.${key} isn\u2019t read (sizes are ${Object.keys(LOOK_SIZES).join(", ")}).`);
       for (const [key, [min, max]] of Object.entries(LOOK_SIZES)) length(`sizes.${key}`, look.sizes[key], min, max);
     }
   }
   if (look.fonts !== void 0) {
-    if (!isObject(look.fonts)) lookIssue("fonts is an object: {text, display}.");
+    if (!isObject2(look.fonts)) lookIssue("fonts is an object: {text, display}.");
     else {
       for (const key of Object.keys(look.fonts)) if (key !== "text" && key !== "display") lookWarn(`fonts.${key} isn\u2019t read (fonts are text and display).`);
       for (const key of ["text", "display"]) {
@@ -2352,7 +3554,7 @@ function check(root) {
     if (typeof data.title !== "string" || !data.title.trim()) issue(p, "needs a title: a short name that stands alone in a list of sources.");
     else if (data.title.length > 40) warn(p, `title is ${data.title.length} characters; about 30 reads best in Sources (the detail goes in description).`);
     if (data.description !== void 0 && typeof data.description !== "string") issue(p, "description must be text.");
-    const source = isObject(data.source) ? data.source : null;
+    const source = isObject2(data.source) ? data.source : null;
     if (!source) {
       issue(p, 'needs source: {kind: "file", url, name, format?}.');
       continue;
@@ -2380,7 +3582,7 @@ function check(root) {
       continue;
     }
     const file = blobFile(root, blob);
-    const stat = fs6.statSync(file, { throwIfNoEntry: false });
+    const stat = fs7.statSync(file, { throwIfNoEntry: false });
     if (!stat) {
       issue(p, `source.url ${source.url}: no such attached file in _blobs/. Upload the file again and use the url it prints.`);
       continue;
@@ -2392,7 +3594,7 @@ function check(root) {
     if (typeof source.name !== "string" || !source.name.trim()) issue(p, "source.name: the file\u2019s own name (it sets the format when format is left out).");
     if (source.format !== void 0 && !["csv", "tsv", "json"].includes(source.format)) issue(p, 'source.format is "csv", "tsv" or "json" (only when the name\u2019s extension doesn\u2019t say).');
     const format = ["csv", "tsv", "json"].includes(source.format) ? source.format : inferFormat(source.name);
-    const text = fs6.readFileSync(file, "utf8");
+    const text = fs7.readFileSync(file, "utf8");
     const table = format === "json" ? parseJsonTable(text) : parseDelimited(text, format === "tsv" ? "	" : ",");
     if (!table || table.columns.length === 0) {
       issue(p, `the file has no rows the page can read as ${format}${format === "json" ? " (an array of row objects, or one under rows/data/results)" : ""}.`);
@@ -2400,7 +3602,7 @@ function check(root) {
     }
     info.table = table;
     info.format = format;
-    const updated = isObject(data.updated) ? data.updated : null;
+    const updated = isObject2(data.updated) ? data.updated : null;
     if (!updated || typeof updated.at !== "string" || Number.isNaN(Date.parse(updated.at))) issue(p, "needs updated: {at: <ISO time>, by: <who>} on every file write; without it the file shows a warning.");
     else if (typeof updated.by !== "string" || !updated.by.trim()) warn(p, "updated.by is empty: say who wrote it.");
     if (data.staleAfterHours !== void 0 && !(Number.isInteger(data.staleAfterHours) && data.staleAfterHours >= 1)) issue(p, "staleAfterHours is a whole number of hours, 1 or more.");
@@ -2633,9 +3835,9 @@ function check(root) {
   const runs = docs.get(`data/users/${LOCAL_USER_ID}/runs`);
   if (runs) {
     const runsFile = docFile(root, ["data", "users", LOCAL_USER_ID, "runs"]);
-    const writtenAt = fs6.statSync(runsFile).mtime;
-    const pageChanged = [...docs.keys()].some((p) => /^(files|datasets)\//.test(p) && fs6.statSync(docFile(root, p.split("/"))).mtime > writtenAt);
-    const failedSources = Object.entries(isObject(runs.datasets) ? runs.datasets : {}).filter(([, d]) => isObject(d) && d.status !== "ok");
+    const writtenAt = fs7.statSync(runsFile).mtime;
+    const pageChanged = [...docs.keys()].some((p) => /^(files|datasets)\//.test(p) && fs7.statSync(docFile(root, p.split("/"))).mtime > writtenAt);
+    const failedSources = Object.entries(isObject2(runs.datasets) ? runs.datasets : {}).filter(([, d]) => isObject2(d) && d.status !== "ok");
     pageReport = {
       writtenAt: writtenAt.toISOString(),
       ...pageChanged ? { stale: "files or datasets changed after the page wrote this; it is rewritten (or removed) when the page next runs them" } : {},
@@ -2659,15 +3861,15 @@ function check(root) {
   let pageCheck;
   const checkDoc = docs.get(`data/users/${LOCAL_USER_ID}/check`);
   if (checkDoc) {
-    const writtenAt = fs6.statSync(docFile(root, ["data", "users", LOCAL_USER_ID, "check"])).mtime;
-    const changedSince = (re) => [...docs.keys()].some((p) => re.test(p) && fs6.statSync(docFile(root, p.split("/"))).mtime > writtenAt);
+    const writtenAt = fs7.statSync(docFile(root, ["data", "users", LOCAL_USER_ID, "check"])).mtime;
+    const changedSince = (re) => [...docs.keys()].some((p) => re.test(p) && fs7.statSync(docFile(root, p.split("/"))).mtime > writtenAt);
     const stale = changedSince(/^files\//) ? "a page file changed after the page wrote this; the open page checks again when it picks the change up, then rewrites or removes it" : changedSince(/^(datasets|dash)\//) ? "a dataset or dash document changed after the page wrote this; only a page-file write (or opening the page again) checks again" : checkDoc.status === "checking" && Date.now() - writtenAt.getTime() > CHECK_ABANDONED_MS ? "it has said checking for over 30 seconds: the page was closed while it checked; it checks again when it is opened" : void 0;
     pageCheck = {
       status: checkDoc.status,
       ...checkDoc.at !== void 0 ? { at: checkDoc.at } : {},
       writtenAt: writtenAt.toISOString(),
       ...stale ? { stale } : {},
-      ...Array.isArray(checkDoc.page) ? { page: checkDoc.page.filter(isObject) } : {}
+      ...Array.isArray(checkDoc.page) ? { page: checkDoc.page.filter(isObject2) } : {}
     };
     if (checkDoc.status === "failed") {
       const doc = "data/users/me/check";
@@ -2727,8 +3929,29 @@ var COMMENT_FILE = "files/index.html";
 var ADMIN_READ = /* @__PURE__ */ new Set(["versions", "version-docs", "drafts"]);
 var access = (viewer, p) => dbAccess(viewer, p.split("/"), ADMIN_READ);
 var ownPath = (p, viewer) => String(p ?? "").replace(/^\/*data\/users\/me(?=\/|$)/, `data/users/${viewer.user.id}`);
+var historyTracks = (p) => {
+  const top = p.split("/")[0] ?? "";
+  return top !== "data" && !ADMIN_READ.has(top) && p !== "dash/settings";
+};
+function historyLabel(p, docs) {
+  if (p === "dash/meta") return { en: "Title and description", zh: "\u6807\u9898\u548C\u8BF4\u660E" };
+  if (p === "dash/params") return { en: "Parameters", zh: "\u53C2\u6570" };
+  if (p === "dash/look") return { en: "Look", zh: "\u5916\u89C2" };
+  const [collection, id] = p.split("/");
+  if (collection === "datasets" && id) {
+    let title = id;
+    try {
+      const data = JSON.parse(docs.get(p)?.text ?? "{}");
+      if (typeof data.title === "string" && data.title.trim()) title = data.title.trim();
+    } catch {
+    }
+    return { en: `Dataset \xB7 ${title}`, zh: `\u6570\u636E\u96C6 \xB7 ${title}` };
+  }
+  if (collection === "files" && id) return id === "index.html" ? { en: "Page \xB7 index.html", zh: "\u9875\u9762 \xB7 index.html" } : { en: `Page file \xB7 ${id}`, zh: `\u9875\u9762\u6587\u4EF6 \xB7 ${id}` };
+  return null;
+}
 async function serve(root, flags) {
-  if (!["index.html", "local-host.js", "comments.js"].every((name) => fs6.existsSync(path5.join(EDITOR_DIR, name)))) {
+  if (!["index.html", "local-host.js", "comments.js"].every((name) => fs7.existsSync(path6.join(EDITOR_DIR, name)))) {
     throw new CliError("EDITOR_MISSING", `The editor page is missing (${EDITOR_DIR}); reinstall the skill.`);
   }
   const existing = await runningServer2(root);
@@ -2743,22 +3966,34 @@ async function serve(root, flags) {
   if (!Number.isInteger(port) || port < 0 || port > 65535) throw new CliError("INVALID_PORT", "--port is a number from 0 to 65535.");
   const log = (line) => process.stderr.write(`[${(/* @__PURE__ */ new Date()).toISOString()}] ${line}
 `);
-  const dbDir = path5.join(root, "db");
-  fs6.mkdirSync(dbDir, { recursive: true });
+  const dbDir = path6.join(root, "db");
+  fs7.mkdirSync(dbDir, { recursive: true });
   const known = /* @__PURE__ */ new Map();
   const clients = /* @__PURE__ */ new Map();
+  const presence = new PresenceHub();
   const send = (res, event, data) => res.write(`event: ${event}
 data: ${JSON.stringify(data)}
 
 `);
   const snapshot = (viewer) => Object.fromEntries([...known].filter(([p]) => access(viewer, p).read).map(([p, k]) => [p, JSON.parse(k.text)]));
+  const page = pagePathOf("dashboard", root);
+  const history = new DbHistory({
+    root,
+    tracked: historyTracks,
+    labels: () => (p) => historyLabel(p, known),
+    base: page,
+    write: (p, data) => void applyWrites(root, [data === null ? { op: "delete", path: p } : { op: "set", path: p, data }], { agent: false }),
+    rescan: () => rescan(),
+    log
+  });
+  const docsAt = (n) => history.docsAt(n, new Map([...known].map(([p, k]) => [p, JSON.parse(k.text)])));
   function rescan() {
     const files = listDocFiles(root);
     const changes = [];
     for (const [p, { file }] of files) {
       let stat;
       try {
-        stat = fs6.statSync(file);
+        stat = fs7.statSync(file);
       } catch {
         continue;
       }
@@ -2766,8 +4001,8 @@ data: ${JSON.stringify(data)}
       if (prev && prev.mtimeMs === stat.mtimeMs && prev.size === stat.size) continue;
       let data;
       try {
-        data = JSON.parse(fs6.readFileSync(file, "utf8"));
-        if (!isObject(data)) throw new Error("not an object");
+        data = JSON.parse(fs7.readFileSync(file, "utf8"));
+        if (!isObject2(data)) throw new Error("not an object");
       } catch {
         continue;
       }
@@ -2781,6 +4016,9 @@ data: ${JSON.stringify(data)}
         changes.push({ path: p, data: null });
       }
     }
+    const made = history.record(changes, (p) => files.has(p));
+    const byAgent = made.filter((v) => v.by === "agent").flatMap((v) => Object.keys(v.changes));
+    if (byAgent.length) presence.agentActive({ where: agentWhere(byAgent.at(-1), byAgent.length, (p) => historyLabel(p, known) ?? { en: p, zh: p }) });
     if (changes.length) {
       for (const [res, viewer] of clients) {
         const seen = changes.filter((c) => access(viewer, c.path).read);
@@ -2797,7 +4035,7 @@ data: ${JSON.stringify(data)}
   };
   let watcher = null;
   try {
-    watcher = fs6.watch(dbDir, { recursive: true }, soon);
+    watcher = fs7.watch(dbDir, { recursive: true }, soon);
     watcher.on("error", () => {
     });
   } catch (error) {
@@ -2805,7 +4043,6 @@ data: ${JSON.stringify(data)}
   }
   const poll = setInterval(rescan, watcher ? 2e3 : 700);
   const owner = localOwner();
-  const page = pagePathOf("dashboard", root);
   const share2 = new ShareHost({
     root,
     cookieName: guestCookieName("dashboard", root),
@@ -2814,7 +4051,8 @@ data: ${JSON.stringify(data)}
     title: () => dashboardTitle(root),
     log,
     createServer: () => http.createServer(handle),
-    uiFile: path5.join(EDITOR_DIR, "share-ui.js")
+    uiFile: path6.join(EDITOR_DIR, "share-ui.js"),
+    globals: (viewer, query) => ({ __baoyuHistory: history.bootGlobal(viewer, query) })
   });
   const comments = createCommentsService({
     root,
@@ -2830,19 +4068,19 @@ data: ${JSON.stringify(data)}
   });
   const json = (res, status, body) => sendJson(res, status, body);
   const serveFile = (req, res, file, type, cache) => {
-    fs6.stat(file, (error, stat) => {
+    fs7.stat(file, (error, stat) => {
       if (error || !stat.isFile()) return json(res, 404, { code: "not_found", message: "Not found" });
       sendFile(req, res, file, { "Content-Type": type, "Content-Length": stat.size, "Cache-Control": cache, "X-Content-Type-Options": "nosniff" });
     });
   };
-  const servePage = (res, viewer) => {
+  const servePage = (res, viewer, at) => {
     let html;
     try {
-      html = fs6.readFileSync(path5.join(EDITOR_DIR, "index.html"), "utf8");
+      html = fs7.readFileSync(path6.join(EDITOR_DIR, "index.html"), "utf8");
     } catch {
       return json(res, 404, { code: "not_found", message: "The editor page is missing." });
     }
-    const body = Buffer.from(share2.injectHead(html, viewer) ?? html);
+    const body = Buffer.from(share2.injectHead(html, viewer, at === void 0 ? "" : `?at=${at}`) ?? html);
     res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Content-Length": body.length, "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" }).end(body);
   };
   async function handle(req, res) {
@@ -2864,15 +4102,48 @@ data: ${JSON.stringify(data)}
       }
       const p = at.path;
       if (req.method === "POST" && !sameOrigin(req)) return json(res, 403, { code: "not_granted", message: "Cross-origin write refused." });
-      const editing = canEditAs(viewer.role);
-      if (req.method === "GET" && (p === "/" || p === "/index.html")) return servePage(res, viewer);
-      if (req.method === "GET" && (p === "/local-host.js" || p === "/comments.js")) return serveFile(req, res, path5.join(EDITOR_DIR, p.slice(1)), "text/javascript; charset=utf-8", "no-store");
+      const preview = previewOf(url2.searchParams);
+      const editing = canEditAs(viewer.role) && preview === void 0;
+      if (req.method === "GET" && (p === "/" || p === "/index.html")) return servePage(res, viewer, preview);
+      if (p === "/__presence" && preview === void 0) return presence.handle(req, res, viewer);
+      if (p === "/__history" || p.startsWith("/__history/")) {
+        if (await history.host.handle(req, res, p.slice("/__history".length), viewer)) return;
+        req.resume();
+        return json(res, 404, { code: "not_found", message: "Not found" });
+      }
+      if (preview !== void 0 && p.startsWith("/_api/")) {
+        const docs = docsAt(preview);
+        if (!docs) return json(res, 404, { code: "not_found", message: `There is no version ${preview} (it may be too old to keep).` });
+        if (req.method === "GET" && p === "/_api/events") {
+          res.writeHead(200, { "Content-Type": "text/event-stream", "Cache-Control": "no-store", Connection: "keep-alive" });
+          res.write("retry: 1500\n\n");
+          send(res, "snapshot", { docs: Object.fromEntries([...docs].filter(([dp]) => access(viewer, dp).read)) });
+          const ping = setInterval(() => res.write(": ping\n\n"), 25e3);
+          req.on("close", () => clearInterval(ping));
+          return;
+        }
+        if (req.method === "GET" && p === "/_api/doc") {
+          let wanted;
+          try {
+            wanted = docSegments(ownPath(url2.searchParams.get("path"), viewer)).join("/");
+          } catch (error) {
+            return json(res, 400, { code: "invalid_argument", message: error.message });
+          }
+          const data = docs.get(wanted);
+          return json(res, 200, data && access(viewer, wanted).read ? { exists: true, data } : { exists: false });
+        }
+        if (req.method === "POST") {
+          req.resume();
+          return json(res, 403, { code: "invalid_argument", message: "This is an earlier version: open the current one to change it." });
+        }
+      }
+      if (req.method === "GET" && (p === "/local-host.js" || p === "/comments.js")) return serveFile(req, res, path6.join(EDITOR_DIR, p.slice(1)), "text/javascript; charset=utf-8", "no-store");
       if (p === COMMENTS_ROUTE || p.startsWith(`${COMMENTS_ROUTE}/`)) {
         const sub = p.slice(COMMENTS_ROUTE.length);
         if (sub === "/events") share2.hold(viewer, res);
         return await comments.handle(req, res, sub);
       }
-      if (req.method === "GET" && /^\/assets\/[A-Za-z0-9_.-]+$/.test(p)) return serveFile(req, res, path5.join(EDITOR_DIR, p), contentTypeOf(p), "public, max-age=31536000, immutable");
+      if (req.method === "GET" && /^\/assets\/[A-Za-z0-9_.-]+$/.test(p)) return serveFile(req, res, path6.join(EDITOR_DIR, p), contentTypeOf(p), "public, max-age=31536000, immutable");
       const blob = /^\/_blob\/([0-9a-f]{32})$/.exec(p);
       if (req.method === "GET" && blob) {
         const meta = readBlobMeta(root, blob[1]);
@@ -2889,10 +4160,13 @@ data: ${JSON.stringify(data)}
         send(res, "snapshot", { docs: snapshot(viewer) });
         clients.set(res, viewer);
         share2.hold(viewer, res);
+        const peer = url2.searchParams.get("peer") ?? "";
+        const leave = presence.join(PEER_ID.test(peer) ? peer : "", viewer, (text) => res.write(text));
         const ping = setInterval(() => res.write(": ping\n\n"), 25e3);
         req.on("close", () => {
           clearInterval(ping);
           clients.delete(res);
+          leave();
         });
         return;
       }
@@ -2922,12 +4196,30 @@ data: ${JSON.stringify(data)}
         }
         if (!editing) return json(res, 403, { code: "invalid_argument", message: `You can view this dashboard but not change it.` });
         if (!access(viewer, segs.join("/")).write) return json(res, 403, { code: "invalid_argument", message: `${segs.join("/")} is another person's own: only they read and write it.` });
+        let write = { op: body.op, path: given, ...body.op === "delete" ? {} : { data: body.data } };
+        let merge;
+        if ((body.op === "set" || body.op === "update" || body.op === "delete") && isObject2(body.base) && (body.op === "delete" || isObject2(body.data))) {
+          let now = null;
+          try {
+            now = readDoc(root, segs.join("/"));
+          } catch {
+          }
+          if (now) {
+            const mine = body.op === "delete" ? null : body.op === "update" ? mergePatch(body.base, body.data) : body.data;
+            const merged = mergeWrite(body.base, mine, now.exists ? now.data : null);
+            write = merged.result === null ? { op: "delete", path: given } : { op: "set", path: given, data: merged.result };
+            merge = { base: body.base, conflicts: merged.conflicts };
+          }
+        }
+        history.attribute(segs.join("/"), whoOf(viewer), merge);
         try {
-          const done = applyWrites(root, [{ op: body.op, path: given, ...body.op === "delete" ? {} : { data: body.data } }], { agent: false });
+          const done = applyWrites(root, [write], { agent: false });
           rescan();
           return json(res, 200, { ok: true, writes: done });
         } catch (error) {
           return json(res, 400, { code: "invalid_argument", message: error.message });
+        } finally {
+          history.settle(segs.join("/"));
         }
       }
       if (req.method === "POST" && p === "/_api/upload") {
@@ -2965,6 +4257,7 @@ data: ${JSON.stringify(data)}
     comments.close();
     for (const c of clients.keys()) c.end();
     share2.close();
+    presence.close();
     server.close();
     server.closeAllConnections?.();
   };
@@ -2988,20 +4281,20 @@ var lanOn2 = (url, flags) => lanOn(url, flags, fail);
 async function open(root, flags) {
   const existing = await runningServer2(root);
   if (existing) {
-    print({ url: existing.url, root, pid: existing.pid, reused: true, ...await lanOn2(existing.url, flags), log: path5.join(root, LOG_FILE), stop: cmd("stop", root) }, true);
+    print({ url: existing.url, root, pid: existing.pid, reused: true, ...await lanOn2(existing.url, flags), log: path6.join(root, LOG_FILE), stop: cmd("stop", root) }, true);
     return;
   }
   const state = await startBackground(root, flags);
   const view = await shareCall2(state.url, null).catch(() => null);
-  const empty = !fs6.existsSync(docFile(root, ["files", "index.html"]));
-  print({ url: state.url, root, pid: state.pid, ...view?.lan ? { lan: lanUrls(view) } : {}, log: path5.join(root, LOG_FILE), stop: cmd("stop", root), ...empty ? { note: "files/index.html is not written yet: the page is empty until it is." } : {} }, true);
+  const empty = !fs7.existsSync(docFile(root, ["files", "index.html"]));
+  print({ url: state.url, root, pid: state.pid, ...view?.lan ? { lan: lanUrls(view) } : {}, log: path6.join(root, LOG_FILE), stop: cmd("stop", root), ...empty ? { note: "files/index.html is not written yet: the page is empty until it is." } : {} }, true);
 }
 async function startBackground(root, flags) {
-  const logFile = path5.join(root, LOG_FILE);
-  const fd = fs6.openSync(logFile, "a");
+  const logFile = path6.join(root, LOG_FILE);
+  const fd = fs7.openSync(logFile, "a");
   const child = spawn2(process.execPath, [SCRIPT, "serve", root, ...serverFlags(flags)], { detached: true, stdio: ["ignore", "ignore", fd] });
   child.unref();
-  fs6.closeSync(fd);
+  fs7.closeSync(fd);
   let exited = false;
   child.once("exit", () => exited = true);
   const deadline = Date.now() + 15e3;
@@ -3011,14 +4304,14 @@ async function startBackground(root, flags) {
     if (state && state.pid === child.pid) return state;
     if (exited) break;
   }
-  const tail = fs6.existsSync(logFile) ? fs6.readFileSync(logFile, "utf8").split("\n").slice(-12).join("\n") : "";
+  const tail = fs7.existsSync(logFile) ? fs7.readFileSync(logFile, "utf8").split("\n").slice(-12).join("\n") : "";
   throw new CliError("SERVER_FAILED", `The editor server did not start. Run ${cmd("serve", root)} in the foreground to see why.${tail ? `
 ${tail}` : ""}`);
 }
 function stop(root) {
   const state = readState(root);
   if (!state || !alive(state.pid)) {
-    fs6.rmSync(path5.join(root, STATE_FILE), { force: true });
+    fs7.rmSync(path6.join(root, STATE_FILE), { force: true });
     print({ stopped: false, message: "No editor server is running for this folder." }, true);
     return;
   }
@@ -3061,7 +4354,7 @@ function dashboardTitle(root) {
     title = meta.exists ? meta.data?.title : void 0;
   } catch {
   }
-  return typeof title === "string" && title.trim() ? title.trim() : path5.basename(root);
+  return typeof title === "string" && title.trim() ? title.trim() : path6.basename(root);
 }
 async function waitComments(root, flags) {
   const timeout = flags.has("timeout") ? Number(flags.get("timeout")) : Infinity;
@@ -3076,7 +4369,8 @@ async function waitComments(root, flags) {
     let body;
     try {
       const response = await fetch(new URL(`__comments/agent/wait?timeout=${Math.max(1, Math.round(left))}`, state.url), {
-        signal: AbortSignal.timeout((left + 30) * 1e3)
+        // A whole number of ms: AbortSignal.timeout refuses a fraction (and --timeout leaves one in `left`).
+        signal: AbortSignal.timeout(Math.ceil((left + 30) * 1e3))
       });
       if (response.status === 404) {
         throw new CliError(
@@ -3176,7 +4470,7 @@ async function main() {
       if (!from) throw new CliError("MISSING_BATCH", "Give the batch: a JSON file, or - to read it from stdin.");
       let text;
       try {
-        text = from === "-" ? fs6.readFileSync(0, "utf8") : fs6.readFileSync(path5.resolve(from), "utf8");
+        text = from === "-" ? fs7.readFileSync(0, "utf8") : fs7.readFileSync(path6.resolve(from), "utf8");
       } catch {
         throw new CliError("FILE_NOT_FOUND", `No such batch file: ${from}`);
       }
@@ -3186,7 +4480,7 @@ async function main() {
       } catch (error) {
         throw new CliError("INVALID_BATCH", `The batch is not JSON: ${error.message}`);
       }
-      const writes = Array.isArray(batch) ? batch : Array.isArray(batch?.writes) ? batch.writes : isObject(batch) && batch.op ? [batch] : null;
+      const writes = Array.isArray(batch) ? batch : Array.isArray(batch?.writes) ? batch.writes : isObject2(batch) && batch.op ? [batch] : null;
       if (!writes) throw new CliError("INVALID_BATCH", 'A batch is an array of writes, or {"writes": [...]}.');
       const written = applyWrites(root, writes);
       const server = readState(root);

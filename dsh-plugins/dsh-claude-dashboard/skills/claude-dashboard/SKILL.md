@@ -308,7 +308,7 @@ kind; a file's `text` is always the whole file. A new file version:
 `upload`, then one `update` of `source.url`, `source.name` and `updated`:
 
 ```json
-[{"op": "update", "path": "datasets/sales", "data": {"source": {"url": "/_blob/<id from upload>", "name": "sales-2026-10-28.csv"}, "updated": {"at": "2026-10-28T09:00:00Z", "by": "Claude"}}}]
+[{"op": "update", "path": "datasets/sales", "data": {"source": {"url": "/_blob/<id from upload>", "name": "sales-2026-10-28.csv"}, "updated": {"at": "2026-10-28T09:00:00Z", "by": "Agent"}}}]
 ```
 
 Refreshing is that, from the data gathered again the way the dataset's
@@ -365,7 +365,7 @@ page.
   each with `file`, `where`, `detail` and its `messages`; `--all` adds the
   resolved ones.
 - `comment-reply <root> <id> <text>` (or `-`, the text on stdin): your reply,
-  shown on the page at once from "agent". Reply after the change is written and
+  shown on the page at once from "Agent". Reply after the change is written and
   checked (Changing and refreshing), in a sentence or two: what changed, or why
   not. `--resolve` also closes the thread: use it once the change is made;
   leave a question or a refusal open for the person.
@@ -414,7 +414,56 @@ comments without editing, `viewer` only looks. `open <root> --lan` (or
   per-person documents (`data/users/<id>`) included, so a run, a check or other
   per-person state they make in the page is not kept. Each person's
   `data/users/<id>` is theirs alone to read.
-- Only the owner's page sends to you (Send to agent); what guests comment is
+- Who is here: while someone else has the dashboard open, their avatars sit
+  before History (who, not where on the page). After you write documents you
+  show there as Agent, with what you changed, for about 20 s.
+- Only the owner's page sends to you (Send to Agent); what guests comment is
   saved for you to read with `comments <root>`.
 - The links and the people who joined are in `<root>/.sharing.json`: leave it.
   It is plain http on the local network: anyone there with a link gets in.
+
+## History
+
+The server keeps the dashboard's versions in `<root>/history/` (leave it):
+who changed which document, and when.
+
+- What a person changes on the page is theirs, under the name they joined
+  with (the owner's: this computer's user name). A change made any other
+  way, by `write-db` or on disk, shows as "Agent". Not kept: `data/…` (each
+  person's own), `versions`, `version-docs`, `drafts` and `dash/settings`.
+  The first version is the documents as they were when the server first kept
+  a history. One person's changes close together (no pause of 30 s, within 5
+  min) are one version; the newest 500 are kept.
+- The History button (the clock beside Share) lists them, newest first. A
+  version opens to the documents it changed and each one's line-by-line
+  changes; Preview shows the dashboard as it was, read-only; the owner and
+  editors restore the whole version or one document, as a new version, so
+  nothing is lost.
+- Nothing here is refused as out of date. When two people change the same
+  document at once, the server keeps both: each page's change is merged with
+  what was saved since, field by field. Only when both changed the same value
+  does the later one win, and the first person gets a notice on the page
+  (Compare, Bring back, Dismiss). A page file (`files/…`) is merged by
+  line: two people editing different paragraphs keep both, and only lines
+  both changed count as the same value. That holds for the page editor's
+  "Save to overwrite that change" too: it replaces only those lines.
+  Compare and Bring back cover only those values or lines; the later
+  person's other changes stay. A delete counts too: deleting a document
+  someone changed since the page read it, or changing one someone deleted
+  since, takes the later side whole and gives the same notice; when the
+  change brought a deleted document back, the notice offers Delete again
+  instead. A `write-db` is not merged: when it drops part of a change
+  someone made less than a minute before, or puts back something they
+  deleted in that minute, they get the same notice, and Bring back puts
+  back what they changed and keeps the rest of your write. If the
+  dashboard changes while they look at Compare, Bring back asks them to
+  look again first.
+- Asked who changed something, read `<root>/history/index.json`: `versions`,
+  oldest first, each `{n, at, by, user: {name}, changes}` (`by`: `"human"`,
+  `"agent"` for you, `"system"` for the first; `changes`: path → sha256,
+  null for a delete; paths like `dash/params`, `files/index.html`), with
+  `restoredFrom` or `overwrote` when it brought a version back or replaced
+  someone's change; a content is `<root>/history/objects/<sha256>`, the
+  document as JSON. To put something back, point the person to History (it
+  records who did it), or write the old content with `write-db`, which makes
+  a version of yours.

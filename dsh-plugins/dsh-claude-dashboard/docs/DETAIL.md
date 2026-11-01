@@ -12,7 +12,7 @@ and the page. It then starts a local dashboard editor and gives you its link.
   conversation (Settings → General → Open chat links in: **In-App Sidebar**, the default).
 - The Sources panel shows where every number comes from, and downloads a source's rows as CSV. The agent's changes
   show up in the page as it writes them.
-- Comment on a chart, a number, a table or any other part of the page (Comment, or C). Tick **Send to agent** and the
+- Comment on a chart, a number, a table or any other part of the page (Comment, or C). Tick **Send to Agent** and the
   agent picks it up at once, even when the conversation is idle: it changes the dashboard and replies in the comment.
   The comment also shows in the chat as a card; **View thread** on the card opens it in the editor. The box is there
   while comments can reach the agent, which starts each time it gives you the link. After restarting the app, ask the

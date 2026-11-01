@@ -35,9 +35,13 @@ https://github.com/user-attachments/assets/d5b4f39b-a701-49de-87b8-64f3c6ef9c61
 
 这四个技能按该 Artifact 类型自己的文件格式把内容写进一个文件夹，再用这个类型的编辑器页面打开它，编辑器就在你自己的电脑上运行。Agent 写文件，编辑器立刻显示每一次写入；你在编辑器里的修改也会存回同一批文件，所以你和 Agent 可以轮流改。
 
-在幻灯片、画布、设计系统编辑器和仪表盘页面里，点击 **Comment**（或按 **C**）就能对元素或区域留下评论。评论保存在项目本地的 `comments.json`，Agent 通过 `artifact.mjs` 读取和回复。Agent 用 `comments <root> --wait` 等待评论时，编辑器会显示 **Send to agent**，让你把评论交给它处理。
+在幻灯片、画布、设计系统编辑器和仪表盘页面里，点击 **Comment**（或按 **C**）就能对元素或区域留下评论。评论保存在项目本地的 `comments.json`，Agent 通过 `artifact.mjs` 读取和回复。Agent 用 `comments <root> --wait` 等待评论时，编辑器会显示 **Send to Agent**，让你把评论交给它处理。
 
 要和别人一起做，`share <root>`（或 `open <root> --lan`）把幻灯片、画布、设计系统或仪表盘开放到局域网（同一个 Wi‑Fi 或内网），每种角色打印一个链接：**editor** 能改也能评论，**commenter** 只能评论，**viewer** 只能看。拿到链接的人输个名字就进来了，他改的内容会出现在每个人的页面上，评论也写进同一份 `comments.json`。坐在这台电脑前的人是主人：**Share** 按钮里能看到谁加入了、谁在线，能改某个人的角色或把他移出去，能关掉、重新打开或重置每个链接。访客也有 Share 按钮，里面是他可以转发的链接：自己这一级和更低的角色。不用注册账号，内容不出你的网络；走的是局域网里的明文 http，网络里拿到链接的人都进得来。
+
+每一次修改都存成一个版本，记着是谁改的：访客按他加入时填的名字，主人，或者 **Agent**（直接改这台电脑上的文件）。**History** 按钮（Share 旁边的时钟）按天列出所有版本；点开一个版本能看到它改了哪几页、哪块画板或哪份文档，逐行对比改动，也能预览当时的整体样子，或者把整个版本（也可以只挑其中一处）恢复回来，恢复本身也是一个新版本，什么都不会丢。两个人同时保存同一页时，后存的不会再悄悄盖掉先存的：这个版本会记下它覆盖了谁的修改，两个人都会收到提醒，可以**看看差别**、一键**找回**，找回的只是被盖掉的那部分，对方别处的修改照样留着。在幻灯片、设计稿和设计系统编辑器里，别人保存后你的页面就地更新，不再整页刷新；要是他存的正好是你还没保存的那一页、那块画板或那个文件，顶上会出一条提示，让你选用他的、保留你的，还是两份都留（你的另存成后面一页、旁边一块画板，或文件的一份副本）。两边会先合并：画布按元素，幻灯片和设计系统的文件按行（token 文件按 token）。两人改的是不同的元素或不同的行，两边的修改都留着，不用选；合不了（比如改到同一行）才出这条提示。历史存在项目的 `history/` 文件夹里。
+
+别人开着同一个页面时，他们的头像排在 History 旁边。在幻灯片和画布编辑器里，点开能看到每个人在第几页、哪块画板、是不是正在改，页面上也有他们的光标和选中框；有人开始改你正在看的地方，会弹一句提醒，但什么都不会锁住。Claude 改文件的时候，也会出现在这一排里。
 
 ### `claude-slides`：幻灯片
 
@@ -90,7 +94,7 @@ node skills/claude-slides/scripts/artifact.mjs share designs/q3-review          
 | [`dsh-claude-design-system`](https://www.npmjs.com/package/dsh-claude-design-system) | `/claude-design-system`：设计系统 | [![npm](https://img.shields.io/npm/v/dsh-claude-design-system)](https://www.npmjs.com/package/dsh-claude-design-system) |
 | [`dsh-claude-dashboard`](https://www.npmjs.com/package/dsh-claude-dashboard) | `/claude-dashboard`：数据仪表盘 | [![npm](https://img.shields.io/npm/v/dsh-claude-dashboard)](https://www.npmjs.com/package/dsh-claude-dashboard) |
 
-幻灯片、画布、设计系统编辑器和仪表盘页面里的评论可以直接交给 Agent：Agent 每次打开编辑器，插件都会开始等评论。在页面上标注，勾选 **Send to agent**，Agent 就会醒来，读你的评论，改好页面，再在评论串里回复你。评论也会以卡片的形式出现在对话里。
+幻灯片、画布、设计系统编辑器和仪表盘页面里的评论可以直接交给 Agent：Agent 每次打开编辑器，插件都会开始等评论。在页面上标注，勾选 **Send to Agent**，Agent 就会醒来，读你的评论，改好页面，再在评论串里回复你。评论也会以卡片的形式出现在对话里。
 
 ### 从 npm 安装
 
@@ -123,7 +127,7 @@ https://jimliu.github.io/baoyu-design/dsh-plugins/index.json
 - **摆脱对网站的依赖。** 不必离开编辑器，就能用上 `claude.ai/design` 绝大部分的功能 —— 同一套方法论、同样的工艺标准、同样的产出格式。
 - **搭配 Opus 5.5 效果最佳。** 这个技能本身是一份冗长且要求很高的设计指令，模型越强、效果越好。建议搭配 **Claude Opus 5.5** 获得最佳结果；在其他能力足够的模型上也能良好运行。
 - **和 Agent 轮流改。** 每个编辑器都跑在 `localhost` 上，你在编辑器里的修改会存回 Agent 写的同一批文件。
-- **在局域网里协作，不经过云。** 编辑器可以分享到局域网，每种角色一个链接；别人可以改、评论或旁观，谁能留下由你决定。
+- **在局域网里协作，不经过云。** 编辑器可以分享到局域网，每种角色一个链接；别人可以改、评论或旁观，谁能留下由你决定。版本历史能看出谁改了什么，任何一个版本都能恢复。
 - **一切都归你所有。** 产物落在 `designs/<slug>/` 下，是可以纳入版本控制、二次分叉、导出或直接上线的普通文件。
 
 ---

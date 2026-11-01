@@ -1,4 +1,4 @@
-// dsh-claude-dashboard 2.5.0: built from baoyu-design.
+// dsh-claude-dashboard 2.6.0: built from baoyu-design.
 var define_PLUGIN_default = { name: "claude-dashboard", provider: "dsh-claude-dashboard", skills: [{ name: "claude-dashboard", description: "Use this for a local, data-backed dashboard, metrics page, KPI tracker, scorecard, data visualization or recurring report that opens in the bundled live editor: a page or scroll story of charts, numbers and tables over datasets (a CSV/TSV/JSON file the user has, or data you gather and attach), with a Sources panel that shows where every number comes from. Read it when creating, filling, refreshing or revising one. You write the datasets, then the page as plain HTML, into the dashboard's own store with this skill's script. Not for a static HTML mockup or a picture of a dashboard: that is the baoyu-design skill.", scriptAlias: "A", comments: true }] };
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
@@ -72,7 +72,7 @@ function runtimeSection(skill, skillDir, node) {
     "app a chat link opens in the right sidebar's Browser, next to this conversation."
   ];
   if (skill.comments) {
-    const sent = skill.commentsBy === "mention" ? "A comment, reply or edit in the viewer that says `@agent` is sent to you (the viewer has no Send to agent box)." : "The editor shows **Send to agent** on a comment while comments can reach you; a comment sent with it is sent to you.";
+    const sent = skill.commentsBy === "mention" ? "A comment, reply or edit in the viewer that says `@agent` is sent to you (the viewer has no Send to Agent box)." : "The editor shows **Send to Agent** on a comment while comments can reach you; a comment sent with it is sent to you.";
     lines.push(
       "",
       "### Comments sent to you from the editor",
@@ -80,7 +80,8 @@ function runtimeSection(skill, skillDir, node) {
       sent,
       "Here DeepSeek Harness waits for them for you: after you run `open` it runs `comments <root> --wait` itself, and",
       "each comment sent to you arrives in this conversation as a message with the threads (it wakes you when you are",
-      "idle). Handle it as Comments says",
+      "idle; the next one is held until you are done with this one, so the page shows it as waiting its turn). Handle it",
+      "as Comments says",
       skill.commentsBy === "mention" ? "(read the block, change the doc with `update`, then `comment-reply`)." : "(change the files, then `comment-reply`).",
       "So do not start `comments --wait` yourself, where Comments says to: run `open` in the foreground (not",
       "`run_in_background`), and the wait starts with it. It stops when the editor stops; after `stop`, the next `open`",
@@ -101,7 +102,9 @@ const SUMMARY_MAX = 120;
 const SESSION_CHECK_MS = 6e4;
 const RETRY_MS = 5e3;
 const MAX_QUICK_FAILURES = 3;
-const regexpEscape = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const IDLE_CHECK_MS = 500;
+const TURN_START_MS = 3e3;
+const TURN_MAX_MS = 30 * 6e4;
 function jsonObject(text) {
   const trimmed = text.trim();
   const starts = [0];
@@ -207,7 +210,8 @@ class CommentWatcher {
     const args = exec.arguments;
     const command = args?.command;
     if (typeof command !== "string" || args?.run_in_background === true) return;
-    if (!new RegExp(`${regexpEscape(this.script)}["']?\\s+open(?:\\s|$)`).test(command)) return;
+    const at = command.indexOf(this.script);
+    if (at < 0 || !/(?:^|[\s"'])open(?:[\s"']|$)/.test(command.slice(at + this.script.length))) return;
     const stdout = bashStdout(result);
     const opened = stdout === null ? null : jsonObject(stdout);
     if (typeof opened?.root !== "string" || typeof opened.url !== "string") return;
@@ -253,7 +257,10 @@ class CommentWatcher {
         watch.quickFailures = 0;
         const out = jsonObject(stdout);
         const came = (list) => Array.isArray(list) && list.length > 0;
-        if (out && (came(out.threads) || came(out.requests))) this.deliver(session, out, root);
+        if (out && (came(out.threads) || came(out.requests))) {
+          this.deliver(session, out, root);
+          return this.runWhenIdle(key, session, root, watch);
+        }
         this.run(key, session, root, watch);
         return;
       }
@@ -263,6 +270,23 @@ class CommentWatcher {
       if (Date.now() - started < RETRY_MS && ++watch.quickFailures > MAX_QUICK_FAILURES) return this.stop(key, watch, reason);
       watch.retry = setTimeout(() => this.run(key, session, root, watch), RETRY_MS);
     });
+  }
+  /** Start the next wait once the agent is done with the batch it was just handed. */
+  runWhenIdle(key, session, root, watch) {
+    const handed = Date.now();
+    let working = false;
+    const look = () => {
+      watch.retry = void 0;
+      if (watch.stopped) return;
+      const agent = this.agent(session);
+      if (agent === void 0) return this.stop(key, watch, "the session is gone");
+      const idle = agent.status === "idle";
+      if (!idle) working = true;
+      const waited = Date.now() - handed;
+      if (idle && (working || waited > TURN_START_MS) || waited > TURN_MAX_MS) return this.run(key, session, root, watch);
+      watch.retry = setTimeout(look, IDLE_CHECK_MS);
+    };
+    look();
   }
   deliver(session, out, root) {
     const agent = this.agent(session);

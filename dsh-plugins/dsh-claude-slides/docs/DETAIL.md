@@ -11,7 +11,7 @@ then starts a local slide editor and gives you its link.
   conversation (Settings → General → Open chat links in: **In-App Sidebar**, the default).
 - In the editor you can present, retype text, drag elements, and export PDF, HTML, or PowerPoint (.pptx). Your edits
   are saved back into the same files, and the agent's changes show up in the page as it writes them.
-- Comment on anything in the editor (Comment, or C). Tick **Send to agent** and the agent picks it up at once, even when
+- Comment on anything in the editor (Comment, or C). Tick **Send to Agent** and the agent picks it up at once, even when
   the conversation is idle: it changes the slide and replies in the comment. The comment also shows in the chat as a
   card; **View thread** on the card opens it in the editor. The box is there while comments can reach the agent, which
   starts each time it gives you the link. After restarting the app, ask the agent to open the deck again to bring it

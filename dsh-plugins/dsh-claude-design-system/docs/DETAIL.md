@@ -12,7 +12,7 @@ a local design-system page and gives you its link. claude-slides and claude-desi
   conversation (Settings → General → Open chat links in: **In-App Sidebar**, the default).
 - On the page you browse and edit the tokens, colors, type, components and assets. Your edits are saved back into the
   same files, and the agent's changes show up in the page as it writes them.
-- Comment on a token, color, type style, component, asset or section (Comment, or C). Tick **Send to agent** and the
+- Comment on a token, color, type style, component, asset or section (Comment, or C). Tick **Send to Agent** and the
   agent picks it up at once, even when the conversation is idle: it changes the system and replies in the comment. The
   comment also shows in the chat as a card; **View thread** on the card opens it in the page. The box is there while
   comments can reach the agent, which starts each time it gives you the link. After restarting the app, ask the agent

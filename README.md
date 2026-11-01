@@ -35,9 +35,13 @@ No website, no separate subscription, no upload step. The agent already on your 
 
 These four skills write the Artifact type's own file format into a folder and open it in that type's editor page, served from your machine. The agent writes the files and the editor shows each write at once; your edits in the editor are saved back into the same files, so you and the agent can take turns.
 
-In the slides, canvas and design-system editors and on the dashboard page, choose **Comment** (or press **C**) to comment on an element or area. Comments stay in the project's local `comments.json`; the agent reads and replies through `artifact.mjs`. While it listens with `comments <root> --wait`, the editor offers **Send to agent** to send your comment for it to act on.
+In the slides, canvas and design-system editors and on the dashboard page, choose **Comment** (or press **C**) to comment on an element or area. Comments stay in the project's local `comments.json`; the agent reads and replies through `artifact.mjs`. While it listens with `comments <root> --wait`, the editor offers **Send to Agent** to send your comment for it to act on.
 
 To work together, `share <root>` (or `open <root> --lan`) opens the deck, canvas, design system or dashboard to your local network, the same Wi‑Fi or LAN, and prints a link per role: **editor** edits and comments, **commenter** comments without editing, **viewer** only looks. Whoever opens a link types a name and is in; what they change shows on everyone's page, and their comments land in the same `comments.json`. The person at this computer is the owner: the **Share** button lists who joined and who is online, changes someone's role or removes them, and turns each link off, back on or resets it. Guests get a Share button too, with the links they may pass on: their own role's and those below it. There is no account and nothing leaves your network; it is plain http, so anyone there with a link gets in.
+
+Every change is kept as a version, with who made it: a guest by the name they typed, the owner, or **Agent** for a change made to the files on this computer. The **History** button (the clock beside Share) lists the versions by day; open one to see which slides, artboards or documents it changed, line by line, preview the whole thing as it was, or restore it (or just one part) as a new version, so nothing is lost. When two people save the same slide at once, the later save no longer wipes out the earlier one unnoticed: the version records whose change it replaced, and both people get a notice with **Compare** and **Bring back**, which puts back only what was replaced and leaves the other person's other changes. In the slides, design and design-system editors, someone else's save updates your page in place instead of reloading it, and if they saved the slide, artboard or file you have unsaved edits on, a bar asks whether to use theirs, keep yours, or keep both (yours becomes a new slide after it, an artboard beside it, or a copy of the file). The two are first merged: on a canvas element by element, in slides and design-system files line by line (a token file token by token). When you changed different elements or lines, both changes stay and nothing asks; the bar comes up only when the merge cannot sort it out, such as both changing the same line. The history lives in the project's `history/` folder.
+
+While others have the page open, their avatars sit beside History. In the slides and canvas editors each one's card says which slide or artboard they are on and whether they are editing, and their cursors and selections show where they work; when someone starts editing what you are looking at, you get a short note, and nothing is ever locked. While Claude changes the files, it shows up there too.
 
 ### `claude-slides`: slide decks
 
@@ -90,7 +94,7 @@ The four editor skills also come as [DeepSeek Harness](https://github.com/deepse
 | [`dsh-claude-design-system`](https://www.npmjs.com/package/dsh-claude-design-system) | `/claude-design-system`: design systems | [![npm](https://img.shields.io/npm/v/dsh-claude-design-system)](https://www.npmjs.com/package/dsh-claude-design-system) |
 | [`dsh-claude-dashboard`](https://www.npmjs.com/package/dsh-claude-dashboard) | `/claude-dashboard`: data‑backed dashboards | [![npm](https://img.shields.io/npm/v/dsh-claude-dashboard)](https://www.npmjs.com/package/dsh-claude-dashboard) |
 
-In the slides, canvas and design-system editors and on the dashboard page, a comment goes straight to the agent: whenever the agent opens an editor, the plugin waits for comments. Mark up the page, tick **Send to agent**, and the agent wakes up, reads your comment, makes the change and replies in the comment thread. The comment also shows in the chat as a card.
+In the slides, canvas and design-system editors and on the dashboard page, a comment goes straight to the agent: whenever the agent opens an editor, the plugin waits for comments. Mark up the page, tick **Send to Agent**, and the agent wakes up, reads your comment, makes the change and replies in the comment thread. The comment also shows in the chat as a card.
 
 ### Install from npm
 
@@ -123,7 +127,7 @@ A workspace that has its own copy of a skill (in `.agents/skills/` or `.dsh/skil
 - **Free yourself from the website.** You get the vast majority of `claude.ai/design`'s capabilities without ever leaving your editor — same methodology, same craft standards, same output format.
 - **Best with Opus 5.5.** The skill is a long, demanding design brief; the stronger the model, the better the result. Pair it with **Claude Opus 5.5** for the best output, and it still works well on other capable models.
 - **Edit side by side with the agent.** Each editor runs on `localhost`; your edits save back into the same files the agent writes, so you can take turns.
-- **Work together, no cloud.** Share an editor on your local network with a link per role; others edit, comment or watch, and you decide who stays in.
+- **Work together, no cloud.** Share an editor on your local network with a link per role; others edit, comment or watch, and you decide who stays in. Version history shows who changed what and brings any version back.
 - **Everything is yours.** Output lands in `designs/<slug>/` as plain files you can version, fork, export, or ship.
 
 ---

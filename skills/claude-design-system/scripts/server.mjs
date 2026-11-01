@@ -3,11 +3,11 @@
 
 import os4 from "node:os";
 
-import { createHash as createHash2, randomBytes, randomUUID } from "node:crypto";
-import fs6 from "node:fs";
+import { createHash as createHash3, randomBytes as randomBytes2, randomUUID } from "node:crypto";
+import fs7 from "node:fs";
 import fsp2 from "node:fs/promises";
 import http from "node:http";
-import path5 from "node:path";
+import path6 from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { spawn } from "node:child_process";
@@ -280,6 +280,7 @@ async function updateComments(root, change) {
 var AGENT_GRACE_MS = 6e4;
 var AGENT_BUSY_MS = 30 * 6e4;
 var REQUEST_TTL_MS = 30 * 6e4;
+var REQUESTS_KEPT = 32;
 var WAIT_DEFAULT_S = 300;
 var WAIT_MAX_S = 3600;
 var PRESENCE_CHECK_MS = 5e3;
@@ -344,6 +345,7 @@ function createCommentsService(options) {
   const waiters = [];
   const hookRunning = /* @__PURE__ */ new Set();
   const requests = [];
+  const requestFates = /* @__PURE__ */ new Map();
   let lastDoc = emptyDoc();
   let lastWaitEnded = 0;
   let lastSent = "";
@@ -356,7 +358,7 @@ function createCommentsService(options) {
     const listening = waiters.length > 0;
     const busy = lastDoc.threads.some(
       (t) => t.status === "open" && t.agent?.status === "delivered" && at - Date.parse(t.agent.deliveredAt ?? t.agent.sentAt) < AGENT_BUSY_MS
-    );
+    ) || [...requestFates.values()].some((f) => f.state === "working" && at - f.at < AGENT_BUSY_MS);
     const hook = Boolean(agentHook);
     return { available: listening || busy || hook || at - lastWaitEnded < AGENT_GRACE_MS, listening, busy, hook };
   }
@@ -405,10 +407,16 @@ data: ${JSON.stringify(snap)}
     if (!waiter.response.writableEnded) sendJson(waiter.response, 200, body);
     lastWaitEnded = Date.now();
   }
+  function setRequestState(id, state) {
+    requestFates.delete(id);
+    requestFates.set(id, { state, at: Date.now() });
+    while (requestFates.size > REQUESTS_KEPT) requestFates.delete(requestFates.keys().next().value);
+  }
   function dropStaleRequests() {
     const oldest = Date.now() - REQUEST_TTL_MS;
     while (requests.length > 0 && Date.parse(requests[0].sentAt) < oldest) {
       const dropped = requests.shift();
+      setRequestState(dropped.id, "over");
       log(`comments: dropped request ${dropped.id}: no agent took it in ${REQUEST_TTL_MS / 6e4} minutes`);
     }
   }
@@ -435,6 +443,7 @@ data: ${JSON.stringify(snap)}
         return;
       }
       finishWaiter(waiter, { threads: views, ...handed.length > 0 ? { requests: handed } : {} });
+      for (const request of handed) setRequestState(request.id, "working");
       log(`comments: sent to the agent (wait): ${[...views, ...handed].map((v) => v.id).join(", ")}`);
       await broadcast();
       return;
@@ -482,6 +491,7 @@ data: ${JSON.stringify(snap)}
     }
     for (const request of requests.splice(0)) {
       hookRunning.add(request.id);
+      setRequestState(request.id, "working");
       const child = spawn(command, {
         shell: true,
         cwd: root,
@@ -502,6 +512,7 @@ data: ${JSON.stringify(snap)}
         settled = true;
         hookRunning.delete(request.id);
         requests.unshift(request);
+        setRequestState(request.id, "queued");
         log(`comments: the agent hook ${why} for ${request.id}; the request stays waiting${stderr ? `: ${stderr.trim()}` : ""}`);
       };
       child.on("error", (error) => failed(`failed to start (${error.message})`));
@@ -567,15 +578,25 @@ data: ${JSON.stringify(snap)}
     sendJson(response, 201, { thread: created });
     await afterChange(Boolean(input.send));
   }
-  async function ask(request, response) {
-    const input = readAgentRequest(await readJson(request));
-    if (!input) throw new CommentsError("INVALID_REQUEST", "expected {text} with a non-empty text");
+  function enqueue(input) {
     if (!presence().available) throw new CommentsError("AGENT_UNAVAILABLE", "no agent is waiting: copy the request for the chat instead", 409);
     const queued = { id: newId("r"), ...input, sentAt: now() };
     requests.push(queued);
+    setRequestState(queued.id, "queued");
     log(`comments: request ${queued.id}${input.label ? ` (${input.label})` : ""} for the agent`);
+    return queued;
+  }
+  async function ask(request, response) {
+    const input = readAgentRequest(await readJson(request));
+    if (!input) throw new CommentsError("INVALID_REQUEST", "expected {text} with a non-empty text");
+    const queued = enqueue(input);
     sendJson(response, 202, { request: queued });
     await deliver();
+  }
+  async function sendRequest(input) {
+    const queued = enqueue(input);
+    await deliver();
+    return queued;
   }
   async function events(request, response, viewer) {
     response.writeHead(200, {
@@ -599,6 +620,7 @@ data: ${JSON.stringify(snap)}
     const seconds = Number.isFinite(asked) && asked > 0 ? Math.min(asked, WAIT_MAX_S) : WAIT_DEFAULT_S;
     const waiter = { response, done: false };
     waiters.push(waiter);
+    for (const [id, fate] of requestFates) if (fate.state === "working") setRequestState(id, "over");
     waiter.timer = setTimeout(() => {
       finishWaiter(waiter, { threads: [] });
       void broadcast();
@@ -737,7 +759,12 @@ data: ${JSON.stringify(snap)}
     for (const client of clients.keys()) client.end();
     clients.clear();
   }
-  return { handle, presence, deliver, close };
+  function requestStates() {
+    const states = {};
+    for (const [id, fate] of requestFates) if (fate.state !== "over") states[id] = fate.state;
+    return states;
+  }
+  return { handle, presence, deliver, sendRequest, requestStates, close };
 }
 
 import fs3 from "node:fs";
@@ -801,10 +828,14 @@ var PortsTaken = class extends Error {
     this.to = to;
   }
 };
+var isBenchmarkRange = (address) => /^198\.1[89]\./.test(address);
 function lanAddresses() {
   const out = [];
   for (const list of Object.values(os2.networkInterfaces())) {
-    for (const entry of list ?? []) if (entry.family === "IPv4" && !entry.internal && !entry.address.startsWith("169.254.")) out.push(entry.address);
+    for (const entry of list ?? []) {
+      if (entry.family !== "IPv4" || entry.internal || entry.address.startsWith("169.254.") || isBenchmarkRange(entry.address)) continue;
+      out.push(entry.address);
+    }
   }
   return [...new Set(out)];
 }
@@ -815,10 +846,28 @@ function answers(host, port) {
       socket.destroy();
       resolve(taken);
     };
-    socket.setTimeout(300, () => done(true));
+    socket.setTimeout(300, () => done(false));
     socket.once("connect", () => done(true));
-    socket.once("error", (error) => done(!["ECONNREFUSED", "EADDRNOTAVAIL", "ENETUNREACH", "EHOSTUNREACH"].includes(error.code ?? "")));
+    socket.once("error", (error) => done(!["ECONNREFUSED", "EADDRNOTAVAIL", "EAFNOSUPPORT", "ENETUNREACH", "EHOSTUNREACH"].includes(error.code ?? "")));
   });
+}
+async function answersAnyPort(address) {
+  const server2 = net.createServer();
+  let port;
+  try {
+    port = await new Promise((resolve, reject) => {
+      server2.once("error", reject);
+      server2.listen(0, address, () => {
+        const bound = server2.address();
+        resolve(typeof bound === "object" && bound ? bound.port : 0);
+      });
+    });
+  } catch {
+    return false;
+  } finally {
+    await new Promise((resolve) => server2.close(() => resolve()));
+  }
+  return port > 0 && answers(address, port);
 }
 async function listenFree(server2, from, host, first) {
   if (from === 0) return listen(server2, 0, host);
@@ -826,7 +875,9 @@ async function listenFree(server2, from, host, first) {
   const range = Array.from({ length: to - from + 1 }, (_, i) => from + i);
   const ports = first ? [first, ...range.filter((port) => port !== first)] : range;
   const wildcard = host === "0.0.0.0" || host === "::";
-  const probes = [.../* @__PURE__ */ new Set([...wildcard ? [] : [host], "127.0.0.1", "::1", ...lanAddresses()])];
+  const lan = lanAddresses().filter((address) => address !== host);
+  const answering = await Promise.all(lan.map(answersAnyPort));
+  const probes = [.../* @__PURE__ */ new Set([...wildcard ? [] : [host], "127.0.0.1", "::1", ...lan.filter((_, i) => !answering[i])])];
   for (const port of ports) {
     if ((await Promise.all(probes.map((address) => answers(address, port)))).some(Boolean)) continue;
     try {
@@ -901,21 +952,569 @@ function sendFile(request, response, file, headers) {
 }
 var errorText = (error) => error instanceof Error ? error.message : String(error);
 
-import { createHash } from "node:crypto";
-import fs5 from "node:fs";
-import os3 from "node:os";
-import path4 from "node:path";
+var MAX_EDIT = 2e3;
+function editScript(a, b) {
+  const n = a.length;
+  const m = b.length;
+  const limit = Math.min(n + m, MAX_EDIT);
+  const offset = limit + 1;
+  const v = new Int32Array(2 * limit + 3);
+  const trace = [];
+  let found = -1;
+  for (let d = 0; d <= limit; d++) {
+    trace.push(v.slice(offset - d - 1, offset + d + 2));
+    for (let k = -d; k <= d; k += 2) {
+      let x2 = k === -d || k !== d && v[offset + k - 1] < v[offset + k + 1] ? v[offset + k + 1] : v[offset + k - 1] + 1;
+      let y2 = x2 - k;
+      while (x2 < n && y2 < m && a[x2] === b[y2]) {
+        x2++;
+        y2++;
+      }
+      v[offset + k] = x2;
+      if (x2 >= n && y2 >= m) {
+        found = d;
+        break;
+      }
+    }
+    if (found >= 0) break;
+  }
+  if (found < 0) return null;
+  const ops = [];
+  let x = n;
+  let y = m;
+  for (let d = found; d > 0; d--) {
+    const prev = trace[d];
+    const at = (k2) => prev[k2 + d + 1];
+    const k = x - y;
+    const prevK = k === -d || k !== d && at(k - 1) < at(k + 1) ? k + 1 : k - 1;
+    const prevX = at(prevK);
+    const prevY = prevX - prevK;
+    while (x > prevX && y > prevY) {
+      ops.push("=");
+      x--;
+      y--;
+    }
+    ops.push(x === prevX ? "+" : "-");
+    x = prevX;
+    y = prevY;
+  }
+  while (x > 0 && y > 0) {
+    ops.push("=");
+    x--;
+    y--;
+  }
+  return ops.reverse();
+}
+function hunksOf(base, side, mine) {
+  const ops = editScript(base, side);
+  if (!ops) return null;
+  const out = [];
+  let open = null;
+  let i = 0;
+  let j = 0;
+  for (const op of ops) {
+    if (op === "=") {
+      open = null;
+      i++;
+      j++;
+      continue;
+    }
+    if (!open) out.push(open = { start: i, end: i, lines: [], mine });
+    if (op === "-") open.end = ++i;
+    else open.lines.push(side[j++]);
+  }
+  return out.flatMap(
+    (h) => h.end - h.start > 1 && h.lines.length === h.end - h.start ? h.lines.flatMap((line, k) => {
+      const at = h.start + k;
+      return line === base[at] ? [] : [{ start: at, end: at + 1, lines: [line], mine }];
+    }) : [h]
+  );
+}
+function applyHunks(base, start, end, hunks) {
+  const out = [];
+  let at = start;
+  for (const h of hunks) {
+    out.push(...base.slice(at, h.start), ...h.lines);
+    at = h.end;
+  }
+  out.push(...base.slice(at, end));
+  return out;
+}
+function mergeText(base, mine, current, at, conflicts) {
+  const lines = base.split("\n");
+  const ours = hunksOf(lines, mine.split("\n"), true);
+  const theirs = ours && hunksOf(lines, current.split("\n"), false);
+  if (!ours || !theirs) return null;
+  const all = [...ours, ...theirs].sort((x, y) => x.start - y.start || x.end - y.end);
+  const out = [];
+  const lost = [];
+  let done = 0;
+  for (let i = 0; i < all.length; ) {
+    const region = [all[i++]];
+    const start = region[0].start;
+    let end = region[0].end;
+    for (; i < all.length; i++) {
+      const h = all[i];
+      if (!(h.start < end || h.start === h.end && start === end && h.start === start)) break;
+      region.push(h);
+      end = Math.max(end, h.end);
+    }
+    out.push(...lines.slice(done, start));
+    const mineLines = applyHunks(lines, start, end, region.filter((h) => h.mine));
+    if (region.every((h) => h.mine === region[0].mine)) out.push(...applyHunks(lines, start, end, region));
+    else {
+      const theirLines = applyHunks(lines, start, end, region.filter((h) => !h.mine));
+      if (mineLines.join("\n") !== theirLines.join("\n")) lost.push(`${at}@${start + 1}`);
+      out.push(...mineLines);
+    }
+    done = end;
+  }
+  out.push(...lines.slice(done));
+  conflicts.push(...lost);
+  return out.join("\n");
+}
 
-import crypto from "node:crypto";
+var utf8 = new TextDecoder("utf-8", { fatal: true });
+function mergeTextBytes(base, mine, current) {
+  const text = (bytes) => bytes.includes(0) ? null : utf8.decode(bytes);
+  try {
+    const [b, m, c] = [text(base), text(mine), text(current)];
+    if (b === null || m === null || c === null) return null;
+    const merged = mergeText(b, m, c, ".", []);
+    return merged === null ? null : Buffer.from(merged, "utf8");
+  } catch {
+    return null;
+  }
+}
+
+import { createHash, randomBytes } from "node:crypto";
 import fs4 from "node:fs";
 import path3 from "node:path";
+var HISTORY_DIR = "history";
+var INDEX = "index.json";
+var OBJECTS = "objects";
+var IDLE_MS = 3e4;
+var SPAN_MS = 5 * 6e4;
+var MAX_VERSIONS = 500;
+var MAX_NOTICES = 50;
+var NOTICE_DAYS = 7;
+var AGENT = { by: "agent", user: { id: "agent", name: "Agent" } };
+var SYSTEM = { by: "system", user: { id: "system", name: "" } };
+var sha256 = (bytes) => createHash("sha256").update(bytes).digest("hex");
+var SHA = /^[0-9a-f]{64}$/;
+var isRecord2 = (value) => typeof value === "object" && value !== null && !Array.isArray(value);
+function writeAtomic2(file, data) {
+  fs4.mkdirSync(path3.dirname(file), { recursive: true });
+  const tmp = path3.join(path3.dirname(file), `.${path3.basename(file)}.${process.pid}.${randomBytes(4).toString("hex")}.tmp`);
+  try {
+    fs4.writeFileSync(tmp, data);
+    fs4.renameSync(tmp, file);
+  } catch (error) {
+    fs4.rmSync(tmp, { force: true });
+    throw error;
+  }
+}
+var emptyIndex = () => ({ format: 1, next: 1, base: {}, versions: [], notices: [] });
+function readUser(value) {
+  return isRecord2(value) && typeof value.id === "string" && typeof value.name === "string" ? { id: value.id, name: value.name } : null;
+}
+var isAuthor = (value) => value === "human" || value === "agent" || value === "system";
+function parseIndex(raw) {
+  const index = emptyIndex();
+  if (!isRecord2(raw)) return index;
+  if (isRecord2(raw.base)) {
+    for (const [p, s] of Object.entries(raw.base)) if (typeof s === "string" && SHA.test(s)) index.base[p] = s;
+  }
+  if (Array.isArray(raw.versions)) {
+    for (const v of raw.versions) {
+      if (!isRecord2(v) || typeof v.n !== "number" || !isAuthor(v.by) || typeof v.at !== "string" || !isRecord2(v.changes)) continue;
+      const user = readUser(v.user);
+      if (!user) continue;
+      const changes = {};
+      for (const [p, s] of Object.entries(v.changes)) if (s === null || typeof s === "string" && SHA.test(s)) changes[p] = s;
+      const version = { n: v.n, first: typeof v.first === "string" ? v.first : v.at, at: v.at, by: v.by, user, changes };
+      if (typeof v.role === "string") version.role = v.role;
+      if (typeof v.restoredFrom === "number") version.restoredFrom = v.restoredFrom;
+      if (version.restoredFrom !== void 0 && v.restoredPart === true) version.restoredPart = true;
+      if (Array.isArray(v.overwrote)) {
+        const list = [];
+        for (const o of v.overwrote) {
+          const who = isRecord2(o) ? readUser(o.user) : null;
+          if (!isRecord2(o) || !who || typeof o.path !== "string" || o.lost !== null && typeof o.lost !== "string" || typeof o.n !== "number" || !isAuthor(o.by)) continue;
+          list.push({
+            path: o.path,
+            lost: o.lost,
+            n: o.n,
+            by: o.by,
+            user: who,
+            ...o.soft === true ? { soft: true } : {},
+            ...o.chosen === true ? { chosen: true } : {},
+            ...typeof o.base === "string" && SHA.test(o.base) ? { base: o.base } : {}
+          });
+        }
+        if (list.length) version.overwrote = list;
+      }
+      index.versions.push(version);
+    }
+  }
+  index.versions.sort((a, b) => a.n - b.n);
+  const last = index.versions.at(-1);
+  index.next = Math.max(typeof raw.next === "number" ? raw.next : 1, (last?.n ?? 0) + 1);
+  if (Array.isArray(raw.notices)) {
+    for (const n of raw.notices) {
+      if (!isRecord2(n) || typeof n.id !== "string" || typeof n.to !== "string" || typeof n.path !== "string" || typeof n.n !== "number") continue;
+      if (n.kind !== "overwritten" && n.kind !== "overwrote") continue;
+      const by = readUser(n.by);
+      const lost = isRecord2(n.lost) ? n.lost : null;
+      const lostUser = lost ? readUser(lost.user) : null;
+      if (!by || !lost || !lostUser || lost.sha !== null && typeof lost.sha !== "string" || typeof lost.n !== "number" || !isAuthor(lost.by)) continue;
+      index.notices.push({
+        id: n.id,
+        to: n.to,
+        at: typeof n.at === "string" ? n.at : (/* @__PURE__ */ new Date(0)).toISOString(),
+        kind: n.kind,
+        path: n.path,
+        n: n.n,
+        by,
+        byAuthor: isAuthor(n.byAuthor) ? n.byAuthor : "human",
+        lost: { sha: lost.sha, n: lost.n, by: lost.by, user: lostUser },
+        ...n.soft === true ? { soft: true } : {},
+        ...typeof n.base === "string" && SHA.test(n.base) ? { base: n.base } : {}
+      });
+    }
+  }
+  return index;
+}
+var History = class {
+  dir;
+  index;
+  /** path → sha: what the files hold after the newest version. */
+  headState;
+  constructor(root) {
+    this.dir = path3.join(root, HISTORY_DIR);
+    let raw = null;
+    try {
+      raw = JSON.parse(fs4.readFileSync(path3.join(this.dir, INDEX), "utf8"));
+    } catch {
+    }
+    this.index = parseIndex(raw);
+    this.headState = this.fold(Infinity);
+    this.index.notices = this.index.notices.filter((n) => (this.headState.get(n.path) ?? null) !== n.lost.sha);
+  }
+  get empty() {
+    return this.index.versions.length === 0 && Object.keys(this.index.base).length === 0;
+  }
+  /** What the files hold now, as far as the history knows (path → sha). */
+  head() {
+    return this.headState;
+  }
+  versions() {
+    return this.index.versions;
+  }
+  version(n) {
+    return this.index.versions.find((v) => v.n === n);
+  }
+  /** The files after the versions numbered up to `upto` (the base and every version at or below it). */
+  fold(upto) {
+    const state = new Map(Object.entries(this.index.base));
+    for (const version of this.index.versions) {
+      if (version.n > upto) break;
+      for (const [p, s] of Object.entries(version.changes)) {
+        if (s === null) state.delete(p);
+        else state.set(p, s);
+      }
+    }
+    return state;
+  }
+  /** The files right after version `n`; null when it is not kept. */
+  stateAt(n) {
+    return this.version(n) ? this.fold(n) : null;
+  }
+  /** The files right before version `n`. */
+  stateBefore(n) {
+    return this.fold(n - 1);
+  }
+  /** The content with this sha, from the objects. */
+  read(sha) {
+    if (!SHA.test(sha)) return null;
+    try {
+      return fs4.readFileSync(path3.join(this.dir, OBJECTS, sha));
+    } catch {
+      return null;
+    }
+  }
+  /** Keeps a content that no version holds (an overwrite's `base`); its sha. */
+  put(bytes) {
+    const sha = sha256(bytes);
+    this.putObject(sha, bytes);
+    return sha;
+  }
+  size(sha) {
+    if (!SHA.test(sha)) return null;
+    try {
+      return fs4.statSync(path3.join(this.dir, OBJECTS, sha)).size;
+    } catch {
+      return null;
+    }
+  }
+  /** The newest version that changed `path`, with what it left there. */
+  lastChange(p) {
+    for (let i = this.index.versions.length - 1; i >= 0; i--) {
+      const version = this.index.versions[i];
+      if (p in version.changes) return { version, sha: version.changes[p] };
+    }
+    return null;
+  }
+  /**
+   * Records changes: path → its content now (null: deleted). Those equal to the head are left out; nothing left, no
+   * version (null). The rest join the open version of the same person, or start a new one.
+   */
+  record(changes, who, extra = {}, now = /* @__PURE__ */ new Date()) {
+    const changed = {};
+    for (const [p, bytes] of changes) {
+      const sha = bytes === null ? null : sha256(bytes);
+      if ((this.headState.get(p) ?? null) === sha) continue;
+      if (bytes !== null && sha !== null) this.putObject(sha, bytes);
+      changed[p] = sha;
+    }
+    if (Object.keys(changed).length === 0) return null;
+    const iso = now.toISOString();
+    const last = this.index.versions.at(-1);
+    const joins = !!last && who.by !== "system" && last.by === who.by && last.user.id === who.user.id && last.restoredFrom === void 0 && extra.restoredFrom === void 0 && now.getTime() - Date.parse(last.at) < IDLE_MS && now.getTime() - Date.parse(last.first) < SPAN_MS;
+    let version;
+    if (joins) {
+      version = last;
+      version.at = iso;
+      Object.assign(version.changes, changed);
+      if (who.user.name) version.user = { ...who.user };
+    } else {
+      version = { n: this.index.next++, first: iso, at: iso, by: who.by, user: { ...who.user }, changes: changed };
+      if (who.role) version.role = who.role;
+      if (extra.restoredFrom !== void 0) version.restoredFrom = extra.restoredFrom;
+      if (extra.restoredFrom !== void 0 && extra.restoredPart) version.restoredPart = true;
+      this.index.versions.push(version);
+    }
+    for (const [p, s] of Object.entries(changed)) {
+      if (s === null) this.headState.delete(p);
+      else this.headState.set(p, s);
+    }
+    this.index.notices = this.index.notices.filter(
+      (n) => !(n.path in changed && (changed[n.path] === n.lost.sha || extra.restoredFrom !== void 0 && n.to === who.user.id))
+    );
+    if (extra.overwrote?.length) {
+      version.overwrote = [...(version.overwrote ?? []).filter((o) => !extra.overwrote.some((x) => x.path === o.path)), ...extra.overwrote];
+      this.notify(version, who, extra.overwrote, now);
+    }
+    this.prune(now);
+    this.save();
+    return version;
+  }
+  /** Notices for an overwrite: to whoever lost their change (the agent's go to the owner), and a hard one's saver unless they chose it. */
+  notify(version, who, overwrote, now) {
+    const at = now.toISOString();
+    for (const o of overwrote) {
+      const lost = { sha: o.lost, n: o.n, by: o.by, user: o.user };
+      const victim = o.by === "agent" ? "local" : o.user.id;
+      const fields = {
+        at,
+        path: o.path,
+        n: version.n,
+        by: { ...who.user },
+        byAuthor: who.by,
+        lost,
+        ...o.soft ? { soft: true } : {},
+        ...o.base ? { base: o.base } : {}
+      };
+      const same = (n) => n.path === o.path && n.n === version.n;
+      this.index.notices = this.index.notices.filter((n) => !same(n));
+      if (victim !== who.user.id) this.index.notices.push({ id: randomBytes(6).toString("hex"), to: victim, kind: "overwritten", ...fields });
+      if (!o.soft && !o.chosen) this.index.notices.push({ id: randomBytes(6).toString("hex"), to: who.user.id, kind: "overwrote", ...fields });
+    }
+  }
+  /** The notices for this person, newest first. */
+  noticesFor(userId) {
+    return this.index.notices.filter((n) => n.to === userId).reverse();
+  }
+  notice(id) {
+    return this.index.notices.find((n) => n.id === id);
+  }
+  /** Dismisses one of this person's notices; false when they have none by that id. */
+  dismiss(userId, id) {
+    const before = this.index.notices.length;
+    this.index.notices = this.index.notices.filter((n) => !(n.id === id && n.to === userId));
+    if (this.index.notices.length === before) return false;
+    this.save();
+    return true;
+  }
+  /**
+   * What to write to bring version `n` back: path → content (null: delete), for `paths` (default: every file it or the
+   * head holds), only where the head differs. null when the version is not kept or a content is missing.
+   */
+  restoreTo(n, paths, tracked = () => true) {
+    const target = this.stateAt(n);
+    if (!target) return null;
+    const out = /* @__PURE__ */ new Map();
+    const all = paths ?? [.../* @__PURE__ */ new Set([...target.keys(), ...this.headState.keys()])];
+    for (const p of all) {
+      if (!tracked(p)) continue;
+      const want = target.get(p) ?? null;
+      if ((this.headState.get(p) ?? null) === want) continue;
+      if (want === null) {
+        out.set(p, null);
+        continue;
+      }
+      const bytes = this.read(want);
+      if (!bytes) return null;
+      out.set(p, bytes);
+    }
+    return out;
+  }
+  /** Each version's changes as added, edited or deleted (what the file held before it decides). */
+  fileChanges() {
+    const out = /* @__PURE__ */ new Map();
+    const state = new Map(Object.entries(this.index.base));
+    for (const version of this.index.versions) {
+      const list = [];
+      for (const [p, s] of Object.entries(version.changes)) {
+        const had = state.has(p);
+        list.push({ path: p, op: s === null ? "deleted" : had ? "edited" : "added" });
+        if (s === null) state.delete(p);
+        else state.set(p, s);
+      }
+      out.set(version.n, list);
+    }
+    return out;
+  }
+  putObject(sha, bytes) {
+    const file = path3.join(this.dir, OBJECTS, sha);
+    if (fs4.existsSync(file)) return;
+    writeAtomic2(file, bytes);
+  }
+  /** Past MAX_VERSIONS the oldest fold into the base; old notices go; contents no one holds are removed. */
+  prune(now) {
+    let folded = false;
+    while (this.index.versions.length > MAX_VERSIONS) {
+      const old = this.index.versions.shift();
+      for (const [p, s] of Object.entries(old.changes)) {
+        if (s === null) delete this.index.base[p];
+        else this.index.base[p] = s;
+      }
+      folded = true;
+    }
+    const oldest = now.getTime() - NOTICE_DAYS * 864e5;
+    const kept = this.index.versions[0]?.n ?? Infinity;
+    const perPerson = /* @__PURE__ */ new Map();
+    this.index.notices = this.index.notices.filter((n) => Date.parse(n.at) >= oldest && n.lost.n >= kept).reverse().filter((n) => {
+      const count = (perPerson.get(n.to) ?? 0) + 1;
+      perPerson.set(n.to, count);
+      return count <= MAX_NOTICES;
+    }).reverse();
+    if (folded) this.collect();
+  }
+  /** Removes the objects that neither the base, a version nor a notice holds (with the base an overwrite was made on). */
+  collect() {
+    const keep = new Set(Object.values(this.index.base));
+    for (const version of this.index.versions) {
+      for (const s of Object.values(version.changes)) if (s) keep.add(s);
+      for (const o of version.overwrote ?? []) if (o.base) keep.add(o.base);
+    }
+    for (const notice of this.index.notices) {
+      if (notice.lost.sha) keep.add(notice.lost.sha);
+      if (notice.base) keep.add(notice.base);
+    }
+    let names;
+    try {
+      names = fs4.readdirSync(path3.join(this.dir, OBJECTS));
+    } catch {
+      return;
+    }
+    for (const name of names) if (SHA.test(name) && !keep.has(name)) fs4.rmSync(path3.join(this.dir, OBJECTS, name), { force: true });
+  }
+  save() {
+    writeAtomic2(path3.join(this.dir, INDEX), `${JSON.stringify(this.index)}
+`);
+  }
+};
+var MAX_DIFF_BYTES = 1024 * 1024;
+var CONTEXT = 3;
+var MAX_DIFF_LINES = 3e3;
+var MAX_LINE = 2e3;
+var decoder = new TextDecoder("utf-8", { fatal: true });
+function textOf(bytes) {
+  if (bytes === null) return null;
+  if (bytes.includes(0)) return void 0;
+  try {
+    return decoder.decode(bytes);
+  } catch {
+    return void 0;
+  }
+}
+var splitLines = (text) => text === null || text === "" ? [] : text.replace(/\r\n?/g, "\n").replace(/\n$/, "").split("\n");
+function diffContents(before, after) {
+  if ((before?.length ?? 0) > MAX_DIFF_BYTES || (after?.length ?? 0) > MAX_DIFF_BYTES) return { tooLarge: true, added: 0, removed: 0, lines: [] };
+  const a = textOf(before);
+  const b = textOf(after);
+  if (a === void 0 || b === void 0) return { binary: true, added: 0, removed: 0, lines: [] };
+  const left = splitLines(a);
+  const right = splitLines(b);
+  let head = 0;
+  while (head < left.length && head < right.length && left[head] === right[head]) head++;
+  let tail = 0;
+  while (tail < left.length - head && tail < right.length - head && left[left.length - 1 - tail] === right[right.length - 1 - tail]) tail++;
+  const middle = editScript(left.slice(head, left.length - tail), right.slice(head, right.length - tail));
+  if (!middle) return { tooLarge: true, added: 0, removed: 0, lines: [] };
+  const ops = [...Array(head).fill("="), ...middle, ...Array(tail).fill("=")];
+  const all = [];
+  let i = 0;
+  let j = 0;
+  let added = 0;
+  let removed = 0;
+  const cut = (s) => s.length > MAX_LINE ? `${s.slice(0, MAX_LINE)}\u2026` : s;
+  for (const op of ops) {
+    if (op === "=") all.push([" ", cut(right[j++])]), i++;
+    else if (op === "-") all.push(["-", cut(left[i++])]), removed++;
+    else all.push(["+", cut(right[j++])]), added++;
+  }
+  const keep = new Uint8Array(all.length);
+  all.forEach(([kind], at) => {
+    if (kind === " ") return;
+    for (let x = Math.max(0, at - CONTEXT); x <= Math.min(all.length - 1, at + CONTEXT); x++) keep[x] = 1;
+  });
+  const lines = [];
+  let skipped = 0;
+  let truncated = false;
+  for (let at = 0; at < all.length; at++) {
+    if (!keep[at]) {
+      skipped++;
+      continue;
+    }
+    if (skipped) lines.push(["~", String(skipped)]);
+    skipped = 0;
+    if (lines.length >= MAX_DIFF_LINES) {
+      truncated = true;
+      break;
+    }
+    lines.push(all[at]);
+  }
+  if (skipped && !truncated) lines.push(["~", String(skipped)]);
+  return { added, removed, lines, ...truncated ? { truncated: true } : {} };
+}
+
+import { createHash as createHash2 } from "node:crypto";
+import fs6 from "node:fs";
+import os3 from "node:os";
+import path5 from "node:path";
+
+import crypto from "node:crypto";
+import fs5 from "node:fs";
+import path4 from "node:path";
 var GUEST_ROLES = ["editor", "commenter", "viewer"];
 var isGuestRole = (value) => typeof value === "string" && GUEST_ROLES.includes(value);
 var SHARING_FILE = ".sharing.json";
 var MAX_GUESTS = 200;
 var MAX_NAME = 40;
 var token = (bytes = 18) => crypto.randomBytes(bytes).toString("base64url");
-var isRecord2 = (value) => typeof value === "object" && value !== null && !Array.isArray(value);
+var isRecord3 = (value) => typeof value === "object" && value !== null && !Array.isArray(value);
 function fresh() {
   return { lan: false, links: { editor: { token: token(), on: true }, commenter: { token: token(), on: true }, viewer: { token: token(), on: true } }, guests: [] };
 }
@@ -935,29 +1534,29 @@ var Sharing = class _Sharing {
   file;
   state;
   constructor(root) {
-    this.file = path3.join(root, SHARING_FILE);
+    this.file = path4.join(root, SHARING_FILE);
     this.state = _Sharing.read(this.file);
   }
   static read(file) {
     let raw;
     try {
-      raw = JSON.parse(fs4.readFileSync(file, "utf8"));
+      raw = JSON.parse(fs5.readFileSync(file, "utf8"));
     } catch {
       return fresh();
     }
     const state = fresh();
-    if (!isRecord2(raw)) return state;
+    if (!isRecord3(raw)) return state;
     state.lan = raw.lan === true;
     if (typeof raw.port === "number" && Number.isInteger(raw.port) && raw.port > 0 && raw.port < 65536) state.port = raw.port;
-    if (isRecord2(raw.links)) {
+    if (isRecord3(raw.links)) {
       for (const role of GUEST_ROLES) {
         const link = raw.links[role];
-        if (isRecord2(link) && typeof link.token === "string" && link.token.length >= 16) state.links[role] = { token: link.token, on: link.on !== false };
+        if (isRecord3(link) && typeof link.token === "string" && link.token.length >= 16) state.links[role] = { token: link.token, on: link.on !== false };
       }
     }
     if (Array.isArray(raw.guests)) {
       for (const g of raw.guests) {
-        if (!isRecord2(g) || typeof g.id !== "string" || typeof g.secret !== "string" || !isGuestRole(g.role) || typeof g.link !== "string") continue;
+        if (!isRecord3(g) || typeof g.id !== "string" || typeof g.secret !== "string" || !isGuestRole(g.role) || typeof g.link !== "string") continue;
         state.guests.push({
           id: g.id,
           secret: g.secret,
@@ -973,9 +1572,9 @@ var Sharing = class _Sharing {
   }
   save() {
     const tmp = `${this.file}.${process.pid}.tmp`;
-    fs4.writeFileSync(tmp, `${JSON.stringify(this.state, null, 2)}
+    fs5.writeFileSync(tmp, `${JSON.stringify(this.state, null, 2)}
 `, { mode: 384 });
-    fs4.renameSync(tmp, this.file);
+    fs5.renameSync(tmp, this.file);
   }
   /** The role whose link has this token, while that link is on. */
   linkRole(tokenGiven) {
@@ -1065,7 +1664,7 @@ function commentsViewer(viewer) {
     admin: viewer.role === "owner"
   };
 }
-var isRecord3 = (value) => typeof value === "object" && value !== null && !Array.isArray(value);
+var isRecord4 = (value) => typeof value === "object" && value !== null && !Array.isArray(value);
 var esc = (text) => text.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 var script = (value) => JSON.stringify(value).replace(/</g, "\\u003c");
 function ownHosts(host, port) {
@@ -1080,7 +1679,7 @@ function localOwner() {
   }
   return { id: "local", name, email: `${name}@localhost` };
 }
-var guestCookieName = (kind, root) => `${kind.replace(/-/g, "_")}_guest_${createHash("sha256").update(path4.resolve(root)).digest("hex").slice(0, 12)}`;
+var guestCookieName = (kind, root) => `${kind.replace(/-/g, "_")}_guest_${createHash2("sha256").update(path5.resolve(root)).digest("hex").slice(0, 12)}`;
 var ShareHost = class {
   sharing;
   options;
@@ -1239,13 +1838,13 @@ var ShareHost = class {
     }
     if (method === "GET" && p === "/__share/me") return sendJson2(response, 200, this.me(viewer)), true;
     if (method === "GET" && p === "/__share/boot.js") {
-      const body = this.bootScript(viewer);
+      const body = this.bootScript(viewer, new URL(request.url ?? "/", "http://local").searchParams);
       response.writeHead(200, { "Content-Type": "text/javascript; charset=utf-8", "Content-Length": Buffer.byteLength(body), "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" }).end(body);
       return true;
     }
     if (method === "GET" && p === "/__share/invite") return sendJson2(response, 200, this.invites(viewer, request.headers.host ?? "")), true;
     if (method === "GET" && p === "/__share/ui.js") {
-      fs5.stat(this.options.uiFile, (error, stat) => {
+      fs6.stat(this.options.uiFile, (error, stat) => {
         if (error || !stat.isFile()) return sendJson2(response, 404, { code: "not_found", message: "The Share panel is missing." });
         sendFile(request, response, this.options.uiFile, { "Content-Type": "text/javascript; charset=utf-8", "Content-Length": stat.size, "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" });
       });
@@ -1256,24 +1855,27 @@ var ShareHost = class {
     sendJson2(response, 404, { code: "not_found", message: "Not found" });
     return true;
   }
-  /** The tags a page puts first in its <head>: the boot script and the Share panel (the owner's, or a guest's). */
-  headTags(_viewer) {
-    let tags = '<script src="/__share/boot.js"></script>';
-    if (fs5.existsSync(this.options.uiFile)) tags += '<script type="module" src="/__share/ui.js"></script>';
+  /**
+   * The tags a page puts first in its <head>: the boot script and the Share panel (the owner's, or a guest's). `query`
+   * ("?…") goes to the boot script, for `globals`.
+   */
+  headTags(_viewer, query = "") {
+    let tags = `<script src="/__share/boot.js${query.replace(/[<>"']/g, "").replace(/&/g, "&amp;")}"></script>`;
+    if (fs6.existsSync(this.options.uiFile)) tags += '<script type="module" src="/__share/ui.js"></script>';
     return tags;
   }
   /** `html` with the head tags first in its <head>; null when it has none. */
-  injectHead(html, viewer) {
+  injectHead(html, viewer, query = "") {
     const at = html.search(/<head(\s[^>]*)?>/i);
     if (at < 0) return null;
     const end = html.indexOf(">", at) + 1;
-    return html.slice(0, end) + this.headTags(viewer) + html.slice(end);
+    return html.slice(0, end) + this.headTags(viewer, query) + html.slice(end);
   }
   /** What the page runs before anything else (see SECURE_CONTEXT_SHIM and GUEST_WATCH). */
-  bootScript(viewer) {
+  bootScript(viewer, query = new URLSearchParams()) {
     const share = { ...this.me(viewer), noun: this.options.noun, title: this.options.title(), ...this.options.reactions ? { reactions: true } : {} };
     let js = `${SECURE_CONTEXT_SHIM}window.__baoyuShare=${script(share)};`;
-    for (const [name, value] of Object.entries(this.options.globals?.(viewer) ?? {})) js += `window[${script(name)}]=${script(value)};`;
+    for (const [name, value] of Object.entries(this.options.globals?.(viewer, query) ?? {})) js += `window[${script(name)}]=${script(value)};`;
     if (viewer.guest) js += GUEST_WATCH;
     return js;
   }
@@ -1410,7 +2012,7 @@ var ShareHost = class {
     } catch {
       return sendJson2(response, 400, { code: "invalid_argument", message: "The call is not JSON." });
     }
-    if (!isRecord3(action)) return sendJson2(response, 400, { code: "invalid_argument", message: "Expected {action, ...}." });
+    if (!isRecord4(action)) return sendJson2(response, 400, { code: "invalid_argument", message: "Expected {action, ...}." });
     try {
       return sendJson2(response, 200, await this.share(action));
     } catch (error) {
@@ -1470,6 +2072,333 @@ var ZH = (noun) => ({
   ownerHere: `\u4F60\u5728\u5206\u4EAB${noun.zhThis}\u7684\u7535\u8111\u4E0A\u3002\u4EE5\u6240\u6709\u8005\u8EAB\u4EFD\u6253\u5F00\uFF1A`
 });
 
+var whoOf = (viewer) => ({ by: "human", user: { id: viewer.user.id, name: viewer.user.name }, role: viewer.role });
+var MAX_BODY = 64 << 10;
+var HistoryHost = class {
+  history;
+  options;
+  constructor(options) {
+    this.options = options;
+    this.history = options.history;
+  }
+  /** What the page's boot script tells the panel (window.__baoyuHistory); `preview` on a version's preview page. */
+  bootGlobal(viewer, preview) {
+    const global = { base: this.options.base, canRestore: canEditAs(viewer.role), me: viewer.user.id };
+    const version = preview === void 0 ? void 0 : this.history.version(preview);
+    if (version) {
+      const newest = this.history.versions().at(-1);
+      global.preview = { n: version.n, at: version.at, by: version.by, name: version.user.name, current: version === newest, current_url: this.options.base };
+    }
+    return global;
+  }
+  notices(viewer, label) {
+    const head = this.history.head();
+    const gone = (n) => !head.has(n.path) && this.history.version(n.n)?.changes[n.path] === null;
+    return this.history.noticesFor(viewer.user.id).map((n) => noticeView(n, label, this.history.version(n.lost.n)?.at, gone(n)));
+  }
+  list(viewer) {
+    const label = this.options.labels();
+    const versions = this.history.versions();
+    const changes = this.history.fileChanges();
+    const newest = versions.at(-1);
+    const rows = [...versions].reverse().map((v) => ({
+      n: v.n,
+      first: v.first,
+      at: v.at,
+      by: v.by,
+      name: v.user.name,
+      userId: v.user.id,
+      ...v.role ? { role: v.role } : {},
+      ...v.restoredFrom !== void 0 ? { restoredFrom: v.restoredFrom } : {},
+      ...v.restoredPart ? { restoredPart: true } : {},
+      ...v === newest ? { current: true } : {},
+      preview: this.options.previewUrl(v.n),
+      files: (changes.get(v.n) ?? []).map((c) => ({ path: c.path, op: c.op, label: label(c.path) })),
+      ...v.overwrote?.length ? { overwrote: v.overwrote.map((o) => ({ path: o.path, label: label(o.path), name: o.user.name, by: o.by, n: o.n, ...o.soft ? { soft: true } : {} })) } : {}
+    }));
+    return { me: viewer.user.id, canRestore: canEditAs(viewer.role), rows, notices: this.notices(viewer, label) };
+  }
+  /** Answers `__history…` (`sub` is what follows it); false for a path it doesn't know. */
+  async handle(request, response, sub, viewer) {
+    const method = request.method ?? "GET";
+    const url = new URL(request.url ?? "/", "http://local");
+    if (method === "POST" && !sameOrigin(request)) {
+      request.resume();
+      sendJson2(response, 403, { code: "not_granted", message: "Cross-origin write refused." });
+      return true;
+    }
+    if (method === "GET" && (sub === "" || sub === "/")) return sendJson2(response, 200, this.list(viewer)), true;
+    if (sub === "/notices") {
+      if (method === "GET") return sendJson2(response, 200, { notices: this.notices(viewer, this.options.labels()) }), true;
+      if (method !== "POST") return sendJson2(response, 405, { code: "method_not_allowed", message: "GET or POST" }), true;
+      const body = await this.body(request, response);
+      if (!body) return true;
+      if (typeof body.dismiss !== "string") return sendJson2(response, 400, { code: "invalid_argument", message: "Expected {dismiss: id}." }), true;
+      this.history.dismiss(viewer.user.id, body.dismiss);
+      return sendJson2(response, 200, { notices: this.notices(viewer, this.options.labels()) }), true;
+    }
+    const versionRoute = /^\/(\d+)\/(diff|restore)$/.exec(sub);
+    if (versionRoute) {
+      const n = Number(versionRoute[1]);
+      const version = this.history.version(n);
+      if (!version) return sendJson2(response, 404, { code: "not_found", message: `There is no version ${n} (it may be too old to keep).` }), true;
+      if (versionRoute[2] === "diff") {
+        if (method !== "GET") return sendJson2(response, 405, { code: "method_not_allowed", message: "GET" }), true;
+        const p = url.searchParams.get("path") ?? "";
+        if (!(p in version.changes)) return sendJson2(response, 404, { code: "not_found", message: `Version ${n} did not change ${p}.` }), true;
+        const before = this.history.stateBefore(n).get(p) ?? null;
+        const after = version.changes[p] ?? null;
+        return sendJson2(response, 200, this.diff(p, before, after)), true;
+      }
+      if (method !== "POST") return sendJson2(response, 405, { code: "method_not_allowed", message: "POST" }), true;
+      if (!canEditAs(viewer.role)) return sendJson2(response, 403, { code: "not_writer", message: "Only the owner and editors can bring a version back." }), true;
+      const body = await this.body(request, response);
+      if (!body) return true;
+      const paths = Array.isArray(body.paths) ? body.paths.filter((p) => typeof p === "string") : void 0;
+      const changes = this.history.restoreTo(n, paths, this.options.tracked);
+      if (!changes) return sendJson2(response, 409, { code: "unavailable", message: `Version ${n} can't be brought back: a file it holds is missing from the history.` }), true;
+      const made = await this.options.apply(changes, whoOf(viewer), { restoredFrom: n });
+      this.options.log(`history: ${viewer.user.name} brought back version ${n}${paths ? ` (${paths.join(", ")})` : ""}${made ? ` as version ${made.n}` : " (nothing to change)"}`);
+      return sendJson2(response, 200, { version: made?.n ?? null, changed: [...changes.keys()] }), true;
+    }
+    const noticeRoute = /^\/notice\/([0-9a-f]{6,32})\/(diff|recover)$/.exec(sub);
+    if (noticeRoute) {
+      const notice = this.history.notice(noticeRoute[1]);
+      if (!notice || notice.to !== viewer.user.id) return sendJson2(response, 404, { code: "not_found", message: "No such notice." }), true;
+      if (noticeRoute[2] === "diff") {
+        if (method !== "GET") return sendJson2(response, 405, { code: "method_not_allowed", message: "GET" }), true;
+        const now2 = this.history.head().get(notice.path) ?? null;
+        const nowBytes = now2 === null ? null : this.history.read(now2);
+        const back2 = this.recovered(notice, nowBytes);
+        if (now2 && !nowBytes || !back2) return sendJson2(response, 200, { path: notice.path, label: this.options.labels()(notice.path), missing: true, added: 0, removed: 0, lines: [], now: now2 }), true;
+        return sendJson2(response, 200, { ...this.diffBytes(notice.path, nowBytes, back2.bytes), now: now2 }), true;
+      }
+      if (method !== "POST") return sendJson2(response, 405, { code: "method_not_allowed", message: "POST" }), true;
+      if (!canEditAs(viewer.role)) return request.resume(), sendJson2(response, 403, { code: "not_writer", message: "Only the owner and editors can change the files." }), true;
+      const body = await this.body(request, response);
+      if (!body) return true;
+      const now = this.history.head().get(notice.path) ?? null;
+      if ("now" in body && body.now !== now) {
+        return sendJson2(response, 409, { code: "changed", message: "This changed while you were looking. Compare again." }), true;
+      }
+      const back = this.recovered(notice, now === null ? null : this.history.read(now));
+      if (!back) return sendJson2(response, 409, { code: "unavailable", message: "That content is no longer in the history." }), true;
+      const made = await this.options.apply(/* @__PURE__ */ new Map([[notice.path, back.bytes]]), whoOf(viewer), { restoredFrom: notice.lost.n, ...back.part ? { restoredPart: true } : {} });
+      this.history.dismiss(viewer.user.id, notice.id);
+      this.options.log(`history: ${viewer.user.name} brought back ${notice.lost.user.name}'s ${back.bytes === null ? "deletion of " : ""}${notice.path} (version ${notice.lost.n}${back.part ? ", what was replaced" : ""})`);
+      return sendJson2(response, 200, { version: made?.n ?? null }), true;
+    }
+    return false;
+  }
+  /** Before → after of one file, with the versions' names for the panel's header. */
+  diff(p, before, after) {
+    const read = (sha) => sha === null ? null : this.history.read(sha);
+    const a = read(before);
+    const b = read(after);
+    if (before && !a || after && !b) return { path: p, label: this.options.labels()(p), missing: true, added: 0, removed: 0, lines: [] };
+    return this.diffBytes(p, a, b);
+  }
+  diffBytes(p, a, b) {
+    const [x, y] = this.options.diffSides ? this.options.diffSides(p, a, b) : [a, b];
+    return { path: p, label: this.options.labels()(p), ...diffContents(x, y) };
+  }
+  /**
+   * What bringing a notice's lost content back writes to its file (`now`: what the file holds): the lost content merged
+   * into it when the notice has a base and the server can merge (`part` when that is not the whole lost content), else
+   * the whole lost content; a deletion deletes it again (bytes null). null: not in the history.
+   */
+  recovered(notice, now) {
+    if (notice.lost.sha === null) return { bytes: null, part: false };
+    const lost = this.history.read(notice.lost.sha);
+    if (!lost) return null;
+    const base = notice.base ? this.history.read(notice.base) : null;
+    const merged = base && this.options.recover ? this.options.recover(notice.path, base, lost, now) : null;
+    return merged ? { bytes: merged, part: !merged.equals(lost) } : { bytes: lost, part: false };
+  }
+  async body(request, response) {
+    try {
+      const raw = (await readBody(request, MAX_BODY)).toString("utf8");
+      const body = raw.trim() ? JSON.parse(raw) : {};
+      if (typeof body === "object" && body !== null && !Array.isArray(body)) return body;
+    } catch {
+    }
+    sendJson2(response, 400, { code: "invalid_argument", message: "Expected a JSON object." });
+    return null;
+  }
+};
+function noticeView(n, label, lostAt, gone) {
+  return {
+    ...lostAt ? { lostAt } : {},
+    id: n.id,
+    kind: n.kind,
+    at: n.at,
+    path: n.path,
+    label: label(n.path),
+    n: n.n,
+    name: n.by.name,
+    by: n.byAuthor,
+    lostName: n.lost.user.name,
+    lostBy: n.lost.by,
+    lostN: n.lost.n,
+    ...n.soft ? { soft: true } : {},
+    // Bringing it back puts back only what was replaced (a write with a base); into a deleted file, all of it.
+    ...n.base && !gone ? { part: true } : {},
+    ...gone ? { removed: true } : {},
+    // What was replaced is a deletion: bringing it back deletes the file again.
+    ...n.lost.sha === null ? { deleted: true } : {}
+  };
+}
+var plain = (text) => ({ en: text, zh: text });
+
+var PEER_ID = /^[A-Za-z0-9_-]{8,64}$/;
+function agentWhere(main2, count, label) {
+  const where = main2 ? label(main2) : null;
+  if (!where || count <= 1) return where;
+  return { en: `${where.en} and ${count - 1} more`, zh: `${where.zh} \u7B49 ${count} \u5904` };
+}
+var AGENT_COLOR = "#d25f25";
+var MAX_PEERS = 64;
+var MAX_PATCH_BYTES = 16 << 10;
+var MAX_FIELDS = 12;
+var MAX_PRESENCE_BYTES = 6 << 10;
+var BROADCAST_MS = 50;
+var LEAVE_GRACE_MS = 4e3;
+var AGENT_LINGER_MS = 2e4;
+var AGENT_PEER = "agent-claude";
+var PresenceHub = class {
+  peers = /* @__PURE__ */ new Map();
+  listeners = /* @__PURE__ */ new Set();
+  agent = null;
+  timer = null;
+  /** Adds a page's stream; `send` writes one SSE frame to it. Returns what to call when the stream closes. */
+  join(peer, viewer, send) {
+    let entry = this.peers.get(peer);
+    if (entry && entry.viewer.user.id !== viewer.user.id) {
+      entry = void 0;
+      peer = "";
+    }
+    if (peer && !entry && this.peers.size < MAX_PEERS) {
+      entry = { viewer, presence: {}, updatedAt: Date.now(), streams: 0 };
+      this.peers.set(peer, entry);
+    }
+    if (entry) {
+      entry.streams += 1;
+      if (entry.leaving) clearTimeout(entry.leaving);
+      entry.leaving = void 0;
+    }
+    this.listeners.add(send);
+    send(this.frame());
+    this.schedule();
+    let open = true;
+    return () => {
+      if (!open) return;
+      open = false;
+      this.listeners.delete(send);
+      if (!entry) return;
+      entry.streams -= 1;
+      if (entry.streams > 0) return;
+      const leaving = entry;
+      leaving.leaving = setTimeout(() => {
+        if (this.peers.get(peer) === leaving && leaving.streams === 0) {
+          this.peers.delete(peer);
+          this.schedule();
+        }
+      }, LEAVE_GRACE_MS);
+      leaving.leaving.unref?.();
+    };
+  }
+  /** Merges a page's patch into its presence; false when the peer isn't this person's open page or the patch is bad. */
+  update(peer, viewer, patch) {
+    const entry = this.peers.get(peer);
+    if (!entry || entry.viewer.user.id !== viewer.user.id) return false;
+    if (typeof patch !== "object" || patch === null || Array.isArray(patch)) return false;
+    const next = { ...entry.presence };
+    for (const [key, value] of Object.entries(patch)) {
+      if (value === null || value === void 0) delete next[key];
+      else next[key] = value;
+    }
+    if (Object.keys(next).length > MAX_FIELDS || Buffer.byteLength(JSON.stringify(next)) > MAX_PRESENCE_BYTES) return false;
+    entry.presence = next;
+    entry.updatedAt = Date.now();
+    this.schedule();
+    return true;
+  }
+  /** The agent changed the artifact: it shows on the list (with `context`, where it worked) for a while. */
+  agentActive(agent = {}) {
+    if (this.agent) clearTimeout(this.agent.timer);
+    const presence = { who: { n: agent.name ?? "Agent", c: AGENT_COLOR } };
+    if (agent.context) presence.context = agent.context;
+    if (agent.where) presence.where = agent.where;
+    const timer = setTimeout(() => {
+      this.agent = null;
+      this.schedule();
+    }, AGENT_LINGER_MS);
+    timer.unref?.();
+    this.agent = { presence, updatedAt: Date.now(), timer };
+    this.schedule();
+  }
+  /** Everyone on the list now. */
+  list() {
+    const views = [];
+    for (const [peer, entry] of this.peers) {
+      const who = entry.presence.who;
+      const presence = { ...entry.presence, who: { ...typeof who === "object" && who !== null && !Array.isArray(who) ? who : {}, n: entry.viewer.user.name } };
+      views.push({ peer, by: entry.viewer.user.id, name: entry.viewer.user.name, role: entry.viewer.role, presence, updatedAt: entry.updatedAt });
+    }
+    if (this.agent) {
+      const name = String(this.agent.presence.who.n ?? "Agent");
+      views.push({ peer: AGENT_PEER, by: "agent", name, kind: "agent", presence: this.agent.presence, updatedAt: this.agent.updatedAt });
+    }
+    return views;
+  }
+  /** Answers POST `__presence` ({peer, patch}); GET gives the list. */
+  async handle(request, response, viewer) {
+    const method = request.method ?? "GET";
+    if (method === "GET") return sendJson2(response, 200, { peers: this.list() });
+    if (method !== "POST") {
+      request.resume();
+      return sendJson2(response, 405, { code: "method_not_allowed", message: "GET or POST" });
+    }
+    if (!sameOrigin(request)) {
+      request.resume();
+      return sendJson2(response, 403, { code: "not_granted", message: "Cross-origin write refused." });
+    }
+    let body;
+    try {
+      body = JSON.parse((await readBody(request, MAX_PATCH_BYTES)).toString("utf8"));
+    } catch {
+      return sendJson2(response, 400, { code: "invalid_argument", message: `Expected {peer, patch} under ${MAX_PATCH_BYTES} bytes.` });
+    }
+    const { peer, patch } = typeof body === "object" && body !== null ? body : {};
+    if (typeof peer !== "string" || !PEER_ID.test(peer)) return sendJson2(response, 400, { code: "invalid_argument", message: "Expected {peer, patch}." });
+    if (!this.update(peer, viewer, patch)) return sendJson2(response, 409, { code: "not_joined", message: "That page is not open here (its event stream is closed)." });
+    response.writeHead(204, { "Cache-Control": "no-store" }).end();
+  }
+  /** Ends the timers (the server is closing). */
+  close() {
+    if (this.timer) clearTimeout(this.timer);
+    if (this.agent) clearTimeout(this.agent.timer);
+    for (const entry of this.peers.values()) if (entry.leaving) clearTimeout(entry.leaving);
+    this.peers.clear();
+    this.listeners.clear();
+  }
+  frame() {
+    return `event: peers
+data: ${JSON.stringify({ peers: this.list() })}
+
+`;
+  }
+  schedule() {
+    if (this.timer) return;
+    this.timer = setTimeout(() => {
+      this.timer = null;
+      const frame = this.frame();
+      for (const send of this.listeners) send(frame);
+    }, BROADCAST_MS);
+    this.timer.unref?.();
+  }
+};
+
 var KIND = "";
 var NOUN = "";
 var INDEX_FILE = "";
@@ -1477,6 +2406,8 @@ var LAYOUT;
 var pageScriptSrc;
 var sessionExtras;
 var commentLocation;
+var kindLabels;
+var kindAgentContext;
 var SCRIPT = "";
 var EDITOR_DIR = "";
 var MIME = {
@@ -1550,6 +2481,9 @@ var ROUTES = {
   session: "__deck/session"
 };
 var COMMENTS_ROUTE = "__comments";
+var HISTORY_ROUTE = "__history";
+var PRESENCE_ROUTE = "__presence";
+var PREVIEW_PATH = /^v\/(\d{1,9})(\/.*)?$/;
 var ASSET_INDEX = "index.json";
 var BLOB_ID = /^[0-9a-f]{32}$/;
 var BLOB_PATH = /^_blob\/([0-9a-f]{32})$/;
@@ -1560,8 +2494,11 @@ var SSE_KEEPALIVE_MS2 = 25e3;
 var WATCH_DEBOUNCE_MS2 = 300;
 var POLL_MS2 = 2e3;
 var CHANGE_LOG_SIZE = 64;
+var OVERWRITE_WINDOW_MS = 6e4;
+var filesOf = (listing, paths) => Object.fromEntries(paths.map((p) => [p, listing.files[p]?.sha256 ?? null]));
+var authorOf = (who) => ({ id: who.user.id, name: who.user.name, ...who.by === "agent" ? { agent: true } : {} });
 var CLIENT_ID = /^[A-Za-z0-9_-]{8,64}$/;
-var sha256 = (bytes) => createHash2("sha256").update(bytes).digest("hex");
+var sha2562 = (bytes) => createHash3("sha256").update(bytes).digest("hex");
 function contentTypeOf(file) {
   const ext = file.slice(file.lastIndexOf(".") + 1).toLowerCase();
   return MIME[ext] ?? "application/octet-stream";
@@ -1571,6 +2508,7 @@ function isProjectPath(p) {
   if (typeof p !== "string" || !p.startsWith("project/") || p.includes("\\") || p.includes("\0")) return false;
   return p.split("/").every((part) => part !== "" && part !== "." && part !== "..");
 }
+var SHA256 = /^[0-9a-f]{64}$/;
 var isWriteEntry = (entry) => entry !== null && !("delete" in entry);
 function isWireEntry(value) {
   if (value === null) return true;
@@ -1598,7 +2536,7 @@ function pageCsp(scriptSrc) {
   ].join("; ");
 }
 function versionOf(files) {
-  const digest = sha256(
+  const digest = sha2562(
     Object.entries(files).map(([p, f]) => `${p}:${f.sha256}`).join("\n")
   );
   return "local-" + digest.slice(0, 16);
@@ -1609,7 +2547,7 @@ async function collectFiles(root, limit) {
   const seen = /* @__PURE__ */ new Set();
   let truncated = false;
   const visit = async (relDir, descend) => {
-    const dir = relDir === "" ? root : path5.join(root, ...relDir.split("/"));
+    const dir = relDir === "" ? root : path6.join(root, ...relDir.split("/"));
     let entries;
     try {
       entries = await fsp2.readdir(dir, { withFileTypes: true });
@@ -1640,8 +2578,8 @@ async function collectFiles(root, limit) {
   return { rels, truncated };
 }
 async function writeFileAtomic(file, bytes) {
-  await fsp2.mkdir(path5.dirname(file), { recursive: true });
-  const tmp = path5.join(path5.dirname(file), `.${path5.basename(file)}.${randomUUID()}.tmp`);
+  await fsp2.mkdir(path6.dirname(file), { recursive: true });
+  const tmp = path6.join(path6.dirname(file), `.${path6.basename(file)}.${randomUUID()}.tmp`);
   try {
     await fsp2.writeFile(tmp, bytes);
     await fsp2.rename(tmp, file);
@@ -1653,19 +2591,27 @@ async function writeFileAtomic(file, bytes) {
 }
 var Store = class {
   root;
+  history;
   log;
   /** project/<path> → sha256 of the page's last save not yet seen by the watcher ('' for a delete). */
   ownWrites;
+  /** "<user id>\0project/<path>" → when the server last refused that person's save of the file as a conflict. */
+  refused;
   queue;
   seq;
   truncationReported;
-  constructor(root, log) {
+  /** The last listing left files out (more than the format's limit): its missing files are not deletes. */
+  truncated;
+  constructor(root, history, log) {
     this.root = root;
+    this.history = history;
     this.log = log;
     this.ownWrites = /* @__PURE__ */ new Map();
+    this.refused = /* @__PURE__ */ new Map();
     this.queue = Promise.resolve();
     this.seq = 0;
     this.truncationReported = false;
+    this.truncated = false;
   }
   /** Run `work` after every save, upload and change check before it, and before the next. */
   exclusive(work) {
@@ -1683,11 +2629,11 @@ var Store = class {
   async diskPath(rel) {
     const realRoot = await fsp2.realpath(this.root).catch(() => null);
     if (realRoot === null) return null;
-    const file = path5.join(realRoot, ...rel.split("/"));
-    for (let dir = path5.dirname(file); ; dir = path5.dirname(dir)) {
+    const file = path6.join(realRoot, ...rel.split("/"));
+    for (let dir = path6.dirname(file); ; dir = path6.dirname(dir)) {
       const real = await fsp2.realpath(dir).catch(() => null);
       if (real === null) {
-        if (path5.dirname(dir) === dir) return null;
+        if (path6.dirname(dir) === dir) return null;
         continue;
       }
       if (real !== dir) return null;
@@ -1699,6 +2645,7 @@ var Store = class {
   async listing() {
     const limit = LAYOUT.maxFiles;
     const { rels, truncated } = await collectFiles(this.root, limit);
+    this.truncated = truncated;
     if (truncated && !this.truncationReported) {
       this.truncationReported = true;
       this.log(`The ${NOUN} folder has more than ${limit} files; the editor lists only the first ${limit}: ${this.root}`);
@@ -1709,7 +2656,7 @@ var Store = class {
       if (file === null) continue;
       const bytes = await fsp2.readFile(file).catch(() => null);
       if (bytes === null) continue;
-      files[`project/${rel}`] = { sha256: sha256(bytes), size: bytes.length, contentType: contentTypeOf(rel) };
+      files[`project/${rel}`] = { sha256: sha2562(bytes), size: bytes.length, contentType: contentTypeOf(rel) };
     }
     return { ver: versionOf(files), files };
   }
@@ -1719,11 +2666,14 @@ var Store = class {
     if (file === null) return null;
     return fsp2.readFile(file).catch(() => null);
   }
-  /** A save from the page: all entries or none (ifMatch is checked for all before anything is written). */
-  publish(batch) {
-    return this.exclusive(() => this.publishNow(batch));
+  /**
+   * A save from the page by `who`: all entries or none (ifMatch is checked for all before anything is written). It is
+   * a version in the history under their name; what changed on disk before it is one of its own, Claude's.
+   */
+  publish(batch, who, over = [], merged = []) {
+    return this.exclusive(() => this.publishNow(batch, who, over, merged));
   }
-  async publishNow(batch) {
+  async publishNow(batch, who, over, merged) {
     const files = /* @__PURE__ */ new Map();
     let total = 0;
     for (const [p, entry] of Object.entries(batch)) {
@@ -1742,6 +2692,7 @@ var Store = class {
       return { status: 413, body: { code: "too_large", message: `a publish can write at most ${LAYOUT.maxPublishBytes} bytes` } };
     }
     const before = await this.listing();
+    await this.syncDisk(before);
     const conflicts = [];
     for (const [p, entry] of Object.entries(batch)) {
       const expected = entry?.ifMatch;
@@ -1749,24 +2700,121 @@ var Store = class {
       const actual = before.files[p]?.sha256 ?? null;
       if (actual !== expected) conflicts.push({ path: p, actual, expected });
     }
-    if (conflicts.length > 0) return { status: 409, body: { code: "conflict", live: before.ver, paths: conflicts } };
+    if (conflicts.length > 0) {
+      const now = Date.now();
+      for (const c of conflicts) this.refused.set(`${who.user.id}\0${c.path}`, now);
+      return { status: 409, body: { code: "conflict", live: before.ver, paths: conflicts } };
+    }
+    for (const m of merged) {
+      if (batch[m.path] !== void 0 && before.files[m.path]?.sha256 === m.sha) this.refused.delete(`${who.user.id}\0${m.path}`);
+    }
+    const chosen = /* @__PURE__ */ new Map();
+    for (const o of over) {
+      if (batch[o.path] === void 0 || before.files[o.path]?.sha256 !== o.sha) continue;
+      this.refused.set(`${who.user.id}\0${o.path}`, Date.now());
+      chosen.set(o.path, o.base);
+    }
+    const overwrote = this.overwrites(batch, before, who, chosen);
     const shas = {};
+    const written = /* @__PURE__ */ new Map();
     for (const [p, entry] of Object.entries(batch)) {
       const file = files.get(p);
       if (!isWriteEntry(entry)) {
         this.ownWrites.set(p, "");
         await fsp2.rm(file, { force: true });
+        written.set(p, null);
         continue;
       }
       const bytes = Buffer.from(entry.base64, "base64");
-      const sha = sha256(bytes);
+      const sha = sha2562(bytes);
       this.ownWrites.set(p, sha);
       await writeFileAtomic(file, bytes);
       shas[p] = sha;
+      written.set(p, bytes);
     }
+    const version = this.history.record(written, who, overwrote.length ? { overwrote } : {});
     const after = await this.listing();
     this.seq += 1;
-    return { status: 200, body: { version: after.ver, seq: this.seq, shas } };
+    return { status: 200, body: { version: after.ver, seq: this.seq, shas }, version };
+  }
+  /**
+   * The files this save replaces without its page having seen them: the server refused this person's save of the file
+   * as a conflict moments ago (someone else had saved it since their page loaded it), and now the page saves on top of
+   * what that someone saved. (The editors take the newer file and save their own over it.) Their own other tab's save,
+   * and the content the history began with, are no one else's. `chosen`: the files the page says its person saw and
+   * chose to save over (marked as refused above), whose overwrite is `chosen`, with the version the edits started
+   * from as its `base` when the history holds that content (and it is not what was lost, which would bring back nothing).
+   * A page that names no base (Keep mine from a bar or a banner, a save on top of a refused one) gets the file as it was
+   * right before the lost version: what both started from when one saved while the other was editing, so Bring back
+   * returns what that version changed and leaves the saver's other changes.
+   */
+  overwrites(batch, before, who, chosen) {
+    const now = Date.now();
+    const out = [];
+    for (const [p, entry] of Object.entries(batch)) {
+      const key = `${who.user.id}\0${p}`;
+      const at = this.refused.get(key);
+      if (at === void 0) continue;
+      this.refused.delete(key);
+      const lost = before.files[p]?.sha256;
+      if (now - at > OVERWRITE_WINDOW_MS || !lost) continue;
+      if ((isWriteEntry(entry) ? sha2562(Buffer.from(entry.base64, "base64")) : null) === lost) continue;
+      const last = this.history.lastChange(p);
+      if (!last || last.sha !== lost || last.version.by === "system" || last.version.user.id === who.user.id) continue;
+      const base = chosen.get(p) ?? this.history.stateBefore(last.version.n).get(p);
+      out.push({
+        path: p,
+        lost,
+        n: last.version.n,
+        by: last.version.by,
+        user: { ...last.version.user },
+        ...chosen.has(p) ? { chosen: true } : {},
+        ...base && base !== lost && this.history.size(base) !== null ? { base } : {}
+      });
+    }
+    for (const [key, at] of this.refused) if (now - at > OVERWRITE_WINDOW_MS) this.refused.delete(key);
+    return out;
+  }
+  /**
+   * Records what changed on disk since the history last looked, as Claude's (the agent's, or anything else on this
+   * computer; the files as they were when the history began are a version of no one's). Runs inside `exclusive`.
+   */
+  async syncDisk(listing) {
+    const head = this.history.head();
+    const changes = /* @__PURE__ */ new Map();
+    for (const [p, f] of Object.entries(listing.files)) {
+      if (head.get(p) === f.sha256) continue;
+      const bytes = await this.readProjectFile(p);
+      if (bytes !== null) changes.set(p, bytes);
+    }
+    if (!this.truncated) {
+      for (const p of head.keys()) if (!(p in listing.files) && this.fileOf(p) !== null) changes.set(p, null);
+    }
+    if (changes.size === 0) return null;
+    const version = this.history.record(changes, this.history.empty ? SYSTEM : AGENT);
+    if (version) this.log(`history: version ${version.n}${version.by === "agent" ? " (changed on disk)" : " (the files as they were)"}: ${[...changes.keys()].map((p) => p.replace(/^project\//, "")).join(", ")}`);
+    return version;
+  }
+  /** Writes contents from the history (a restore) and records them as `who`'s version. */
+  applyFromHistory(changes, who, extra) {
+    return this.exclusive(async () => {
+      await this.syncDisk(await this.listing());
+      const written = /* @__PURE__ */ new Map();
+      for (const [p, bytes] of changes) {
+        const rel = this.fileOf(p);
+        const file = rel === null ? null : await this.diskPath(rel);
+        if (file === null) continue;
+        if (bytes === null) {
+          this.ownWrites.set(p, "");
+          await fsp2.rm(file, { force: true });
+        } else {
+          this.ownWrites.set(p, sha2562(bytes));
+          await writeFileAtomic(file, bytes);
+        }
+        written.set(p, bytes);
+      }
+      return { version: this.history.record(written, who, extra), paths: [...written.keys()] };
+    });
   }
   async assetIndex() {
     try {
@@ -1783,7 +2831,7 @@ var Store = class {
     return this.exclusive(() => this.putBlobNow(bytes, contentType));
   }
   async putBlobNow(bytes, contentType) {
-    const id = sha256(bytes).slice(0, 32);
+    const id = sha2562(bytes).slice(0, 32);
     const type = (contentType.split(";")[0] ?? "").trim().toLowerCase() || "application/octet-stream";
     if (await this.findBlobFile(id) === null) {
       const file = await this.diskPath(`${LAYOUT.blobDir}/${id}.${assetExtensionOf(type)}`);
@@ -1800,7 +2848,7 @@ var Store = class {
   }
   async findBlobFile(id) {
     try {
-      const names = await fsp2.readdir(path5.join(this.root, LAYOUT.blobDir));
+      const names = await fsp2.readdir(path6.join(this.root, LAYOUT.blobDir));
       const name = names.find((n) => n.startsWith(`${id}.`) && !n.endsWith(".tmp"));
       if (name === void 0) return null;
       const file = await this.diskPath(`${LAYOUT.blobDir}/${name}`);
@@ -1827,7 +2875,7 @@ var Store = class {
       let sha = "";
       try {
         const file = await this.diskPath(rel);
-        if (file !== null && (await fsp2.lstat(file)).isFile()) sha = sha256(await fsp2.readFile(file));
+        if (file !== null && (await fsp2.lstat(file)).isFile()) sha = sha2562(await fsp2.readFile(file));
       } catch {
         sha = "";
       }
@@ -1855,13 +2903,13 @@ function watchArtifact(store, onChange, onError) {
     const directories = /* @__PURE__ */ new Map();
     const visit = (rel, descend) => {
       if (directories.size >= maxDirectories) return;
-      const dir = rel === "" ? store.root : path5.join(store.root, ...rel.split("/"));
-      if (directories.has(dir) || !fs6.existsSync(dir)) return;
-      const info = fs6.lstatSync(dir);
+      const dir = rel === "" ? store.root : path6.join(store.root, ...rel.split("/"));
+      if (directories.has(dir) || !fs7.existsSync(dir)) return;
+      const info = fs7.lstatSync(dir);
       if (!info.isDirectory()) return;
       directories.set(dir, `${info.dev}:${info.ino}`);
       if (!descend) return;
-      for (const entry of fs6.readdirSync(dir, { withFileTypes: true })) {
+      for (const entry of fs7.readdirSync(dir, { withFileTypes: true })) {
         if (!entry.isDirectory() || entry.name.startsWith(".")) continue;
         const child = rel === "" ? entry.name : `${rel}/${entry.name}`;
         if (LAYOUT.descendInto(child)) visit(child, true);
@@ -1878,19 +2926,19 @@ function watchArtifact(store, onChange, onError) {
       if (watchers.has(dir)) continue;
       let watcher;
       try {
-        watcher = fs6.watch(dir, (event, name) => {
+        watcher = fs7.watch(dir, (event, name) => {
           if (stopped) return;
           if (name) {
-            const changed = path5.join(dir, String(name));
+            const changed = path6.join(dir, String(name));
             if (event === "rename" && watchers.has(changed)) {
               for (const [watchedDir, item] of watchers) {
-                if (watchedDir === changed || watchedDir.startsWith(changed + path5.sep)) {
+                if (watchedDir === changed || watchedDir.startsWith(changed + path6.sep)) {
                   item.watcher.close();
                   watchers.delete(watchedDir);
                 }
               }
             }
-            const rel = path5.relative(store.root, changed).split(path5.sep).join("/");
+            const rel = path6.relative(store.root, changed).split(path6.sep).join("/");
             if (isIgnoredPath(rel) || !LAYOUT.watches(rel)) return;
           }
           schedule();
@@ -1908,6 +2956,7 @@ function watchArtifact(store, onChange, onError) {
     try {
       refresh();
       const current = await store.listing();
+      await store.syncDisk(current);
       if (seen === null) {
         seen = new Map(Object.entries(current.files).map(([p, f]) => [p, f.sha256]));
         pollSignature = await signature();
@@ -1915,7 +2964,8 @@ function watchArtifact(store, onChange, onError) {
       }
       const external = await store.externalChanges(/* @__PURE__ */ new Set([...seen.keys(), ...Object.keys(current.files)]), seen);
       if (stopped || external.length === 0) return;
-      onChange({ type: "external-change", paths: external, ver: (await store.listing()).ver });
+      const after = await store.listing();
+      onChange({ type: "external-change", paths: external, ver: after.ver, files: filesOf(after, external) });
     } catch (error) {
       onError(error);
     }
@@ -1924,7 +2974,7 @@ function watchArtifact(store, onChange, onError) {
     const { rels } = await collectFiles(store.root, LAYOUT.maxFiles);
     const parts = [];
     for (const rel of rels) {
-      const info = await fsp2.lstat(path5.join(store.root, ...rel.split("/"))).catch(() => null);
+      const info = await fsp2.lstat(path6.join(store.root, ...rel.split("/"))).catch(() => null);
       parts.push(info ? `${rel}\0${info.size}\0${info.mtimeMs}\0${info.ino}` : `${rel}\0-`);
     }
     return parts.join("\n");
@@ -1955,10 +3005,11 @@ function watchArtifact(store, onChange, onError) {
 var publishError = (response, status, code, message) => sendJson2(response, status, { code, message });
 async function startServer({ root, port = DEFAULT_PORTS[KIND], host = "127.0.0.1", log = (line) => process.stderr.write(`${line}
 `), agentHook, lan = false, portGiven = false }) {
-  const project = path5.join(root, "project");
+  const project = path6.join(root, "project");
   const stamp = (line) => log(`[${(/* @__PURE__ */ new Date()).toISOString()}] ${line}`);
   const projectDir = await fsp2.realpath(project);
-  const store = new Store(projectDir, stamp);
+  const history = new History(root);
+  const store = new Store(projectDir, history, stamp);
   const owner = localOwner();
   const share = new ShareHost({
     root,
@@ -1968,7 +3019,12 @@ async function startServer({ root, port = DEFAULT_PORTS[KIND], host = "127.0.0.1
     title: () => artifactTitle(root, projectDir),
     log: stamp,
     createServer: () => http.createServer(handle),
-    uiFile: path5.join(EDITOR_DIR, "share-ui.js")
+    uiFile: path6.join(EDITOR_DIR, "share-ui.js"),
+    // The History panel's address and what this person may do there; on a version's page (?at=n), which version.
+    globals: (viewer, query) => {
+      const at = Number(query.get("at") ?? "");
+      return { __baoyuHistory: historyHost.bootGlobal(viewer, query.has("at") && Number.isInteger(at) ? at : void 0) };
+    }
   });
   const comments = createCommentsService({
     root,
@@ -1982,10 +3038,11 @@ async function startServer({ root, port = DEFAULT_PORTS[KIND], host = "127.0.0.1
       return viewer ? commentsViewer(viewer) : null;
     }
   });
-  const grant = randomBytes(24).toString("base64url");
+  const grant = randomBytes2(24).toString("base64url");
   const editorPath = `/${KIND}/${grant}/`;
-  const boot = randomBytes(6).toString("hex");
+  const boot = randomBytes2(6).toString("hex");
   const clients = /* @__PURE__ */ new Map();
+  const presence = new PresenceHub();
   const changes = [];
   let changeSeq = 0;
   const pageCache = /* @__PURE__ */ new Map();
@@ -1997,15 +3054,58 @@ data: ${JSON.stringify(event)}
 `;
   const changed = (event, from) => {
     changeSeq += 1;
-    changes.push({ seq: changeSeq, paths: event.paths, ...from ? { from } : {} });
+    changes.push({ seq: changeSeq, paths: event.paths, ...from ? { from } : {}, ...event.by ? { by: event.by } : {} });
     if (changes.length > CHANGE_LOG_SIZE) changes.shift();
     for (const [client, id] of clients) if (!from || id !== from) client.write(frame(event));
   };
+  const labels2 = () => {
+    let named;
+    try {
+      named = kindLabels?.(projectDir);
+    } catch {
+      named = void 0;
+    }
+    return (p) => {
+      const rel = p.replace(/^project\//, "");
+      return named?.(rel) ?? plain(rel);
+    };
+  };
+  const agentWorked = (paths) => {
+    const rels = paths.map((p) => p.replace(/^project\//, ""));
+    const main2 = [...paths].reverse().find((p) => !p.endsWith(`/${INDEX_FILE}`) && p !== INDEX_FILE) ?? paths[0];
+    let context = null;
+    try {
+      context = kindAgentContext?.(projectDir, rels) ?? null;
+    } catch {
+      context = null;
+    }
+    presence.agentActive({ context, where: agentWhere(main2, paths.length, labels2()) });
+  };
+  const historyHost = new HistoryHost({
+    history,
+    labels: labels2,
+    base: editorPath,
+    previewUrl: (n) => `${editorPath}v/${n}/`,
+    apply: async (files, who, extra) => {
+      const { version, paths } = await store.applyFromHistory(files, who, extra);
+      if (paths.length) {
+        const listing = await store.listing();
+        changed({ type: "external-change", paths, ver: listing.ver, files: filesOf(listing, paths), by: authorOf(who) });
+      }
+      return version;
+    },
+    tracked: (p) => store.fileOf(p) !== null,
+    // A notice whose overwrite named the version its saver's edits started from: what was lost goes back by line into
+    // the file as it is now, the lost lines winning where both changed them; a deleted file gets all of it back.
+    recover: (_path, base, lost, now) => now === null ? lost : mergeTextBytes(base, lost, now),
+    log: stamp
+  });
   const stopWatch = watchArtifact(
     store,
     (event) => {
       stamp(`changed on disk: ${event.paths.join(", ")}${clients.size ? "" : " (no page open)"}`);
-      changed(event);
+      changed({ ...event, by: authorOf(AGENT) });
+      agentWorked(event.paths);
     },
     (error) => stamp(`watching failed: ${errorText(error)}`)
   );
@@ -2025,7 +3125,9 @@ data: ${JSON.stringify(event)}
     const missed = missedSince === null ? [] : truncated ? changes : changes.filter((c) => c.seq > missedSince && (!client || c.from !== client));
     if (missed.length) {
       const paths = [...new Set(missed.flatMap((c) => c.paths))];
-      response.write(frame({ type: "external-change", paths, ver: (await store.listing()).ver }));
+      const listing = await store.listing();
+      const by = missed.every((c) => c.by?.id === missed[0].by?.id) ? missed[0].by : void 0;
+      response.write(frame({ type: "external-change", paths, ver: listing.ver, files: filesOf(listing, paths), ...by ? { by } : {} }));
     } else {
       response.write(`id: ${eventId()}
 
@@ -2033,11 +3135,13 @@ data: ${JSON.stringify(event)}
     }
     clients.set(response, client);
     share.hold(viewer, response);
+    const leave = presence.join(client, viewer, (text) => response.write(text));
     const keepAlive = setInterval(() => response.write(": ping\n\n"), SSE_KEEPALIVE_MS2);
     keepAlive.unref?.();
     const done = () => {
       clearInterval(keepAlive);
       clients.delete(response);
+      leave();
     };
     request.on("close", done);
     response.on("close", done);
@@ -2062,11 +3166,11 @@ data: ${JSON.stringify(event)}
       "Content-Security-Policy": DATA_CSP
     });
   };
-  const serveEditor = async (request, response, rest, viewer) => {
+  const serveEditor = async (request, response, rest, viewer, query = "") => {
     const parts = rest === "" ? ["index.html"] : rest.split("/");
     const invalid = parts.some((p) => p === "" || p === "." || p === ".." || p.startsWith(".") || p.includes("\\")) || parts[0] === "node";
     const realDist = invalid ? null : await fsp2.realpath(EDITOR_DIR).catch(() => null);
-    const file = realDist === null ? null : path5.join(realDist, ...parts);
+    const file = realDist === null ? null : path6.join(realDist, ...parts);
     const real = file === null ? null : await fsp2.realpath(file).catch(() => null);
     const info = real === null ? null : await fsp2.lstat(real).catch(() => null);
     if (file === null || real !== file || !info?.isFile()) {
@@ -2077,7 +3181,7 @@ data: ${JSON.stringify(event)}
       response.writeHead(404, { "Cache-Control": "no-store" }).end();
       return;
     }
-    const ext = path5.extname(file).toLowerCase();
+    const ext = path6.extname(file).toLowerCase();
     const type = STATIC_TYPES[ext] ?? "application/octet-stream";
     if (ext === ".html") {
       const key = parts.join("/");
@@ -2087,7 +3191,7 @@ data: ${JSON.stringify(event)}
         page = { mtimeMs: info.mtimeMs, html, csp: pageCsp(pageScriptSrc(html)) };
         pageCache.set(key, page);
       }
-      const body = Buffer.from(share.injectHead(page.html, viewer) ?? page.html);
+      const body = Buffer.from(share.injectHead(page.html, viewer, query) ?? page.html);
       response.writeHead(200, {
         "Content-Type": type,
         "Content-Length": body.length,
@@ -2107,29 +3211,40 @@ data: ${JSON.stringify(event)}
       "X-Content-Type-Options": "nosniff"
     });
   };
-  const publish = async (request, response) => {
+  const publish = async (request, response, viewer) => {
     if (!/^application\/json\b/i.test(request.headers["content-type"] ?? "")) {
       publishError(response, 415, "invalid_content", "expected application/json");
       return;
     }
     const raw = await readBody(request, MAX_PUBLISH_BYTES);
     let files;
+    let over = [];
+    let merged = [];
+    const named = (list) => Array.isArray(list) ? list.filter((o) => typeof o?.path === "string" && typeof o.sha === "string" && SHA256.test(o.sha)).map((o) => ({ path: o.path, sha: o.sha, ...typeof o.base === "string" && SHA256.test(o.base) ? { base: o.base } : {} })) : [];
     try {
       const body = JSON.parse(raw.toString("utf8"));
       if (typeof body?.files !== "object" || body.files === null || Array.isArray(body.files)) throw new Error("files");
       if (!Object.values(body.files).every(isWireEntry)) throw new Error("entry");
       files = body.files;
+      over = named(body.over);
+      merged = named(body.merged);
     } catch {
       publishError(response, 400, "invalid_content", "malformed publish request");
       return;
     }
-    const outcome = await store.publish(files);
+    const outcome = await store.publish(files, whoOf(viewer), over, merged);
     const names = Object.keys(files).map((p) => p.replace(/^project\//, ""));
-    stamp(`saved from the page (${outcome.status}${outcome.body.code ? ` ${outcome.body.code}` : ""}): ${names.join(", ")}`);
+    const made = outcome.version ? ` as version ${outcome.version.n}` : "";
+    stamp(`saved from the page by ${viewer.user.name} (${outcome.status}${outcome.body.code ? ` ${outcome.body.code}` : ""})${made}: ${names.join(", ")}`);
     sendJson2(response, outcome.status, outcome.body);
     if (outcome.status === 200 && clients.size > 0) {
       const from = String(request.headers["x-deck-client"] ?? "");
-      changed({ type: "external-change", paths: Object.keys(files), ver: String(outcome.body.version ?? "") }, CLIENT_ID.test(from) ? from : void 0);
+      const shas = outcome.body.shas ?? {};
+      const paths = Object.keys(files);
+      changed(
+        { type: "external-change", paths, ver: String(outcome.body.version ?? ""), files: Object.fromEntries(paths.map((p) => [p, shas[p] ?? null])), by: authorOf(whoOf(viewer)) },
+        CLIENT_ID.test(from) ? from : void 0
+      );
     }
   };
   const upload = async (request, response) => {
@@ -2149,8 +3264,87 @@ data: ${JSON.stringify(event)}
     if (viewer.guest && "userName" in extras) extras.userName = viewer.user.name;
     return { canEdit: canEditAs(viewer.role), ...extras, role: viewer.role };
   };
+  const previewRoute = async (request, response, n, rest, viewer) => {
+    const method = request.method ?? "GET";
+    const state = history.stateAt(n);
+    if (!state) {
+      request.resume();
+      response.writeHead(404, { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" }).end(`There is no version ${n} (it may be too old to keep).`);
+      return;
+    }
+    if (rest === ROUTES.publish || rest === ROUTES.assets) {
+      request.resume();
+      publishError(response, 403, "not_writer", "This is an earlier version: open the current one to edit.");
+      return;
+    }
+    if (rest === COMMENTS_ROUTE || rest.startsWith(`${COMMENTS_ROUTE}/`)) {
+      if (method !== "GET") {
+        request.resume();
+        publishError(response, 403, "not_writer", "This is an earlier version: comment on the current one.");
+        return;
+      }
+      return comments.handle(request, response, rest.slice(COMMENTS_ROUTE.length));
+    }
+    if (method !== "GET" && method !== "HEAD") {
+      response.writeHead(405, { Allow: "GET, HEAD" }).end();
+      return;
+    }
+    if (rest === ROUTES.listing) {
+      const files = {};
+      for (const [p, sha] of [...state].sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0)) {
+        if (store.fileOf(p) === null) continue;
+        files[p] = { sha256: sha, size: history.size(sha) ?? 0, contentType: contentTypeOf(p) };
+      }
+      return sendJson2(response, 200, { ver: `history-${n}`, files });
+    }
+    if (rest === ROUTES.session) return sendJson2(response, 200, { ...session(viewer), canEdit: false });
+    if (rest === ROUTES.events) {
+      response.writeHead(200, { "Content-Type": "text/event-stream; charset=utf-8", "Cache-Control": "no-store", Connection: "keep-alive", "X-Accel-Buffering": "no" });
+      response.write(": connected\n\n");
+      const keepAlive = setInterval(() => response.write(": ping\n\n"), SSE_KEEPALIVE_MS2);
+      keepAlive.unref?.();
+      request.on("close", () => clearInterval(keepAlive));
+      return;
+    }
+    if (rest.startsWith("project/")) {
+      const sha = store.fileOf(rest) === null ? void 0 : state.get(rest);
+      const bytes = sha === void 0 ? null : history.read(sha);
+      if (bytes === null) {
+        response.writeHead(404, { "Cache-Control": "no-store" }).end();
+        return;
+      }
+      response.writeHead(200, {
+        "Content-Type": contentTypeOf(rest),
+        "Content-Length": bytes.byteLength,
+        "Cache-Control": "no-store",
+        "X-Content-Type-Options": "nosniff",
+        "Content-Security-Policy": DATA_CSP
+      });
+      response.end(method === "HEAD" ? void 0 : bytes);
+      return;
+    }
+    const blob = BLOB_PATH.exec(rest);
+    if (blob) return serveBlob(request, response, blob[1]);
+    return serveEditor(request, response, rest, viewer, `?at=${n}`);
+  };
   const route = async (request, response, rest, viewer) => {
     const method = request.method ?? "GET";
+    const preview = PREVIEW_PATH.exec(rest);
+    if (preview) {
+      if (preview[2] === void 0) {
+        request.resume();
+        response.writeHead(308, { Location: `${editorPath}${rest}/`, "Cache-Control": "no-store" }).end();
+        return;
+      }
+      return previewRoute(request, response, Number(preview[1]), preview[2].slice(1), viewer);
+    }
+    if (rest === PRESENCE_ROUTE) return presence.handle(request, response, viewer);
+    if (rest === HISTORY_ROUTE || rest.startsWith(`${HISTORY_ROUTE}/`)) {
+      if (await historyHost.handle(request, response, rest.slice(HISTORY_ROUTE.length), viewer)) return;
+      request.resume();
+      response.writeHead(404, { "Cache-Control": "no-store" }).end();
+      return;
+    }
     if (rest === COMMENTS_ROUTE || rest.startsWith(`${COMMENTS_ROUTE}/`)) {
       const sub = rest.slice(COMMENTS_ROUTE.length);
       if (sub === "/events") share.hold(viewer, response);
@@ -2171,7 +3365,7 @@ data: ${JSON.stringify(event)}
         publishError(response, 403, "not_writer", `You can view this ${NOUN} but not edit it.`);
         return;
       }
-      if (rest === ROUTES.publish) await publish(request, response);
+      if (rest === ROUTES.publish) await publish(request, response, viewer);
       else await upload(request, response);
       return;
     }
@@ -2262,6 +3456,7 @@ data: ${JSON.stringify(event)}
     stopWatch();
     comments.close();
     share.close();
+    presence.close();
     for (const client of clients.keys()) client.end();
     clients.clear();
     server2.close();
@@ -2278,11 +3473,11 @@ data: ${JSON.stringify(event)}
 }
 function artifactTitle(root, projectDir) {
   try {
-    const index = JSON.parse(fs6.readFileSync(path5.join(projectDir, INDEX_FILE), "utf8"));
+    const index = JSON.parse(fs7.readFileSync(path6.join(projectDir, INDEX_FILE), "utf8"));
     for (const value of [index.title, index.name]) if (typeof value === "string" && value.trim() && value.trim() !== "project") return value.trim();
   } catch {
   }
-  return path5.basename(root);
+  return path6.basename(root);
 }
 var runningServer2 = (root) => runningServer(root, KIND, ROUTES.session);
 async function serveForeground({ root, port, host, agentHook, lan, portGiven }) {
@@ -2303,18 +3498,18 @@ async function main(argv) {
   }
   if (positional.length !== 1 || flags.has("help")) {
     process.stderr.write(
-      `Usage: node ${path5.basename(SCRIPT)} <root> [--port n] [--host h] [--lan] [--agent-hook "<command>"]
+      `Usage: node ${path6.basename(SCRIPT)} <root> [--port n] [--host h] [--lan] [--agent-hook "<command>"]
 <root> holds project/${INDEX_FILE}.
 `
     );
     return 2;
   }
-  let root = path5.resolve(positional[0]);
-  if (path5.basename(root) === "project" && fs6.existsSync(path5.join(root, INDEX_FILE)) && !fs6.existsSync(path5.join(root, "project"))) {
-    root = path5.dirname(root);
+  let root = path6.resolve(positional[0]);
+  if (path6.basename(root) === "project" && fs7.existsSync(path6.join(root, INDEX_FILE)) && !fs7.existsSync(path6.join(root, "project"))) {
+    root = path6.dirname(root);
   }
-  if (!fs6.statSync(path5.join(root, "project", INDEX_FILE), { throwIfNoEntry: false })?.isFile()) {
-    process.stderr.write(`${JSON.stringify({ error: "NOT_FOUND", message: `${path5.join(root, "project", INDEX_FILE)} does not exist.` })}
+  if (!fs7.statSync(path6.join(root, "project", INDEX_FILE), { throwIfNoEntry: false })?.isFile()) {
+    process.stderr.write(`${JSON.stringify({ error: "NOT_FOUND", message: `${path6.join(root, "project", INDEX_FILE)} does not exist.` })}
 `);
     return 2;
   }
@@ -2338,7 +3533,7 @@ async function main(argv) {
 }
 function isMain(moduleUrl) {
   try {
-    return Boolean(process.argv[1]) && pathToFileURL(fs6.realpathSync(process.argv[1])).href === moduleUrl;
+    return Boolean(process.argv[1]) && pathToFileURL(fs7.realpathSync(process.argv[1])).href === moduleUrl;
   } catch {
     return false;
   }
@@ -2351,8 +3546,10 @@ function createArtifactServer(kind, moduleUrl) {
   pageScriptSrc = kind.pageScriptSrc;
   sessionExtras = kind.sessionExtras;
   commentLocation = kind.commentLocation;
+  kindLabels = kind.labels;
+  kindAgentContext = kind.agentContext;
   SCRIPT = fileURLToPath(moduleUrl);
-  EDITOR_DIR = path5.join(path5.dirname(SCRIPT), "editor");
+  EDITOR_DIR = path6.join(path6.dirname(SCRIPT), "editor");
   const runIfMain = () => {
     if (!isMain(moduleUrl)) return;
     main(process.argv.slice(2)).then(
@@ -2484,6 +3681,7 @@ function commentLocation2(input) {
   const named = /\(([^()]+)\)$/.exec(cut >= 0 ? detail.slice(0, cut) : detail)?.[1];
   return { file: projectFile(named) ?? `project/${INDEX_FILE2}` };
 }
+var labels = () => (rel) => rel === INDEX_FILE2 ? { en: "Design system settings", zh: "\u8BBE\u8BA1\u7CFB\u7EDF\u8BBE\u7F6E" } : null;
 var server = createArtifactServer(
   {
     kind: KIND2,
@@ -2493,7 +3691,8 @@ var server = createArtifactServer(
     /** The editor page and artifact-type/run.html: previews run the bundle and preview.html scripts. */
     pageScriptSrc: () => "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:",
     sessionExtras: sessionExtras2,
-    commentLocation: commentLocation2
+    commentLocation: commentLocation2,
+    labels
   },
   import.meta.url
 );

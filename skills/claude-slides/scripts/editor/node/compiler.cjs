@@ -82464,10 +82464,28 @@ function installUiAvatars(runtime2) {
               className: "size-full object-cover",
               draggable: false,
               onError: () => value4(true)
-            }) : variant === "claude" ? jsxForUiAvatars2.jsx(Spark, {
-              size: "60%",
-              color: "currentColor"
-            }) : memo4
+            }) : variant === "claude" ? (
+              // BaoCut: the agent's avatar is a robot head (the comments layer's RobotGlyph), not Claude's spark.
+              jsxForUiAvatars2.jsxs("svg", {
+                viewBox: "0 0 16 16",
+                width: "60%",
+                height: "60%",
+                fill: "none",
+                stroke: "currentColor",
+                strokeWidth: 1.4,
+                strokeLinecap: "round",
+                strokeLinejoin: "round",
+                "aria-hidden": true,
+                children: [
+                  jsxForUiAvatars2.jsx("rect", { x: 3, y: 5.5, width: 10, height: 7.5, rx: 2 }),
+                  jsxForUiAvatars2.jsx("path", { d: "M8 5.5V3.3" }),
+                  jsxForUiAvatars2.jsx("circle", { cx: 8, cy: 2.6, r: 0.7, fill: "currentColor", stroke: "none" }),
+                  jsxForUiAvatars2.jsx("circle", { cx: 6.1, cy: 8.9, r: 1, fill: "currentColor", stroke: "none" }),
+                  jsxForUiAvatars2.jsx("circle", { cx: 9.9, cy: 8.9, r: 1, fill: "currentColor", stroke: "none" }),
+                  jsxForUiAvatars2.jsx("path", { d: "M6.6 11.1h2.8M1.5 8.5v2M14.5 8.5v2" })
+                ]
+              })
+            ) : memo4
           });
         }
       );
@@ -207136,7 +207154,8 @@ function installCollaborationSlidePresence(runtime2) {
             key: value4,
             by: value.by,
             name: typeof value3.n === "string" ? truncatePresenceName(value3.n) : "",
-            color: (0, runtime2.peerColor)(value3.c, value.by ?? value.peer)
+            color: (0, runtime2.peerColor)(value3.c, value.by ?? value.peer),
+            ...value.agent ? { agent: true } : {}
           }
         ]);
       }
@@ -207282,6 +207301,7 @@ function installCollaborationSlidePresence(runtime2) {
                   tip: input.name,
                   children: SlidePresenceJsx.jsx(runtime2.Avatar, {
                     name: input.name,
+                    ...input.agent ? { variant: "claude" } : {},
                     style: {
                       backgroundColor: input.color,
                       color: (0, runtime2.peerInkColor)(input.color)
@@ -255281,7 +255301,7 @@ function installEditorApp(runtime2) {
           ]
         }),
         // BaoCut: a seat for the comments button, right of Download. A page opened on its own (not in BaoCut's
-        // iframe) draws claude.ai's comments button into it (@baoyu-design/comments, ui/toolbar.tsx); elsewhere
+        // iframe) draws claude.ai's comments button into it (the shared comments toolbar); elsewhere
         // it stays empty.
         SlidesAppJsx.jsx("span", {
           "data-baoyu-comments-seat": "",
@@ -257384,7 +257404,7 @@ function installEditorApp(runtime2) {
     });
     isLocalEmbeddableResource = (url) => (0, runtime2.isStoredBlobReference)(url) || runtime2.designSystemImagePathPattern.test(url);
     AGENT_CURSOR_OFFSET = { left: 48, top: 48 };
-    AGENT_CURSOR_LABEL = { kind: "name", text: (0, runtime2.literalMessage)("the agent") };
+    AGENT_CURSOR_LABEL = { kind: "name", text: (0, runtime2.literalMessage)("Agent") };
     DEFAULT_TEXT_INSERT_WIDTH = 800;
     MIN_TEXT_INSERT_WIDTH = (0, runtime2.minimumNodeResizeSize)({
       kind: "text",
@@ -269210,7 +269230,7 @@ function installFilesSlidesDocument(runtime2) {
       {
         notesInFiles: notesStoredInFiles
       }
-    ), liveSlideFiles = /* @__PURE__ */ new Map(), knownSlideShas = /* @__PURE__ */ new Map(), localSlideOverrides = /* @__PURE__ */ new Map(), heldRemoteSlideBases = /* @__PURE__ */ new Map(), dirtySlidePaths = /* @__PURE__ */ new Set(), inFlightSlidePaths = /* @__PURE__ */ new Set(), slideConflicts = /* @__PURE__ */ new Map(), slideLocalRevisions = /* @__PURE__ */ new Map(), deckLocalRevision = 0, getSlideLocalRevision = (input) => deckLocalRevision * 1e6 + (slideLocalRevisions.get(input) ?? 0), reportedStaleSlideRevisions = /* @__PURE__ */ new Map(), bumpSlideLocalRevision = (input) => {
+    ), liveSlideFiles = /* @__PURE__ */ new Map(), slideTextsBySha = /* @__PURE__ */ new Map(), knownSlideShas = /* @__PURE__ */ new Map(), localSlideOverrides = /* @__PURE__ */ new Map(), heldRemoteSlideBases = /* @__PURE__ */ new Map(), dirtySlidePaths = /* @__PURE__ */ new Set(), inFlightSlidePaths = /* @__PURE__ */ new Set(), slideConflicts = /* @__PURE__ */ new Map(), askedClashes = /* @__PURE__ */ new Set(), askedClashesKey = "", slideLocalRevisions = /* @__PURE__ */ new Map(), deckLocalRevision = 0, getSlideLocalRevision = (input) => deckLocalRevision * 1e6 + (slideLocalRevisions.get(input) ?? 0), reportedStaleSlideRevisions = /* @__PURE__ */ new Map(), bumpSlideLocalRevision = (input) => {
       let value = (0, runtime2.slideIdFromFilePath)(input);
       if (value !== void 0) {
         slideLocalRevisions.set(
@@ -269299,6 +269319,7 @@ function installFilesSlidesDocument(runtime2) {
               text: value3,
               sha: value4
             });
+            rememberSlideText(value4, value3);
             knownSlideShas.set(value2, value4);
             if (localSlideOverrides.get(value2) === value3 && !dirtySlidePaths.has(value2)) {
               localSlideOverrides.delete(value2);
@@ -269740,6 +269761,7 @@ function installFilesSlidesDocument(runtime2) {
     }
     let lastSaveAnnouncementKey = "";
     function notifySaveSubscribers() {
+      syncAskedClashes();
       let value = getSaveState();
       if (unsendableFiles !== void 0 && !unsendableNoticeShown && canReportUnsendable()) {
         unsendableNoticeShown = true;
@@ -270655,6 +270677,30 @@ function installFilesSlidesDocument(runtime2) {
       }
     }
     let rebasedSlideShas = /* @__PURE__ */ new Map();
+    function syncAskedClashes() {
+      if (options.onClashes === void 0 && askedClashes.size === 0) {
+        return;
+      }
+      for (let value of [...askedClashes])
+        if (!slideConflicts.has(value)) {
+          askedClashes.delete(value);
+        }
+      let items = [...askedClashes].map((input) => {
+        let entry = slideConflicts.get(input);
+        return {
+          ...entry,
+          slideNo: getSlideNumber(entry.slideId)
+        };
+      }), value2 = JSON.stringify(items);
+      if (value2 === askedClashesKey) {
+        return;
+      }
+      askedClashesKey = value2;
+      try {
+        options.onClashes?.(items);
+      } catch {
+      }
+    }
     function retryDirtySlide(input) {
       if (disposed || !slideConflicts.has(input)) {
         return;
@@ -270668,6 +270714,22 @@ function installFilesSlidesDocument(runtime2) {
       }
       let value = slideDocumentPathForFile(input);
       if (inFlightSlidePaths.has(input) && !saveQueue.unsendable().has(input) && !(stuckSave !== void 0 && !stuckSave.retryable)) {
+        return;
+      }
+      let merged = mergeClashingSlide(input, entry);
+      if (merged !== null) {
+        if (value !== void 0 && (options.holdRemote?.(value) === true || options.inSlide?.(value) === true)) {
+          return;
+        }
+        applyMergedSlide(input, entry, merged);
+        return;
+      }
+      if (askedClashes.has(input) || options.askClash?.(entry) === true) {
+        if (!askedClashes.has(input)) {
+          askedClashes.add(input);
+          emitEvent("clash-asked", entry);
+        }
+        syncAskedClashes();
         return;
       }
       if (LOCAL_SLIDE_RECOVERY_ORIGIN === "mine") {
@@ -270690,6 +270752,61 @@ function installFilesSlidesDocument(runtime2) {
       options.onNotice?.(
         (value2 > 0 ? "Slide " + String(value2) : "A slide") + (entry.theirsSha === null ? " deleted remotely" : " changed remotely")
       );
+    }
+    function rememberSlideText(sha, text) {
+      slideTextsBySha.delete(sha);
+      slideTextsBySha.set(sha, text);
+      if (slideTextsBySha.size <= 2 * liveSlideFiles.size + 32) {
+        return;
+      }
+      let values = /* @__PURE__ */ new Set([
+        ...knownSlideShas.values(),
+        ...[...liveSlideFiles.values()].map((input) => input.sha)
+      ]);
+      for (let value of [...slideTextsBySha.keys()]) {
+        if (slideTextsBySha.size <= liveSlideFiles.size + 16) {
+          break;
+        }
+        if (!values.has(value)) {
+          slideTextsBySha.delete(value);
+        }
+      }
+    }
+    function mergeClashingSlide(input, entry) {
+      if (options.mergeText === void 0 || entry.kind !== "edited" || entry.theirsSha === null) {
+        return null;
+      }
+      let value = localSlideOverrides.get(input), entry2 = liveSlideFiles.get(input), value2 = knownSlideShas.get(input), value3 = value2 === void 0 ? void 0 : slideTextsBySha.get(value2);
+      if (typeof value !== "string" || entry2 === void 0 || entry2.sha !== entry.theirsSha || value3 === void 0 || value2 === entry2.sha) {
+        return null;
+      }
+      try {
+        return options.mergeText(value3, value, entry2.text);
+      } catch {
+        return null;
+      }
+    }
+    function applyMergedSlide(input, entry, merged) {
+      emitEvent("clash-merged", {
+        path: input,
+        slide: entry.slideId,
+        theirs: entry.theirsSha
+      });
+      if (merged === liveSlideFiles.get(input)?.text) {
+        resolveSlideConflict(input, "theirs", true);
+        syncAskedClashes();
+        return;
+      }
+      localSlideOverrides.set(input, merged);
+      stashLocalSlideEdit(input, merged, indexStore.get().order);
+      bumpSlideLocalRevision(input);
+      recomposeFromFiles(true);
+      try {
+        options.onMerged?.(input, entry.theirsSha);
+      } catch {
+      }
+      resolveSlideConflict(input, "mine", true);
+      syncAskedClashes();
     }
     function clashLocalSlide(input) {
       let value = (0, runtime2.slideFilePath)(input);
@@ -271030,6 +271147,7 @@ function installFilesSlidesDocument(runtime2) {
           liveSlideFiles.delete(value3);
         } else {
           liveSlideFiles.set(value3, value4);
+          rememberSlideText(value4.sha, value4.text);
         }
         rebasedSlideShas.delete(value3);
         if (entry === void 0 && value4 !== null || entry !== void 0 && value4 === null) {
@@ -271565,6 +271683,7 @@ function installFilesSlidesDocument(runtime2) {
             text: value8.text,
             sha: value8.sha256
           });
+          rememberSlideText(value8.sha256, value8.text);
           knownSlideShas.set(value7, value8.sha256);
         }
         bootRetryAttempt = 0;
@@ -271837,7 +271956,10 @@ function installFilesSlidesDocument(runtime2) {
         mayEdit: canWrite
       } : void 0,
       conflicts: () => [...slideConflicts.values()],
-      resolveConflict: (input, options2) => resolveSlideConflict(input, options2),
+      resolveConflict: (input, options2) => {
+        resolveSlideConflict(input, options2);
+        syncAskedClashes();
+      },
       stashOffers: getStashOffers,
       restoreStashed: restoreStashedSlide,
       discardStashed: discardStashedSlide,
@@ -272361,6 +272483,24 @@ function installBootstrap(runtime2) {
             (0, runtime2.showToast)(input);
           },
           onStashOffer: (input) => showStashedSlideRecovery(value2, input),
+          // BaoCut: someone else saved a slide this tab has unsaved edits on; the host asks the person which to keep.
+          ...globalThis.slidesHost?.clashes !== void 0 ? {
+            askClash: (input) => input.kind === "edited" && input.theirsSha !== null,
+            onClashes: (input) => globalThis.slidesHost?.clashes?.show(
+              input.map((input2) => ({
+                path: input2.path,
+                slideId: input2.slideId,
+                slideNo: input2.slideNo,
+                theirsSha: input2.theirsSha
+              })),
+              (input2, options2) => value2.resolveConflict(input2, options2)
+            )
+          } : {},
+          // BaoCut: both changed different lines of that slide: merged by line, saved as a merge (not an overwrite).
+          ...typeof globalThis.slidesHost?.mergeText === "function" ? {
+            mergeText: (base, mine, theirs) => globalThis.slidesHost?.mergeText?.(base, mine, theirs) ?? null,
+            onMerged: (path, theirsSha) => globalThis.slidesHost?.saveMerged?.(path, theirsSha)
+          } : {},
           ...stash !== void 0 ? {
             stash
           } : {},

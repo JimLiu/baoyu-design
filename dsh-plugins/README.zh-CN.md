@@ -6,10 +6,10 @@
 
 | 插件 | npm 包名 | 能做什么 | 评论 |
 |---|---|---|---|
-| [Claude 幻灯片](dsh-claude-slides/)<br>`/claude-slides` | [`dsh-claude-slides`](https://www.npmjs.com/package/dsh-claude-slides) | Agent 把可编辑的幻灯片写成本地文件，并在本地幻灯片编辑器里打开，你可以放映、修改，导出 PDF、HTML 或 PowerPoint。 | Send to agent |
-| [Claude 设计稿](dsh-claude-design/)<br>`/claude-design` | [`dsh-claude-design`](https://www.npmjs.com/package/dsh-claude-design) | Agent 把可编辑的设计画布（多个画板并排）写成本地文件，并在本地画布编辑器里打开，你可以改文字、调参数，也可以把评论发给 Agent 修改。 | Send to agent |
-| [Claude 设计系统](dsh-claude-design-system/)<br>`/claude-design-system` | [`dsh-claude-design-system`](https://www.npmjs.com/package/dsh-claude-design-system) | Agent 把设计系统（设计令牌、字体样式、组件、素材和品牌手册）写成本地文件，并在本地页面里打开，你可以浏览、修改，也可以把评论发给 Agent 修改。 | Send to agent |
-| [Claude 数据看板](dsh-claude-dashboard/)<br>`/claude-dashboard` | [`dsh-claude-dashboard`](https://www.npmjs.com/package/dsh-claude-dashboard) | Agent 根据你的数据文件做出数据看板（图表、数字和表格），并在本地看板编辑器里打开，来源面板会显示每个数字是从哪里来的，你也可以把评论发给 Agent 修改。 | Send to agent |
+| [Claude 幻灯片](dsh-claude-slides/)<br>`/claude-slides` | [`dsh-claude-slides`](https://www.npmjs.com/package/dsh-claude-slides) | Agent 把可编辑的幻灯片写成本地文件，并在本地幻灯片编辑器里打开，你可以放映、修改，导出 PDF、HTML 或 PowerPoint。 | Send to Agent |
+| [Claude 设计稿](dsh-claude-design/)<br>`/claude-design` | [`dsh-claude-design`](https://www.npmjs.com/package/dsh-claude-design) | Agent 把可编辑的设计画布（多个画板并排）写成本地文件，并在本地画布编辑器里打开，你可以改文字、调参数，也可以把评论发给 Agent 修改。 | Send to Agent |
+| [Claude 设计系统](dsh-claude-design-system/)<br>`/claude-design-system` | [`dsh-claude-design-system`](https://www.npmjs.com/package/dsh-claude-design-system) | Agent 把设计系统（设计令牌、字体样式、组件、素材和品牌手册）写成本地文件，并在本地页面里打开，你可以浏览、修改，也可以把评论发给 Agent 修改。 | Send to Agent |
+| [Claude 数据看板](dsh-claude-dashboard/)<br>`/claude-dashboard` | [`dsh-claude-dashboard`](https://www.npmjs.com/package/dsh-claude-dashboard) | Agent 根据你的数据文件做出数据看板（图表、数字和表格），并在本地看板编辑器里打开，来源面板会显示每个数字是从哪里来的，你也可以把评论发给 Agent 修改。 | Send to Agent |
 
 只需要 DeepSeek Harness 桌面版。插件用的是桌面版自带的 Node.js，不用另外安装任何东西。
 
@@ -52,7 +52,7 @@ dsh plugin --profile web add dsh-claude-slides
 3. **打开 Agent 给的链接**，以 `http://127.0.0.1:` 开头。它会在右侧栏的浏览器里打开，和对话并排。如果在别处打开了，到 **设置 → 通用** 里把聊天链接的打开方式改成应用内侧栏。
 4. **在编辑器里修改。** 你的修改会存回同一批文件，Agent 的改动也会实时出现在页面上。还想改什么，在对话里说，或者留评论。
 5. **把评论发给 Agent**（看上面表格的"评论"一列）：
-   - **Send to agent**：在页面上加评论，勾选 **Send to agent** 再发送。对话空闲时 Agent 也会接手，改好以后在评论里回复你。评论也会以卡片的形式出现在对话里，点卡片上的 **View thread**（中文界面是「查看评论」）会在编辑器里打开这条评论。这个勾选框只在 Agent 等评论时出现；Agent 每次给你链接时都会开始等。
+   - **Send to Agent**：在页面上加评论，勾选 **Send to Agent** 再发送。对话空闲时 Agent 也会接手，改好以后在评论里回复你。评论也会以卡片的形式出现在对话里，点卡片上的 **View thread**（中文界面是「查看评论」）会在编辑器里打开这条评论。这个勾选框只在 Agent 等评论时出现；Agent 每次给你链接时都会开始等。
    - **无**：这个编辑器没有评论功能。直接在对话里告诉 Agent 要改哪里、怎么改。
 
 以后要接着改，在同一个工作区里开会话，让 Agent 再打开那份幻灯片、设计稿或看板。它会启动编辑器，给你一个新链接。
@@ -80,6 +80,6 @@ dsh plugin --profile web add dsh-claude-slides
 - **安装失败。** 对照上面表格的"npm 包名"一列检查插件名。安装对话框里会显示错误，以及应用问过哪个源；npm 和 npmmirror 都连不上时，检查网络或代理。从文件夹安装的，检查路径是不是完整的（以 `/` 开头，Windows 上以盘符开头），是不是指向插件自己的文件夹，也就是里面有 `package.json` 的那个。
 - **「发现」读不到索引。** 在「发现」里打开市场菜单，选 **Manage index sources…**（管理索引源…），地址下面会写原因。索引放在 GitHub Pages（`github.io`）上，你的网络连不上的话，就改用插件名添加。
 - **提示插件已经安装。** 要重新安装（比如为了更新），先卸载。
-- **链接打不开，或者没有 Send to agent。** 比如重启应用以后就会这样。让 Agent 再打开一次编辑器，编辑器和等评论都会重新启动。
+- **链接打不开，或者没有 Send to Agent。** 比如重启应用以后就会这样。让 Agent 再打开一次编辑器，编辑器和等评论都会重新启动。
 
 每个插件的文件夹里还有它自己的 README，介绍里面有什么。
