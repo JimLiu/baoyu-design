@@ -4,6 +4,12 @@ English | [中文](./CHANGELOG.zh.md)
 
 All notable changes to `baoyu-design` are tracked in this file.
 
+## 2.7.2 - 2026-11-02
+
+### Features
+- Slides and design: an installed design system now says when it has fallen behind the system it was copied from, and can be copied again. The **Theme** tab shows `Behind its source: N files changed` with a **Sync** button (the owner's), which updates the open page at once. `artifact.mjs ds-sync <root> [<folder>] [--check]` does the same from the command line, and `check` notes a copy that is behind. A system's new files are not copied, and a file it dropped stays in the copy ([#26](https://github.com/JimLiu/baoyu-design/issues/26)).
+- A source given as a relative path is found from the working directory, the artifact's folder and the folders above it, so the comparison also works in an editor reopened from another folder, such as the DeepSeek Harness **Artifacts** page. When the source cannot be found, the Theme tab says so.
+
 ## 2.7.1 - 2026-11-02
 
 ### Fixes

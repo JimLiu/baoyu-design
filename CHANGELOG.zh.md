@@ -4,6 +4,12 @@
 
 本文档记录 `baoyu-design` 的重要变更。
 
+## 2.7.2 - 2026-11-02
+
+### 新功能
+- 幻灯片和设计稿：已安装的设计系统落后于它的源系统时，现在会提示，也能重新同步。**Theme** 标签显示 `Behind its source: N files changed` 和 **Sync** 按钮（主人才有），点了以后打开的页面立刻更新。命令行用 `artifact.mjs ds-sync <root> [<folder>] [--check]` 做同样的事，`check` 也会提示落后的拷贝。源系统新增的文件不会复制，它删掉的文件仍留在拷贝里（[#26](https://github.com/JimLiu/baoyu-design/issues/26)）。
+- 用相对路径记录的源系统，会依次从工作目录、artifact 所在目录和它上面的各级目录查找，所以从别的目录重新打开的编辑器（比如 DeepSeek Harness 的 **Artifacts** 页）也能比较。找不到源系统时，Theme 标签会说明。
+
 ## 2.7.1 - 2026-11-02
 
 ### 修复
