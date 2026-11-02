@@ -4,6 +4,12 @@ English | [中文](./CHANGELOG.zh.md)
 
 All notable changes to `baoyu-design` are tracked in this file.
 
+## 2.7.1 - 2026-11-02
+
+### Fixes
+- DeepSeek Harness: the **Artifacts** page and the comments wait no longer depend on how the agent spells the command. An `open` run through a shell variable (`"$SKILL/scripts/artifact.mjs" open …`), after a `cd`, or from the copy of the skill the workspace carries in `.agents/skills/` or `.dsh/skills/`, is now recorded and starts the comments wait. Before, none of these were, so the card never showed and **Send to Agent** comments went nowhere without a word ([#27](https://github.com/JimLiu/baoyu-design/issues/27)).
+- Running `open` again on an editor that is already running prints its `log` and `stop` lines, as the first `open` does.
+
 ## 2.7.0 - 2026-11-02
 
 ### Features

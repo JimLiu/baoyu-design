@@ -4,6 +4,12 @@
 
 本文档记录 `baoyu-design` 的重要变更。
 
+## 2.7.1 - 2026-11-02
+
+### 修复
+- DeepSeek Harness：**Artifacts** 页和评论等待不再取决于 agent 怎么写命令。通过 shell 变量（`"$SKILL/scripts/artifact.mjs" open …`）、`cd` 之后，或用工作区 `.agents/skills/`、`.dsh/skills/` 里的技能副本执行的 `open`，现在都会登记并启动评论等待。以前这几种写法都不行：卡片不出现，**Send to Agent** 发的评论也悄悄送不到 agent（[#27](https://github.com/JimLiu/baoyu-design/issues/27)）。
+- 对已经在运行的编辑器再跑一次 `open`，也会像第一次那样打印 `log` 和 `stop`。
+
 ## 2.7.0 - 2026-11-02
 
 ### 新功能
