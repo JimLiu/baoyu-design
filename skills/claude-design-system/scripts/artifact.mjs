@@ -3221,7 +3221,7 @@ async function open(a, flags) {
   assertServerFiles();
   const existing = await runningServer2(a.root);
   if (existing) {
-    print({ url: existing.url, root: a.root, pid: existing.pid, reused: true, ...await lanOn2(existing.url, flags), ...reusedNote(a, flags) });
+    print({ url: existing.url, root: a.root, pid: existing.pid, reused: true, ...await lanOn2(existing.url, flags), log: path13.join(a.root, LOG_FILE), stop: script("stop", a.root), ...reusedNote(a, flags) });
     return;
   }
   const state = await startBackground(a, flags);

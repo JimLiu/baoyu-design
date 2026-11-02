@@ -1,11 +1,11 @@
-// dsh-claude-design-system 2.7.0: built from baoyu-design.
+// dsh-claude-design-system 2.7.1: built from baoyu-design.
 var define_PLUGIN_default = { name: "claude-design-system", provider: "dsh-claude-design-system", skills: [{ name: "claude-design-system", description: "Create and revise design systems in the Design System artifact format (project/design-system.json, tokens.json, a README brand book, component previews, fonts and asset groups) as local files, then open them in a local design-system page where the user can browse and edit tokens, type, components and assets. Use when the user asks for a design system or brand kit in this format, built from a code repository, a design tool or scratch, names claude-design-system or the Design System type, or wants to revise a folder that holds project/design-system.json. claude-slides and claude-design install these systems. A free-form HTML style guide, UI kit or token page is baoyu-design's.", comments: true }] };
 
 import { spawn as spawn2 } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { statSync } from "node:fs";
 import { readFile } from "node:fs/promises";
-import { delimiter, dirname, isAbsolute, join as join2, sep } from "node:path";
+import { basename as basename2, delimiter, dirname, isAbsolute, join as join2, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { spawn } from "node:child_process";
@@ -345,12 +345,18 @@ function openedEditor(script, exec, result) {
   const args = exec.arguments;
   const command = args?.command;
   if (typeof command !== "string" || args?.run_in_background === true) return null;
-  const at = command.indexOf(script);
-  if (at < 0 || !/(?:^|[\s"'])open(?:[\s"']|$)/.test(command.slice(at + script.length))) return null;
+  if (!/(?:^|[\s"'])open(?:[\s"']|$)/.test(command)) return null;
   const stdout = bashStdout(result);
   const opened = stdout === null ? void 0 : jsonObjects(stdout).findLast((o) => typeof o.root === "string" && typeof o.url === "string");
   if (typeof opened?.root !== "string" || typeof opened.url !== "string") return null;
+  if (!ranScript(script, command, opened.stop)) return null;
   return { session: String(exec.agent.id), root: opened.root, url: opened.url };
+}
+function ranScript(script, command, stop) {
+  if (typeof stop !== "string") return command.includes(script);
+  if (stop.includes(script)) return true;
+  const folder = basename2(dirname(dirname(script)));
+  return new RegExp(`[/\\\\]${folder.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}[/\\\\]scripts[/\\\\]artifact\\.mjs`).test(stop);
 }
 var bound = (text) => text.length <= SUMMARY_MAX ? text : `${text.slice(0, SUMMARY_MAX - 1)}…`;
 function commentMessage(skill, plugin, out, root) {

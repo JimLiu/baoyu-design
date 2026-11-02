@@ -1,11 +1,11 @@
-// dsh-claude-dashboard 2.7.0: built from baoyu-design.
+// dsh-claude-dashboard 2.7.1: built from baoyu-design.
 var define_PLUGIN_default = { name: "claude-dashboard", provider: "dsh-claude-dashboard", skills: [{ name: "claude-dashboard", description: "Use this for a local, data-backed dashboard, metrics page, KPI tracker, scorecard, data visualization or recurring report that opens in the bundled live editor: a page or scroll story of charts, numbers and tables over datasets (a CSV/TSV/JSON file the user has, or data you gather and attach), with a Sources panel that shows where every number comes from. Read it when creating, filling, refreshing or revising one. You write the datasets, then the page as plain HTML, into the dashboard's own store with this skill's script. Not for a static HTML mockup or a picture of a dashboard: that is the baoyu-design skill.", scriptAlias: "A", comments: true }] };
 
 import { spawn as spawn2 } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { statSync } from "node:fs";
 import { readFile } from "node:fs/promises";
-import { delimiter, dirname, isAbsolute, join as join2, sep } from "node:path";
+import { basename as basename2, delimiter, dirname, isAbsolute, join as join2, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { spawn } from "node:child_process";
@@ -345,12 +345,18 @@ function openedEditor(script, exec, result) {
   const args = exec.arguments;
   const command = args?.command;
   if (typeof command !== "string" || args?.run_in_background === true) return null;
-  const at = command.indexOf(script);
-  if (at < 0 || !/(?:^|[\s"'])open(?:[\s"']|$)/.test(command.slice(at + script.length))) return null;
+  if (!/(?:^|[\s"'])open(?:[\s"']|$)/.test(command)) return null;
   const stdout = bashStdout(result);
   const opened = stdout === null ? void 0 : jsonObjects(stdout).findLast((o) => typeof o.root === "string" && typeof o.url === "string");
   if (typeof opened?.root !== "string" || typeof opened.url !== "string") return null;
+  if (!ranScript(script, command, opened.stop)) return null;
   return { session: String(exec.agent.id), root: opened.root, url: opened.url };
+}
+function ranScript(script, command, stop) {
+  if (typeof stop !== "string") return command.includes(script);
+  if (stop.includes(script)) return true;
+  const folder = basename2(dirname(dirname(script)));
+  return new RegExp(`[/\\\\]${folder.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}[/\\\\]scripts[/\\\\]artifact\\.mjs`).test(stop);
 }
 var bound = (text) => text.length <= SUMMARY_MAX ? text : `${text.slice(0, SUMMARY_MAX - 1)}…`;
 function commentMessage(skill, plugin, out, root) {
