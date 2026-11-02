@@ -2,9 +2,9 @@
 // claude-design-system: local Artifact tool (prebuilt; do not edit).
 
 import { spawn } from "node:child_process";
-import fs11 from "node:fs";
+import fs12 from "node:fs";
 import fsp3 from "node:fs/promises";
-import path13 from "node:path";
+import path14 from "node:path";
 import { fileURLToPath as fileURLToPath2, pathToFileURL } from "node:url";
 
 var BLOB_ID_PATTERN = /^[0-9a-f]{32}$/;
@@ -2654,7 +2654,7 @@ async function archiveEntries(root, skip = []) {
   const folder = path12.basename(path12.resolve(root)) || "artifact";
   const skipped = new Set(skip.map((file) => path12.resolve(file)));
   const entries = [];
-  const walk = async (dir, rel) => {
+  const walk2 = async (dir, rel) => {
     let names;
     try {
       names = await fsp2.readdir(dir, { withFileTypes: true });
@@ -2668,14 +2668,14 @@ async function archiveEntries(root, skip = []) {
       const file = path12.join(dir, name);
       if (skipped.has(file)) continue;
       const inner = rel ? `${rel}/${name}` : name;
-      if (dirent.isDirectory()) await walk(file, inner);
+      if (dirent.isDirectory()) await walk2(file, inner);
       else if (dirent.isFile()) {
         const stat = await fsp2.stat(file).catch(() => null);
         if (stat?.isFile()) entries.push({ name: `${folder}/${inner}`, file, size: stat.size, mode: stat.mode & 511, mtime: stat.mtime });
       }
     }
   };
-  await walk(path12.resolve(root), "");
+  await walk2(path12.resolve(root), "");
   if (entries.length > MAX_ENTRIES) throw new ArchiveTooLarge(`The folder holds ${entries.length} files, more than a zip holds (${MAX_ENTRIES}); copy the folder itself instead.`);
   const bound = entries.reduce((sum, entry) => sum + entry.size + 2 * (46 + Buffer.byteLength(entry.name)), 22);
   if (bound > MAX_BYTES) throw new ArchiveTooLarge(`The folder holds ${(bound / 2 ** 30).toFixed(1)} GiB, more than a zip holds (4 GiB); copy the folder itself instead.`);
@@ -2807,6 +2807,156 @@ async function archiveCommand(root, out) {
   return { file, folder: path12.basename(path12.resolve(root)), files, bytes, leftOut: [...LOCAL_FILES] };
 }
 
+import fs11 from "node:fs";
+import path13 from "node:path";
+var FOLDER = /^[a-z0-9][a-z0-9_-]{0,63}$/;
+var MAX_FILES = 2e3;
+var MAX_FILE_BYTES = 64 * 1024 * 1024;
+var DESIGN_SYSTEM_FILE2 = "design-system.json";
+function readRecords(project, indexFile) {
+  let index;
+  try {
+    index = JSON.parse(fs11.readFileSync(path13.join(project, indexFile), "utf8"));
+  } catch {
+    return [];
+  }
+  const list = index?.designSystems;
+  const records = Array.isArray(list) ? list : list && typeof list === "object" ? Object.values(list) : [];
+  const out = [];
+  for (const raw of records) {
+    const r = raw;
+    if (typeof r?.namespace !== "string" || !FOLDER.test(r.namespace)) continue;
+    out.push({
+      namespace: r.namespace,
+      title: typeof r.title === "string" ? r.title : r.namespace,
+      artifact: typeof r.artifact === "string" ? r.artifact : ""
+    });
+  }
+  return out;
+}
+function plain(p, want) {
+  const stat = fs11.lstatSync(p, { throwIfNoEntry: false });
+  return Boolean(stat && !stat.isSymbolicLink() && (want === "file" ? stat.isFile() : stat.isDirectory()));
+}
+function walk(dir, prefix = "", out = []) {
+  for (const entry of fs11.readdirSync(path13.join(dir, prefix), { withFileTypes: true })) {
+    if (out.length >= MAX_FILES) break;
+    const rel = prefix ? `${prefix}/${entry.name}` : entry.name;
+    if (entry.isDirectory()) walk(dir, rel, out);
+    else if (entry.isFile()) out.push(rel);
+  }
+  return out;
+}
+var projectOf = (candidate) => path13.basename(candidate) === "project" ? candidate : path13.join(candidate, "project");
+function sourceProject(artifact, root, from) {
+  const given = from ?? artifact;
+  if (!given) return { reason: "the record names no source folder", kind: "none" };
+  if (!from && /^[a-z][a-z0-9+.-]*:\/\//i.test(given)) return { reason: `its source is ${given}, which is not a folder on this machine`, kind: "remote" };
+  const candidates = path13.isAbsolute(given) ? [given] : [path13.resolve(given), path13.resolve(root, given), path13.resolve(root, "..", given)];
+  for (const candidate of candidates) {
+    const project = projectOf(candidate);
+    if (plain(project, "dir")) return { project };
+  }
+  if (!from && !path13.isAbsolute(given)) {
+    let dir = path13.resolve(root, "..");
+    for (let up = path13.dirname(dir); up !== dir; up = path13.dirname(dir)) {
+      dir = up;
+      const project = projectOf(path13.resolve(dir, given));
+      if (plain(path13.join(project, DESIGN_SYSTEM_FILE2), "file")) return { project };
+    }
+  }
+  return { reason: `its source folder ${given} was not found${from ? "" : ` (tried from ${process.cwd()} and the folders above the artifact); pass --from <folder>`}`, kind: "not-found" };
+}
+function compareSystem(project, root, record, from) {
+  const diff = { namespace: record.namespace, title: record.title, changed: [], removed: [] };
+  const found = sourceProject(record.artifact, root, from);
+  if (!found.project) return { ...diff, skipped: found.reason, skippedKind: found.kind };
+  diff.source = path13.dirname(found.project);
+  const copy = path13.join(project, "ds", record.namespace);
+  if (!plain(copy, "dir")) return { ...diff, missing: true };
+  for (const rel of walk(copy)) {
+    const mine = path13.join(copy, rel);
+    const theirs = path13.join(found.project, rel);
+    if (!plain(mine, "file")) continue;
+    if (!plain(theirs, "file")) {
+      diff.removed.push(rel);
+      continue;
+    }
+    const a = fs11.statSync(mine);
+    const b = fs11.statSync(theirs);
+    if (a.size > MAX_FILE_BYTES || b.size > MAX_FILE_BYTES) continue;
+    if (a.size !== b.size || !fs11.readFileSync(mine).equals(fs11.readFileSync(theirs))) diff.changed.push(rel);
+  }
+  return diff;
+}
+function pick(records, namespace) {
+  if (namespace === void 0) return records;
+  const one = records.filter((r) => r.namespace === namespace);
+  if (one.length === 0) {
+    const names = records.map((r) => r.namespace);
+    throw new Error(`No designSystems record has namespace ${JSON.stringify(namespace)}${names.length ? ` (it has: ${names.join(", ")})` : ""}.`);
+  }
+  return one;
+}
+function compareSystems(project, root, indexFile, namespace, from) {
+  return pick(readRecords(project, indexFile), namespace).map((r) => compareSystem(project, root, r, from));
+}
+function staleNotes(project, root, indexFile, command) {
+  const notes = [];
+  for (const diff of compareSystems(project, root, indexFile)) {
+    if (diff.changed.length === 0 && diff.removed.length === 0) continue;
+    const parts = [];
+    if (diff.changed.length > 0) parts.push(`${diff.changed.length} changed (${diff.changed.slice(0, 3).join(", ")}${diff.changed.length > 3 ? ", \u2026" : ""})`);
+    if (diff.removed.length > 0) parts.push(`${diff.removed.length} gone from the source`);
+    notes.push(
+      `project/ds/${diff.namespace}/ is behind its source system ${diff.source}: ${parts.join(", ")}. A copy never changes by itself: run \`${command(diff.namespace, false)}\` to copy the changed files again (\`${command(diff.namespace, true)}\` lists them).`
+    );
+  }
+  return notes;
+}
+function stamp(project, indexFile, namespaces, now) {
+  const file = path13.join(project, indexFile);
+  const text = fs11.readFileSync(file, "utf8");
+  const index = JSON.parse(text);
+  const list = index.designSystems;
+  const records = Array.isArray(list) ? list : list && typeof list === "object" ? Object.values(list) : [];
+  for (const r of records) {
+    const record = r;
+    if (record && typeof record.namespace === "string" && namespaces.has(record.namespace)) record.copiedAt = now;
+  }
+  const indent = /^\{\n/.test(text) ? /\n( +|\t)"/.exec(text)?.[1] ?? 2 : void 0;
+  const out = JSON.stringify(index, null, indent);
+  const tmp = `${file}.${process.pid}.tmp`;
+  fs11.writeFileSync(tmp, text.endsWith("\n") ? `${out}
+` : out);
+  fs11.renameSync(tmp, file);
+}
+function syncSystems(project, root, indexFile, opts) {
+  const diffs = compareSystems(project, root, indexFile, opts.namespace, opts.from);
+  const results = [];
+  const synced = /* @__PURE__ */ new Set();
+  const now = (/* @__PURE__ */ new Date()).toISOString().replace(/\.\d{3}Z$/, "Z");
+  for (const diff of diffs) {
+    const result = { ...diff, copied: [] };
+    if (!opts.check && diff.source && !diff.missing) {
+      for (const rel of diff.changed) {
+        const target = path13.join(project, "ds", diff.namespace, rel);
+        const tmp = `${target}.${process.pid}.tmp`;
+        fs11.copyFileSync(path13.join(diff.source, "project", rel), tmp);
+        fs11.renameSync(tmp, target);
+        result.copied.push(rel);
+      }
+      if (diff.changed.length > 0) synced.add(diff.namespace);
+    }
+    results.push(result);
+  }
+  if (synced.size > 0) {
+    stamp(project, indexFile, synced, now);
+    for (const r of results) if (synced.has(r.namespace)) r.copiedAt = now;
+  }
+  return results;
+}
+
 async function shareCall(url, action, fail2) {
   const response = await fetch(new URL("/__share", url), action ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(action) } : {});
   const body = await response.json().catch(() => ({}));
@@ -2888,8 +3038,8 @@ process.emitWarning = ((warning, ...rest) => {
 });
 var KIND = "design-system";
 var SCRIPT = fileURLToPath2(import.meta.url);
-var EDITOR_DIR = path13.join(path13.dirname(SCRIPT), "editor");
-var SERVER_SCRIPT = path13.join(path13.dirname(SCRIPT), "server.mjs");
+var EDITOR_DIR = path14.join(path14.dirname(SCRIPT), "editor");
+var SERVER_SCRIPT = path14.join(path14.dirname(SCRIPT), "server.mjs");
 var MAX_LISTED = 200;
 var UPLOAD_MAX_BYTES = 20 * 1024 * 1024;
 var INDEX_FILE = KIND === "slides" ? "deck.json" : KIND === "design" ? CANVAS_FILE : DESIGN_SYSTEM_FILE;
@@ -2902,7 +3052,7 @@ var CliError = class extends Error {
     this.code = code;
   }
 };
-var SWITCHES = /* @__PURE__ */ new Set(["all", "wait", "resolve", "reopen", "lan", "off"]);
+var SWITCHES = /* @__PURE__ */ new Set(["all", "wait", "resolve", "reopen", "lan", "off", "check"]);
 function parseArgs(argv) {
   const positional = [];
   const flags = /* @__PURE__ */ new Map();
@@ -2928,13 +3078,13 @@ function quote(s) {
 }
 function resolveArtifact(given, mustExist = true) {
   if (!given) throw new CliError("MISSING_ROOT", `Give the artifact folder: the one that holds project/${INDEX_FILE}.`);
-  let root = path13.resolve(given);
-  if (path13.basename(root) === "project" && fs11.existsSync(path13.join(root, INDEX_FILE)) && !fs11.existsSync(path13.join(root, "project"))) {
-    root = path13.dirname(root);
+  let root = path14.resolve(given);
+  if (path14.basename(root) === "project" && fs12.existsSync(path14.join(root, INDEX_FILE)) && !fs12.existsSync(path14.join(root, "project"))) {
+    root = path14.dirname(root);
   }
-  const project = path13.join(root, "project");
+  const project = path14.join(root, "project");
   if (mustExist) {
-    const stat = fs11.statSync(project, { throwIfNoEntry: false });
+    const stat = fs12.statSync(project, { throwIfNoEntry: false });
     if (!stat?.isDirectory()) {
       throw new CliError("NOT_FOUND", `${project} does not exist. Write project/${INDEX_FILE} and the other files under ${root} first.`);
     }
@@ -2956,7 +3106,7 @@ function localize(value) {
 function designSystemNotes(project, indexFile) {
   let index;
   try {
-    index = JSON.parse(fs11.readFileSync(path13.join(project, indexFile), "utf8"));
+    index = JSON.parse(fs12.readFileSync(path14.join(project, indexFile), "utf8"));
   } catch {
     return [];
   }
@@ -2970,14 +3120,15 @@ function designSystemNotes(project, indexFile) {
       notes.push(`designSystems namespace ${JSON.stringify(ns)} is not a folder name ([a-z0-9][a-z0-9_-]{0,63}): the page skips it. Use the lower-case folder (list prints it as folder), the same in the record and in project/ds/<folder>/.`);
       continue;
     }
-    const folder = path13.join(project, "ds", ns);
-    if (!fs11.existsSync(folder)) {
+    const folder = path14.join(project, "ds", ns);
+    if (!fs12.existsSync(folder)) {
       notes.push(`designSystems names "${ns}" but project/ds/${ns}/ does not exist: copy the system's project/tokens.json (and the files you use) there, or take the record out.`);
-    } else if (!fs11.existsSync(path13.join(folder, "tokens.json"))) {
+    } else if (!fs12.existsSync(path14.join(folder, "tokens.json"))) {
       notes.push(`project/ds/${ns}/ has no tokens.json, so the Theme and color menus show bare hexes: copy the system's project/tokens.json there (a system with none: nothing to do).`);
     }
   }
-  return notes;
+  const root = path14.dirname(project);
+  return [...notes, ...staleNotes(project, root, indexFile, (ns, listOnly) => script("ds-sync", root, ns, ...listOnly ? ["--check"] : []))];
 }
 async function check(a) {
   if (KIND === "slides") {
@@ -2985,9 +3136,9 @@ async function check(a) {
     try {
       rt = loadSlidesCompiler(EDITOR_DIR);
     } catch {
-      throw new CliError("COMPILER_MISSING", `The slides compiler is missing (${path13.join(EDITOR_DIR, "node", "compiler.cjs")}); reinstall the skill.`);
+      throw new CliError("COMPILER_MISSING", `The slides compiler is missing (${path14.join(EDITOR_DIR, "node", "compiler.cjs")}); reinstall the skill.`);
     }
-    if (!fs11.existsSync(path13.join(a.project, "deck.json"))) {
+    if (!fs12.existsSync(path14.join(a.project, "deck.json"))) {
       return {
         problems: 1,
         result: {
@@ -3026,7 +3177,7 @@ async function check(a) {
         ...slides.length > 0 ? { slides } : {},
         ...dsNotes.length > 0 ? { designSystemNotes: dsNotes } : {},
         notChecked: "Text sizes, contrast, whether a section id matches its file name and whether an image path exists are not checked (nothing is rendered).",
-        next: problems2 > 0 ? `Fix the files named in deckProblems and in each slide's problems (paths are under project/), then run check again until problems is 0. notes are hints and lose no content; fix the layout ones (starting "\u6392\u7248") and the warnings (starting "\u8B66\u544A": a font or image falls back) too.` : `No problems. Show it to the user: ${script("open", a.root)} prints the editor URL.` + (layoutNotes ? ' Some slides carry layout notes ("\u6392\u7248": content may overflow or overlap) or warnings ("\u8B66\u544A": a font or image falls back); fix them and check again.' : "") + (report.orphans.length > 0 ? " orphans are slide files missing from order: they do not show; delete the unneeded ones." : "") + (dsNotes.length > 0 ? " Read designSystemNotes: a design system install looks incomplete." : "")
+        next: problems2 > 0 ? `Fix the files named in deckProblems and in each slide's problems (paths are under project/), then run check again until problems is 0. notes are hints and lose no content; fix the layout ones (starting "\u6392\u7248") and the warnings (starting "\u8B66\u544A": a font or image falls back) too.` : `No problems. Show it to the user: ${script("open", a.root)} prints the editor URL.` + (layoutNotes ? ' Some slides carry layout notes ("\u6392\u7248": content may overflow or overlap) or warnings ("\u8B66\u544A": a font or image falls back); fix them and check again.' : "") + (report.orphans.length > 0 ? " orphans are slide files missing from order: they do not show; delete the unneeded ones." : "") + (dsNotes.length > 0 ? " Read designSystemNotes: a design system install looks incomplete or behind its source." : "")
       }
     };
   }
@@ -3045,17 +3196,17 @@ async function check(a) {
         ...problems2 > MAX_LISTED ? { more: `${problems2 - MAX_LISTED} more not listed: fix these, then check again` } : {},
         ...dsNotes.length > 0 ? { designSystemNotes: dsNotes } : {},
         notChecked: "Whether the artboard scripts run, and how the layout looks, is not checked (nothing is rendered).",
-        next: problems2 > 0 ? 'Fix the files per issues (file is a path under project/; "." is the whole folder), then run check again until problems is 0.' : `No problems. Show it to the user: ${script("open", a.root)} prints the editor URL.` + (dsNotes.length > 0 ? " Read designSystemNotes: a design system install looks incomplete." : "")
+        next: problems2 > 0 ? 'Fix the files per issues (file is a path under project/; "." is the whole folder), then run check again until problems is 0.' : `No problems. Show it to the user: ${script("open", a.root)} prints the editor URL.` + (dsNotes.length > 0 ? " Read designSystemNotes: a design system install looks incomplete or behind its source." : "")
       }
     };
   }
   const r = await checkDesignSystem(a.project);
   const problems = r.issues.length;
-  if (fs11.existsSync(path13.join(a.project, DESIGN_SYSTEM_FILE))) {
-    if (!fs11.existsSync(path13.join(a.project, "README.md"))) {
+  if (fs12.existsSync(path14.join(a.project, DESIGN_SYSTEM_FILE))) {
+    if (!fs12.existsSync(path14.join(a.project, "README.md"))) {
       r.notes.push({ file: "README.md", message: "missing: every system includes project/README.md; every reader starts there (Creating, step 1)" });
     }
-    if (!fs11.existsSync(path13.join(a.project, "components", "Cover", "preview.html"))) {
+    if (!fs12.existsSync(path14.join(a.project, "components", "Cover", "preview.html"))) {
       r.notes.push({ file: "components/Cover/preview.html", message: "missing: every system gets a cover, written last before the index (cover.md)" });
     }
   }
@@ -3081,11 +3232,11 @@ function formatBytes(n) {
 }
 async function upload(a, given, group) {
   if (!given) throw new CliError("MISSING_FILE", "Give the file to upload.");
-  const file = path13.resolve(given);
+  const file = path14.resolve(given);
   const stat = await fsp3.stat(file).catch(() => null);
   if (!stat) throw new CliError("FILE_NOT_FOUND", `No such file: ${given}`);
   if (!stat.isFile()) throw new CliError("NOT_A_FILE", `${given} is not a regular file.`);
-  const ext = path13.extname(file).slice(1).toLowerCase();
+  const ext = path14.extname(file).slice(1).toLowerCase();
   const type = contentTypeOf(file);
   const isMedia = type.startsWith("image/") || type.startsWith("font/");
   let limit = UPLOAD_MAX_BYTES;
@@ -3110,7 +3261,7 @@ async function upload(a, given, group) {
   if (stat.size > limit) throw new CliError("FILE_TOO_LARGE", `${given} is ${formatBytes(stat.size)}, over the ${formatBytes(limit)} limit: compress or shrink it first.`);
   const bytes = await fsp3.readFile(file);
   const uploaded = await new DeckStore(a.project, LAYOUT).putBlob(bytes, type);
-  const base = path13.basename(file);
+  const base = path14.basename(file);
   if (KIND !== "design-system") {
     return {
       url: uploaded.url,
@@ -3142,12 +3293,12 @@ function folderName(name) {
 }
 var SKIP_DIRS = /* @__PURE__ */ new Set(["node_modules", "dist", "build", "out", "vendor", "target"]);
 async function listSystems(dirs) {
-  const extra = (process.env.CLAUDE_DESIGN_SYSTEMS ?? "").split(path13.delimiter).filter(Boolean);
-  const starts = [...dirs.length > 0 ? dirs : [process.cwd()], ...extra].map((d) => path13.resolve(d));
+  const extra = (process.env.CLAUDE_DESIGN_SYSTEMS ?? "").split(path14.delimiter).filter(Boolean);
+  const starts = [...dirs.length > 0 ? dirs : [process.cwd()], ...extra].map((d) => path14.resolve(d));
   const found = /* @__PURE__ */ new Map();
   const visit = async (dir, depth) => {
-    const project = path13.join(dir, "project");
-    if (fs11.existsSync(path13.join(project, DESIGN_SYSTEM_FILE)) && !found.has(dir)) {
+    const project = path14.join(dir, "project");
+    if (fs12.existsSync(path14.join(project, DESIGN_SYSTEM_FILE)) && !found.has(dir)) {
       const info = await readDesignSystemInfo(project).catch(() => null);
       if (info) {
         const namespace = info.namespace;
@@ -3156,8 +3307,8 @@ async function listSystems(dirs) {
           namespace: namespace ?? null,
           folder: folderName(typeof namespace === "string" && namespace.trim() ? namespace : String(info.title ?? "")),
           root: dir,
-          readme: fs11.existsSync(path13.join(project, "README.md")) ? path13.join(project, "README.md") : null,
-          tokens: fs11.existsSync(path13.join(project, "tokens.json")) ? path13.join(project, "tokens.json") : null
+          readme: fs12.existsSync(path14.join(project, "README.md")) ? path14.join(project, "README.md") : null,
+          tokens: fs12.existsSync(path14.join(project, "tokens.json")) ? path14.join(project, "tokens.json") : null
         });
         return;
       }
@@ -3166,7 +3317,7 @@ async function listSystems(dirs) {
     const entries = await fsp3.readdir(dir, { withFileTypes: true }).catch(() => []);
     for (const entry of entries) {
       if (!entry.isDirectory() || entry.name.startsWith(".") || SKIP_DIRS.has(entry.name) || entry.name === "project") continue;
-      await visit(path13.join(dir, entry.name), depth - 1);
+      await visit(path14.join(dir, entry.name), depth - 1);
     }
   };
   for (const start of starts) await visit(start, 4);
@@ -3190,10 +3341,10 @@ function reusedNote(a, flags) {
   return flags.get("agent-hook") ? { note: `--agent-hook was not applied: the server was already running. To use it: ${script("stop", a.root)}, then open again.` } : {};
 }
 function assertServerFiles() {
-  if (!fs11.existsSync(path13.join(EDITOR_DIR, "index.html"))) {
+  if (!fs12.existsSync(path14.join(EDITOR_DIR, "index.html"))) {
     throw new CliError("EDITOR_MISSING", `The editor page is missing (${EDITOR_DIR}); reinstall the skill.`);
   }
-  if (!fs11.existsSync(SERVER_SCRIPT)) {
+  if (!fs12.existsSync(SERVER_SCRIPT)) {
     throw new CliError("EDITOR_MISSING", `The editor server is missing (${SERVER_SCRIPT}); reinstall the skill.`);
   }
 }
@@ -3221,21 +3372,21 @@ async function open(a, flags) {
   assertServerFiles();
   const existing = await runningServer2(a.root);
   if (existing) {
-    print({ url: existing.url, root: a.root, pid: existing.pid, reused: true, ...await lanOn2(existing.url, flags), log: path13.join(a.root, LOG_FILE), stop: script("stop", a.root), ...reusedNote(a, flags) });
+    print({ url: existing.url, root: a.root, pid: existing.pid, reused: true, ...await lanOn2(existing.url, flags), log: path14.join(a.root, LOG_FILE), stop: script("stop", a.root), ...reusedNote(a, flags) });
     return;
   }
   const state = await startBackground(a, flags);
   const view = await shareCall2(state.url, null).catch(() => null);
-  print({ url: state.url, root: a.root, pid: state.pid, ...view?.lan ? { lan: lanUrls(view) } : {}, log: path13.join(a.root, LOG_FILE), stop: script("stop", a.root) });
+  print({ url: state.url, root: a.root, pid: state.pid, ...view?.lan ? { lan: lanUrls(view) } : {}, log: path14.join(a.root, LOG_FILE), stop: script("stop", a.root) });
 }
 async function startBackground(a, flags) {
   const port = Number(flags.get("port") ?? 0);
   if (!Number.isInteger(port) || port < 0 || port > 65535) throw new CliError("INVALID_PORT", "--port is a number from 0 to 65535.");
-  const logFile = path13.join(a.root, LOG_FILE);
-  const fd = fs11.openSync(logFile, "a");
+  const logFile = path14.join(a.root, LOG_FILE);
+  const fd = fs12.openSync(logFile, "a");
   const child = spawn(process.execPath, [SERVER_SCRIPT, a.root, ...serverArgs(flags)], { detached: true, stdio: ["ignore", "ignore", fd] });
   child.unref();
-  fs11.closeSync(fd);
+  fs12.closeSync(fd);
   let exited = false;
   child.once("exit", () => exited = true);
   const deadline = Date.now() + 15e3;
@@ -3245,14 +3396,14 @@ async function startBackground(a, flags) {
     if (state && state.pid === child.pid) return state;
     if (exited) break;
   }
-  const tail = fs11.existsSync(logFile) ? fs11.readFileSync(logFile, "utf8").split("\n").slice(-12).join("\n") : "";
+  const tail = fs12.existsSync(logFile) ? fs12.readFileSync(logFile, "utf8").split("\n").slice(-12).join("\n") : "";
   throw new CliError("SERVER_FAILED", `The editor server did not start. Run ${script("serve", a.root)} in the foreground to see why.${tail ? `
 ${tail}` : ""}`);
 }
 async function stop(a) {
   const state = readState(a.root);
   if (!state || !alive(state.pid)) {
-    fs11.rmSync(path13.join(a.root, STATE_FILE), { force: true });
+    fs12.rmSync(path14.join(a.root, STATE_FILE), { force: true });
     print({ stopped: false, message: "No editor server is running for this folder." });
     return;
   }
@@ -3263,7 +3414,7 @@ async function stop(a) {
     print({ stopped: false, pid: state.pid, message: `The server did not exit within 5 s; end it with: kill ${state.pid}` });
     return;
   }
-  fs11.rmSync(path13.join(a.root, STATE_FILE), { force: true });
+  fs12.rmSync(path14.join(a.root, STATE_FILE), { force: true });
   print({ stopped: true, pid: state.pid });
 }
 async function share(a, flags) {
@@ -3307,7 +3458,7 @@ async function listComments(a, all) {
 async function artifactTitle(a) {
   const info = await readInfo(a.project).catch(() => null);
   const title = typeof info?.title === "string" ? info.title.trim() : "";
-  return title && title !== "project" ? title : path13.basename(a.root);
+  return title && title !== "project" ? title : path14.basename(a.root);
 }
 async function waitComments(a, flags) {
   const timeout = flags.has("timeout") ? Number(flags.get("timeout")) : Infinity;
@@ -3403,7 +3554,10 @@ Usage:
   node scripts/artifact.mjs check  <root>                         validate project/; exit 1 while problems remain
   node scripts/artifact.mjs upload <root> <file>${KIND === "design-system" ? " --group G  " : "            "}      store an upload; prints its /_blob/<id> url
   node scripts/artifact.mjs list   [dir \u2026]                        find design systems (folders holding project/design-system.json)
-  node scripts/artifact.mjs comments <root> [--all]               the open comments people left in the editor (--all: resolved too)
+${KIND === "design-system" ? "" : `  node scripts/artifact.mjs ds-sync <root> [namespace] [--check]  an installed design system is a copy: copy its changed files again
+                                                                  from the system's folder and stamp copiedAt (--check: list only;
+                                                                  --from <folder>: the source, when the record's path is not found)
+`}  node scripts/artifact.mjs comments <root> [--all]               the open comments people left in the editor (--all: resolved too)
   node scripts/artifact.mjs comments <root> --wait [--timeout s]  wait for a comment sent to the agent from the open editor
   node scripts/artifact.mjs comment-reply <root> <id> <text|->    reply as the agent (-: text on stdin) [--resolve]
   node scripts/artifact.mjs comment-resolve <root> <id> [--reopen]   mark a comment resolved (or open again)
@@ -3434,16 +3588,43 @@ async function main() {
     }
     case "upload": {
       const a = resolveArtifact(positional[0], false);
-      if (!fs11.statSync(a.root, { throwIfNoEntry: false })?.isDirectory()) {
+      if (!fs12.statSync(a.root, { throwIfNoEntry: false })?.isDirectory()) {
         throw new CliError("NOT_FOUND", `${a.root} does not exist. Make the artifact folder first.`);
       }
-      fs11.mkdirSync(a.project, { recursive: true });
+      fs12.mkdirSync(a.project, { recursive: true });
       print(await upload(a, positional[1], flags.get("group")));
       return 0;
     }
     case "list":
       print(await listSystems(positional));
       return 0;
+    case "ds-sync": {
+      if (KIND === "design-system") throw new CliError("NOT_APPLICABLE", "A design system has no installed design systems: ds-sync is for decks and canvases.");
+      const a = resolveArtifact(positional[0]);
+      const check2 = flags.has("check");
+      let results;
+      try {
+        results = syncSystems(a.project, a.root, INDEX_FILE, { namespace: positional[1], from: flags.get("from"), check: check2 });
+      } catch (error) {
+        throw new CliError("NO_SUCH_SYSTEM", error.message);
+      }
+      const behind = results.filter((r) => r.changed.length > 0 || r.removed.length > 0);
+      print({
+        root: a.root,
+        systems: results.map((r) => ({
+          namespace: r.namespace,
+          title: r.title,
+          ...r.skipped ? { skipped: r.skipped } : {},
+          ...r.missing ? { skipped: `project/ds/${r.namespace}/ does not exist: install it first (SKILL.md, Creating, step 4)` } : {},
+          ...r.source ? { source: r.source } : {},
+          changed: r.changed,
+          ...r.removed.length > 0 ? { goneFromSource: r.removed } : {},
+          ...check2 ? {} : { copied: r.copied, ...r.copiedAt ? { copiedAt: r.copiedAt } : {} }
+        })),
+        next: check2 ? behind.length > 0 ? `Behind its source. Run ${script("ds-sync", a.root)} to copy the changed files again.` : "Every copy matches its source (or its source was not found: see skipped)." : results.some((r) => r.copied.length > 0) ? "Copied. The open editor shows the new files at once (a file over 2 MB, or a types file, after a reload). Files the source dropped stay in the copy: remove one, and change the artboards that load it, if the source no longer has it. Files the source gained are not copied: compare its README with project/ds/<folder>/." : "Nothing to copy."
+      });
+      return check2 && behind.some((r) => r.changed.length > 0) ? 1 : 0;
+    }
     case "comments": {
       const a = resolveArtifact(positional[0]);
       print(flags.has("wait") ? await waitComments(a, flags) : await listComments(a, flags.has("all")));

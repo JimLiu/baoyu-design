@@ -1,14 +1,14 @@
 #!/usr/bin/env node
 // claude-slides: local editor server (prebuilt; do not edit).
 
-import fs11 from "node:fs";
-import path11 from "node:path";
+import fs12 from "node:fs";
+import path12 from "node:path";
 
 import { createHash as createHash3, randomBytes as randomBytes2, randomUUID } from "node:crypto";
-import fs10 from "node:fs";
+import fs11 from "node:fs";
 import fsp4 from "node:fs/promises";
 import http from "node:http";
-import path10 from "node:path";
+import path11 from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { spawn } from "node:child_process";
@@ -1496,9 +1496,155 @@ ${sections || '<p class="muted">This copy has no tokens, components or guide.</p
 `;
 }
 
-import { createHash, randomBytes } from "node:crypto";
 import fs5 from "node:fs";
 import path5 from "node:path";
+var FOLDER2 = /^[a-z0-9][a-z0-9_-]{0,63}$/;
+var MAX_FILES = 2e3;
+var MAX_FILE_BYTES2 = 64 * 1024 * 1024;
+var DESIGN_SYSTEM_FILE = "design-system.json";
+function readRecords(project, indexFile) {
+  let index;
+  try {
+    index = JSON.parse(fs5.readFileSync(path5.join(project, indexFile), "utf8"));
+  } catch {
+    return [];
+  }
+  const list = index?.designSystems;
+  const records = Array.isArray(list) ? list : list && typeof list === "object" ? Object.values(list) : [];
+  const out = [];
+  for (const raw of records) {
+    const r = raw;
+    if (typeof r?.namespace !== "string" || !FOLDER2.test(r.namespace)) continue;
+    out.push({
+      namespace: r.namespace,
+      title: typeof r.title === "string" ? r.title : r.namespace,
+      artifact: typeof r.artifact === "string" ? r.artifact : ""
+    });
+  }
+  return out;
+}
+function plain(p, want) {
+  const stat = fs5.lstatSync(p, { throwIfNoEntry: false });
+  return Boolean(stat && !stat.isSymbolicLink() && (want === "file" ? stat.isFile() : stat.isDirectory()));
+}
+function walk(dir, prefix = "", out = []) {
+  for (const entry of fs5.readdirSync(path5.join(dir, prefix), { withFileTypes: true })) {
+    if (out.length >= MAX_FILES) break;
+    const rel = prefix ? `${prefix}/${entry.name}` : entry.name;
+    if (entry.isDirectory()) walk(dir, rel, out);
+    else if (entry.isFile()) out.push(rel);
+  }
+  return out;
+}
+var projectOf = (candidate) => path5.basename(candidate) === "project" ? candidate : path5.join(candidate, "project");
+function sourceProject(artifact, root, from) {
+  const given = from ?? artifact;
+  if (!given) return { reason: "the record names no source folder", kind: "none" };
+  if (!from && /^[a-z][a-z0-9+.-]*:\/\//i.test(given)) return { reason: `its source is ${given}, which is not a folder on this machine`, kind: "remote" };
+  const candidates = path5.isAbsolute(given) ? [given] : [path5.resolve(given), path5.resolve(root, given), path5.resolve(root, "..", given)];
+  for (const candidate of candidates) {
+    const project = projectOf(candidate);
+    if (plain(project, "dir")) return { project };
+  }
+  if (!from && !path5.isAbsolute(given)) {
+    let dir = path5.resolve(root, "..");
+    for (let up = path5.dirname(dir); up !== dir; up = path5.dirname(dir)) {
+      dir = up;
+      const project = projectOf(path5.resolve(dir, given));
+      if (plain(path5.join(project, DESIGN_SYSTEM_FILE), "file")) return { project };
+    }
+  }
+  return { reason: `its source folder ${given} was not found${from ? "" : ` (tried from ${process.cwd()} and the folders above the artifact); pass --from <folder>`}`, kind: "not-found" };
+}
+function compareSystem(project, root, record, from) {
+  const diff = { namespace: record.namespace, title: record.title, changed: [], removed: [] };
+  const found = sourceProject(record.artifact, root, from);
+  if (!found.project) return { ...diff, skipped: found.reason, skippedKind: found.kind };
+  diff.source = path5.dirname(found.project);
+  const copy = path5.join(project, "ds", record.namespace);
+  if (!plain(copy, "dir")) return { ...diff, missing: true };
+  for (const rel of walk(copy)) {
+    const mine = path5.join(copy, rel);
+    const theirs = path5.join(found.project, rel);
+    if (!plain(mine, "file")) continue;
+    if (!plain(theirs, "file")) {
+      diff.removed.push(rel);
+      continue;
+    }
+    const a = fs5.statSync(mine);
+    const b = fs5.statSync(theirs);
+    if (a.size > MAX_FILE_BYTES2 || b.size > MAX_FILE_BYTES2) continue;
+    if (a.size !== b.size || !fs5.readFileSync(mine).equals(fs5.readFileSync(theirs))) diff.changed.push(rel);
+  }
+  return diff;
+}
+function systemStatus(project, root, indexFile, namespace) {
+  const record = readRecords(project, indexFile).find((r) => r.namespace === namespace);
+  if (!record) return null;
+  const diff = compareSystem(project, root, record);
+  if (diff.skippedKind) return { state: "unknown", changed: 0, removed: 0, reason: diff.skippedKind };
+  if (diff.missing) return { state: "unknown", changed: 0, removed: 0, reason: "missing" };
+  return { state: diff.changed.length > 0 ? "behind" : "current", changed: diff.changed.length, removed: diff.removed.length };
+}
+var DS_SYNC = /^__ds-sync\/([a-z0-9][a-z0-9_-]{0,63})$/;
+function pick(records, namespace) {
+  if (namespace === void 0) return records;
+  const one = records.filter((r) => r.namespace === namespace);
+  if (one.length === 0) {
+    const names = records.map((r) => r.namespace);
+    throw new Error(`No designSystems record has namespace ${JSON.stringify(namespace)}${names.length ? ` (it has: ${names.join(", ")})` : ""}.`);
+  }
+  return one;
+}
+function compareSystems(project, root, indexFile, namespace, from) {
+  return pick(readRecords(project, indexFile), namespace).map((r) => compareSystem(project, root, r, from));
+}
+function stamp(project, indexFile, namespaces, now) {
+  const file = path5.join(project, indexFile);
+  const text = fs5.readFileSync(file, "utf8");
+  const index = JSON.parse(text);
+  const list = index.designSystems;
+  const records = Array.isArray(list) ? list : list && typeof list === "object" ? Object.values(list) : [];
+  for (const r of records) {
+    const record = r;
+    if (record && typeof record.namespace === "string" && namespaces.has(record.namespace)) record.copiedAt = now;
+  }
+  const indent = /^\{\n/.test(text) ? /\n( +|\t)"/.exec(text)?.[1] ?? 2 : void 0;
+  const out = JSON.stringify(index, null, indent);
+  const tmp = `${file}.${process.pid}.tmp`;
+  fs5.writeFileSync(tmp, text.endsWith("\n") ? `${out}
+` : out);
+  fs5.renameSync(tmp, file);
+}
+function syncSystems(project, root, indexFile, opts) {
+  const diffs = compareSystems(project, root, indexFile, opts.namespace, opts.from);
+  const results = [];
+  const synced = /* @__PURE__ */ new Set();
+  const now = (/* @__PURE__ */ new Date()).toISOString().replace(/\.\d{3}Z$/, "Z");
+  for (const diff of diffs) {
+    const result = { ...diff, copied: [] };
+    if (!opts.check && diff.source && !diff.missing) {
+      for (const rel of diff.changed) {
+        const target = path5.join(project, "ds", diff.namespace, rel);
+        const tmp = `${target}.${process.pid}.tmp`;
+        fs5.copyFileSync(path5.join(diff.source, "project", rel), tmp);
+        fs5.renameSync(tmp, target);
+        result.copied.push(rel);
+      }
+      if (diff.changed.length > 0) synced.add(diff.namespace);
+    }
+    results.push(result);
+  }
+  if (synced.size > 0) {
+    stamp(project, indexFile, synced, now);
+    for (const r of results) if (synced.has(r.namespace)) r.copiedAt = now;
+  }
+  return results;
+}
+
+import { createHash, randomBytes } from "node:crypto";
+import fs6 from "node:fs";
+import path6 from "node:path";
 var HISTORY_DIR = "history";
 var INDEX = "index.json";
 var OBJECTS = "objects";
@@ -1513,13 +1659,13 @@ var sha256 = (bytes) => createHash("sha256").update(bytes).digest("hex");
 var SHA = /^[0-9a-f]{64}$/;
 var isRecord2 = (value) => typeof value === "object" && value !== null && !Array.isArray(value);
 function writeAtomic2(file, data) {
-  fs5.mkdirSync(path5.dirname(file), { recursive: true });
-  const tmp = path5.join(path5.dirname(file), `.${path5.basename(file)}.${process.pid}.${randomBytes(4).toString("hex")}.tmp`);
+  fs6.mkdirSync(path6.dirname(file), { recursive: true });
+  const tmp = path6.join(path6.dirname(file), `.${path6.basename(file)}.${process.pid}.${randomBytes(4).toString("hex")}.tmp`);
   try {
-    fs5.writeFileSync(tmp, data);
-    fs5.renameSync(tmp, file);
+    fs6.writeFileSync(tmp, data);
+    fs6.renameSync(tmp, file);
   } catch (error) {
-    fs5.rmSync(tmp, { force: true });
+    fs6.rmSync(tmp, { force: true });
     throw error;
   }
 }
@@ -1600,10 +1746,10 @@ var History = class {
   /** path → sha: what the files hold after the newest version. */
   headState;
   constructor(root) {
-    this.dir = path5.join(root, HISTORY_DIR);
+    this.dir = path6.join(root, HISTORY_DIR);
     let raw = null;
     try {
-      raw = JSON.parse(fs5.readFileSync(path5.join(this.dir, INDEX), "utf8"));
+      raw = JSON.parse(fs6.readFileSync(path6.join(this.dir, INDEX), "utf8"));
     } catch {
     }
     this.index = parseIndex(raw);
@@ -1647,7 +1793,7 @@ var History = class {
   read(sha) {
     if (!SHA.test(sha)) return null;
     try {
-      return fs5.readFileSync(path5.join(this.dir, OBJECTS, sha));
+      return fs6.readFileSync(path6.join(this.dir, OBJECTS, sha));
     } catch {
       return null;
     }
@@ -1661,7 +1807,7 @@ var History = class {
   size(sha) {
     if (!SHA.test(sha)) return null;
     try {
-      return fs5.statSync(path5.join(this.dir, OBJECTS, sha)).size;
+      return fs6.statSync(path6.join(this.dir, OBJECTS, sha)).size;
     } catch {
       return null;
     }
@@ -1795,8 +1941,8 @@ var History = class {
     return out;
   }
   putObject(sha, bytes) {
-    const file = path5.join(this.dir, OBJECTS, sha);
-    if (fs5.existsSync(file)) return;
+    const file = path6.join(this.dir, OBJECTS, sha);
+    if (fs6.existsSync(file)) return;
     writeAtomic2(file, bytes);
   }
   /** Past MAX_VERSIONS the oldest fold into the base; old notices go; contents no one holds are removed. */
@@ -1833,14 +1979,14 @@ var History = class {
     }
     let names;
     try {
-      names = fs5.readdirSync(path5.join(this.dir, OBJECTS));
+      names = fs6.readdirSync(path6.join(this.dir, OBJECTS));
     } catch {
       return;
     }
-    for (const name of names) if (SHA.test(name) && !keep.has(name)) fs5.rmSync(path5.join(this.dir, OBJECTS, name), { force: true });
+    for (const name of names) if (SHA.test(name) && !keep.has(name)) fs6.rmSync(path6.join(this.dir, OBJECTS, name), { force: true });
   }
   save() {
-    writeAtomic2(path5.join(this.dir, INDEX), `${JSON.stringify(this.index)}
+    writeAtomic2(path6.join(this.dir, INDEX), `${JSON.stringify(this.index)}
 `);
   }
 };
@@ -1910,19 +2056,19 @@ function diffContents(before, after) {
 }
 
 import { createHash as createHash2 } from "node:crypto";
-import fs9 from "node:fs";
+import fs10 from "node:fs";
 import os4 from "node:os";
-import path9 from "node:path";
+import path10 from "node:path";
 
-import fs7 from "node:fs";
+import fs8 from "node:fs";
 import fsp2 from "node:fs/promises";
-import path7 from "node:path";
+import path8 from "node:path";
 import { promisify } from "node:util";
 import zlib from "node:zlib";
 
 import crypto from "node:crypto";
-import fs6 from "node:fs";
-import path6 from "node:path";
+import fs7 from "node:fs";
+import path7 from "node:path";
 var GUEST_ROLES = ["editor", "commenter", "viewer"];
 var isGuestRole = (value) => typeof value === "string" && GUEST_ROLES.includes(value);
 var SHARING_FILE = ".sharing.json";
@@ -1949,13 +2095,13 @@ var Sharing = class _Sharing {
   file;
   state;
   constructor(root) {
-    this.file = path6.join(root, SHARING_FILE);
+    this.file = path7.join(root, SHARING_FILE);
     this.state = _Sharing.read(this.file);
   }
   static read(file) {
     let raw;
     try {
-      raw = JSON.parse(fs6.readFileSync(file, "utf8"));
+      raw = JSON.parse(fs7.readFileSync(file, "utf8"));
     } catch {
       return fresh();
     }
@@ -1987,9 +2133,9 @@ var Sharing = class _Sharing {
   }
   save() {
     const tmp = `${this.file}.${process.pid}.tmp`;
-    fs6.writeFileSync(tmp, `${JSON.stringify(this.state, null, 2)}
+    fs7.writeFileSync(tmp, `${JSON.stringify(this.state, null, 2)}
 `, { mode: 384 });
-    fs6.renameSync(tmp, this.file);
+    fs7.renameSync(tmp, this.file);
   }
   /** The role whose link has this token, while that link is on. */
   linkRole(tokenGiven) {
@@ -2071,10 +2217,10 @@ var ArchiveTooLarge = class extends Error {
   code = "TOO_LARGE";
 };
 async function archiveEntries(root, skip = []) {
-  const folder = path7.basename(path7.resolve(root)) || "artifact";
-  const skipped = new Set(skip.map((file) => path7.resolve(file)));
+  const folder = path8.basename(path8.resolve(root)) || "artifact";
+  const skipped = new Set(skip.map((file) => path8.resolve(file)));
   const entries = [];
-  const walk = async (dir, rel) => {
+  const walk2 = async (dir, rel) => {
     let names;
     try {
       names = await fsp2.readdir(dir, { withFileTypes: true });
@@ -2085,17 +2231,17 @@ async function archiveEntries(root, skip = []) {
     for (const dirent of names.sort((a, b) => a.name < b.name ? -1 : a.name > b.name ? 1 : 0)) {
       const name = dirent.name;
       if (JUNK_FILES.has(name) || isTemp(name) || !rel && (LOCAL_FILES.has(name) || LOCAL_DIRS.has(name) && dirent.isDirectory())) continue;
-      const file = path7.join(dir, name);
+      const file = path8.join(dir, name);
       if (skipped.has(file)) continue;
       const inner = rel ? `${rel}/${name}` : name;
-      if (dirent.isDirectory()) await walk(file, inner);
+      if (dirent.isDirectory()) await walk2(file, inner);
       else if (dirent.isFile()) {
         const stat = await fsp2.stat(file).catch(() => null);
         if (stat?.isFile()) entries.push({ name: `${folder}/${inner}`, file, size: stat.size, mode: stat.mode & 511, mtime: stat.mtime });
       }
     }
   };
-  await walk(path7.resolve(root), "");
+  await walk2(path8.resolve(root), "");
   if (entries.length > MAX_ENTRIES) throw new ArchiveTooLarge(`The folder holds ${entries.length} files, more than a zip holds (${MAX_ENTRIES}); copy the folder itself instead.`);
   const bound = entries.reduce((sum, entry) => sum + entry.size + 2 * (46 + Buffer.byteLength(entry.name)), 22);
   if (bound > MAX_BYTES) throw new ArchiveTooLarge(`The folder holds ${(bound / 2 ** 30).toFixed(1)} GiB, more than a zip holds (4 GiB); copy the folder itself instead.`);
@@ -2144,7 +2290,7 @@ async function writeZip(entries, write) {
     const crc = crc32(data);
     let method = 0;
     let body = data;
-    if (data.length > 0 && !STORED.has(path7.extname(entry.name).toLowerCase())) {
+    if (data.length > 0 && !STORED.has(path8.extname(entry.name).toLowerCase())) {
       const deflated = await deflateRaw(data);
       if (deflated.length < data.length) {
         method = 8;
@@ -2198,12 +2344,12 @@ async function writeZip(entries, write) {
 }
 function archiveFileName(root, now = /* @__PURE__ */ new Date()) {
   const day = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-  return `${path7.basename(path7.resolve(root)) || "artifact"}-${day}.zip`;
+  return `${path8.basename(path8.resolve(root)) || "artifact"}-${day}.zip`;
 }
 async function writeArchive(root, out) {
-  const file = path7.resolve(out);
+  const file = path8.resolve(out);
   const entries = await archiveEntries(root, [file]);
-  const tmp = path7.join(path7.dirname(file), `.${path7.basename(file)}.${process.pid}.tmp`);
+  const tmp = path8.join(path8.dirname(file), `.${path8.basename(file)}.${process.pid}.tmp`);
   const handle = await fsp2.open(tmp, "w");
   let bytes;
   try {
@@ -2221,10 +2367,10 @@ async function writeArchive(root, out) {
   return { file, files: entries.length, bytes };
 }
 async function archiveCommand(root, out) {
-  const where = out ? path7.resolve(out) : path7.dirname(path7.resolve(root));
-  const target = fs7.statSync(where, { throwIfNoEntry: false })?.isDirectory() ? path7.join(where, archiveFileName(root)) : where;
+  const where = out ? path8.resolve(out) : path8.dirname(path8.resolve(root));
+  const target = fs8.statSync(where, { throwIfNoEntry: false })?.isDirectory() ? path8.join(where, archiveFileName(root)) : where;
   const { file, files, bytes } = await writeArchive(root, target);
-  return { file, folder: path7.basename(path7.resolve(root)), files, bytes, leftOut: [...LOCAL_FILES] };
+  return { file, folder: path8.basename(path8.resolve(root)), files, bytes, leftOut: [...LOCAL_FILES] };
 }
 function attachment(name) {
   const ascii = name.replace(/[^\x20-\x7e]|["\\]/g, "_");
@@ -2272,31 +2418,31 @@ async function sendArchive(request, response, root) {
   }
 }
 
-import fs8 from "node:fs";
+import fs9 from "node:fs";
 import fsp3 from "node:fs/promises";
 import os3 from "node:os";
-import path8 from "node:path";
+import path9 from "node:path";
 var MAX_BYTES2 = 4294967295;
 function shown(file) {
   const home = os3.homedir();
-  return home && (file === home || file.startsWith(home + path8.sep)) ? `~${file.slice(home.length)}` : file;
+  return home && (file === home || file.startsWith(home + path9.sep)) ? `~${file.slice(home.length)}` : file;
 }
 function saved(file, bytes) {
-  return { path: file, name: path8.basename(file), folder: path8.dirname(file), shown: shown(file), bytes };
+  return { path: file, name: path9.basename(file), folder: path9.dirname(file), shown: shown(file), bytes };
 }
 function safeFileName(raw) {
   let name = (raw.replace(/\\/g, "/").split("/").pop() ?? "").replace(/[\u0000-\u001f\u007f<>:"|?*]/g, "_").replace(/^[.\s]+|[.\s]+$/g, "");
   if (name.length > 200) {
-    const ext = path8.extname(name).slice(0, 16);
+    const ext = path9.extname(name).slice(0, 16);
     name = name.slice(0, 200 - ext.length) + ext;
   }
   return name || "download";
 }
 async function openFree(dir, name) {
-  const ext = path8.extname(name);
+  const ext = path9.extname(name);
   const stem = name.slice(0, name.length - ext.length);
   for (let n = 0; ; n++) {
-    const file = path8.join(dir, n === 0 ? name : `${stem} (${n})${ext}`);
+    const file = path9.join(dir, n === 0 ? name : `${stem} (${n})${ext}`);
     try {
       return { file, handle: await fsp3.open(file, "wx") };
     } catch (error) {
@@ -2315,7 +2461,7 @@ async function saveDownload(request, response, root) {
   let handle = null;
   let bytes = 0;
   try {
-    const dir = path8.join(root, EXPORTS_DIR);
+    const dir = path9.join(root, EXPORTS_DIR);
     await fsp3.mkdir(dir, { recursive: true });
     ({ file, handle } = await openFree(dir, name));
     for await (const chunk of request) {
@@ -2340,7 +2486,7 @@ async function saveArchive(request, response, root) {
   request.resume();
   try {
     const { file } = await archiveCommand(root, void 0);
-    sendJson2(response, 200, saved(file, fs8.statSync(file).size));
+    sendJson2(response, 200, saved(file, fs9.statSync(file).size));
   } catch (error) {
     const tooLarge = error instanceof ArchiveTooLarge;
     sendJson2(response, tooLarge ? 413 : 500, { code: tooLarge ? "too_large" : "upstream_error", message: error instanceof Error ? error.message : String(error) });
@@ -2381,7 +2527,7 @@ function localOwner() {
   }
   return { id: "local", name, email: `${name}@localhost` };
 }
-var guestCookieName = (kind, root) => `${kind.replace(/-/g, "_")}_guest_${createHash2("sha256").update(path9.resolve(root)).digest("hex").slice(0, 12)}`;
+var guestCookieName = (kind, root) => `${kind.replace(/-/g, "_")}_guest_${createHash2("sha256").update(path10.resolve(root)).digest("hex").slice(0, 12)}`;
 var ShareHost = class {
   sharing;
   options;
@@ -2546,7 +2692,7 @@ var ShareHost = class {
     }
     if (method === "GET" && p === "/__share/invite") return sendJson2(response, 200, this.invites(viewer, request.headers.host ?? "")), true;
     if (method === "GET" && p === "/__share/ui.js") {
-      fs9.stat(this.options.uiFile, (error, stat) => {
+      fs10.stat(this.options.uiFile, (error, stat) => {
         if (error || !stat.isFile()) return sendJson2(response, 404, { code: "not_found", message: "The Share panel is missing." });
         sendFile(request, response, this.options.uiFile, { "Content-Type": "text/javascript; charset=utf-8", "Content-Length": stat.size, "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" });
       });
@@ -2566,7 +2712,7 @@ var ShareHost = class {
    */
   headTags(_viewer, query = "") {
     let tags = `<script src="/__share/boot.js${query.replace(/[<>"']/g, "").replace(/&/g, "&amp;")}"></script>`;
-    if (fs9.existsSync(this.options.uiFile)) tags += '<script type="module" src="/__share/ui.js"></script>';
+    if (fs10.existsSync(this.options.uiFile)) tags += '<script type="module" src="/__share/ui.js"></script>';
     return tags;
   }
   /** `html` with the head tags first in its <head>; null when it has none. */
@@ -2958,7 +3104,7 @@ function noticeView(n, label, lostAt, gone) {
     ...n.lost.sha === null ? { deleted: true } : {}
   };
 }
-var plain = (text) => ({ en: text, zh: text });
+var plain2 = (text) => ({ en: text, zh: text });
 
 var PEER_ID = /^[A-Za-z0-9_-]{8,64}$/;
 function agentWhere(main2, count, label) {
@@ -3266,7 +3412,7 @@ async function collectFiles(root, limit) {
   const seen = /* @__PURE__ */ new Set();
   let truncated = false;
   const visit = async (relDir, descend) => {
-    const dir = relDir === "" ? root : path10.join(root, ...relDir.split("/"));
+    const dir = relDir === "" ? root : path11.join(root, ...relDir.split("/"));
     let entries;
     try {
       entries = await fsp4.readdir(dir, { withFileTypes: true });
@@ -3297,8 +3443,8 @@ async function collectFiles(root, limit) {
   return { rels, truncated };
 }
 async function writeFileAtomic(file, bytes) {
-  await fsp4.mkdir(path10.dirname(file), { recursive: true });
-  const tmp = path10.join(path10.dirname(file), `.${path10.basename(file)}.${randomUUID()}.tmp`);
+  await fsp4.mkdir(path11.dirname(file), { recursive: true });
+  const tmp = path11.join(path11.dirname(file), `.${path11.basename(file)}.${randomUUID()}.tmp`);
   try {
     await fsp4.writeFile(tmp, bytes);
     await fsp4.rename(tmp, file);
@@ -3354,11 +3500,11 @@ var Store = class {
   async diskPath(rel) {
     const realRoot = await fsp4.realpath(this.root).catch(() => null);
     if (realRoot === null) return null;
-    const file = path10.join(realRoot, ...rel.split("/"));
-    for (let dir = path10.dirname(file); ; dir = path10.dirname(dir)) {
+    const file = path11.join(realRoot, ...rel.split("/"));
+    for (let dir = path11.dirname(file); ; dir = path11.dirname(dir)) {
       const real = await fsp4.realpath(dir).catch(() => null);
       if (real === null) {
-        if (path10.dirname(dir) === dir) return null;
+        if (path11.dirname(dir) === dir) return null;
         continue;
       }
       if (real !== dir) return null;
@@ -3588,7 +3734,7 @@ var Store = class {
   }
   async findBlobFile(id) {
     try {
-      const names = await fsp4.readdir(path10.join(this.root, LAYOUT.blobDir));
+      const names = await fsp4.readdir(path11.join(this.root, LAYOUT.blobDir));
       const name = names.find((n) => n.startsWith(`${id}.`) && !n.endsWith(".tmp"));
       if (name === void 0) return null;
       const file = await this.diskPath(`${LAYOUT.blobDir}/${name}`);
@@ -3643,13 +3789,13 @@ function watchArtifact(store, onChange, onError) {
     const directories = /* @__PURE__ */ new Map();
     const visit = (rel, descend) => {
       if (directories.size >= maxDirectories) return;
-      const dir = rel === "" ? store.root : path10.join(store.root, ...rel.split("/"));
-      if (directories.has(dir) || !fs10.existsSync(dir)) return;
-      const info = fs10.lstatSync(dir);
+      const dir = rel === "" ? store.root : path11.join(store.root, ...rel.split("/"));
+      if (directories.has(dir) || !fs11.existsSync(dir)) return;
+      const info = fs11.lstatSync(dir);
       if (!info.isDirectory()) return;
       directories.set(dir, `${info.dev}:${info.ino}`);
       if (!descend) return;
-      for (const entry of fs10.readdirSync(dir, { withFileTypes: true })) {
+      for (const entry of fs11.readdirSync(dir, { withFileTypes: true })) {
         if (!entry.isDirectory() || entry.name.startsWith(".")) continue;
         const child = rel === "" ? entry.name : `${rel}/${entry.name}`;
         if (LAYOUT.descendInto(child)) visit(child, true);
@@ -3666,19 +3812,19 @@ function watchArtifact(store, onChange, onError) {
       if (watchers.has(dir)) continue;
       let watcher;
       try {
-        watcher = fs10.watch(dir, (event, name) => {
+        watcher = fs11.watch(dir, (event, name) => {
           if (stopped) return;
           if (name) {
-            const changed = path10.join(dir, String(name));
+            const changed = path11.join(dir, String(name));
             if (event === "rename" && watchers.has(changed)) {
               for (const [watchedDir, item] of watchers) {
-                if (watchedDir === changed || watchedDir.startsWith(changed + path10.sep)) {
+                if (watchedDir === changed || watchedDir.startsWith(changed + path11.sep)) {
                   item.watcher.close();
                   watchers.delete(watchedDir);
                 }
               }
             }
-            const rel = path10.relative(store.root, changed).split(path10.sep).join("/");
+            const rel = path11.relative(store.root, changed).split(path11.sep).join("/");
             if (isIgnoredPath(rel) || !LAYOUT.watches(rel)) return;
           }
           schedule();
@@ -3714,7 +3860,7 @@ function watchArtifact(store, onChange, onError) {
     const { rels } = await collectFiles(store.root, LAYOUT.maxFiles);
     const parts = [];
     for (const rel of rels) {
-      const info = await fsp4.lstat(path10.join(store.root, ...rel.split("/"))).catch(() => null);
+      const info = await fsp4.lstat(path11.join(store.root, ...rel.split("/"))).catch(() => null);
       parts.push(info ? `${rel}\0${info.size}\0${info.mtimeMs}\0${info.ino}` : `${rel}\0-`);
     }
     return parts.join("\n");
@@ -3745,11 +3891,11 @@ function watchArtifact(store, onChange, onError) {
 var publishError = (response, status, code, message) => sendJson2(response, status, { code, message });
 async function startServer({ root, port = DEFAULT_PORTS[KIND], host = "127.0.0.1", log = (line) => process.stderr.write(`${line}
 `), agentHook, lan = false, portGiven = false }) {
-  const project = path10.join(root, "project");
-  const stamp = (line) => log(`[${(/* @__PURE__ */ new Date()).toISOString()}] ${line}`);
+  const project = path11.join(root, "project");
+  const stamp2 = (line) => log(`[${(/* @__PURE__ */ new Date()).toISOString()}] ${line}`);
   const projectDir = await fsp4.realpath(project);
   const history = new History(root);
-  const store = new Store(projectDir, history, stamp);
+  const store = new Store(projectDir, history, stamp2);
   const owner = localOwner();
   const share = new ShareHost({
     root,
@@ -3757,9 +3903,9 @@ async function startServer({ root, port = DEFAULT_PORTS[KIND], host = "127.0.0.1
     owner,
     noun: NOUNS[KIND] ?? { en: NOUN, zh: NOUN, zhThis: NOUN },
     title: () => artifactTitle(root, projectDir),
-    log: stamp,
+    log: stamp2,
     createServer: () => http.createServer(handle),
-    uiFile: path10.join(EDITOR_DIR, "share-ui.js"),
+    uiFile: path11.join(EDITOR_DIR, "share-ui.js"),
     // The History panel's address and what this person may do there; on a version's page (?at=n), which version.
     globals: (viewer, query) => {
       const at = Number(query.get("at") ?? "");
@@ -3768,7 +3914,7 @@ async function startServer({ root, port = DEFAULT_PORTS[KIND], host = "127.0.0.1
   });
   const comments = createCommentsService({
     root,
-    log: stamp,
+    log: stamp2,
     locate: commentLocation ? (input) => commentLocation(input, projectDir) : void 0,
     agentHook,
     userName: owner.name,
@@ -3807,7 +3953,7 @@ data: ${JSON.stringify(event)}
     }
     return (p) => {
       const rel = p.replace(/^project\//, "");
-      return named?.(rel) ?? plain(rel);
+      return named?.(rel) ?? plain2(rel);
     };
   };
   const agentWorked = (paths) => {
@@ -3838,16 +3984,16 @@ data: ${JSON.stringify(event)}
     // A notice whose overwrite named the version its saver's edits started from: what was lost goes back by line into
     // the file as it is now, the lost lines winning where both changed them; a deleted file gets all of it back.
     recover: (_path, base, lost, now) => now === null ? lost : mergeTextBytes(base, lost, now),
-    log: stamp
+    log: stamp2
   });
   const stopWatch = watchArtifact(
     store,
     (event) => {
-      stamp(`changed on disk: ${event.paths.join(", ")}${clients.size ? "" : " (no page open)"}`);
+      stamp2(`changed on disk: ${event.paths.join(", ")}${clients.size ? "" : " (no page open)"}`);
       changed({ ...event, by: authorOf(AGENT) });
       agentWorked(event.paths);
     },
-    (error) => stamp(`watching failed: ${errorText(error)}`)
+    (error) => stamp2(`watching failed: ${errorText(error)}`)
   );
   const events = async (request, response, viewer) => {
     const given = new URL(request.url ?? "/", "http://local").searchParams.get("client") ?? "";
@@ -3910,7 +4056,7 @@ data: ${JSON.stringify(event)}
     const parts = rest === "" ? ["index.html"] : rest.split("/");
     const invalid = parts.some((p) => p === "" || p === "." || p === ".." || p.startsWith(".") || p.includes("\\")) || parts[0] === "node";
     const realDist = invalid ? null : await fsp4.realpath(EDITOR_DIR).catch(() => null);
-    const file = realDist === null ? null : path10.join(realDist, ...parts);
+    const file = realDist === null ? null : path11.join(realDist, ...parts);
     const real = file === null ? null : await fsp4.realpath(file).catch(() => null);
     const info = real === null ? null : await fsp4.lstat(real).catch(() => null);
     if (file === null || real !== file || !info?.isFile()) {
@@ -3921,7 +4067,7 @@ data: ${JSON.stringify(event)}
       response.writeHead(404, { "Cache-Control": "no-store" }).end();
       return;
     }
-    const ext = path10.extname(file).toLowerCase();
+    const ext = path11.extname(file).toLowerCase();
     const type = STATIC_TYPES[ext] ?? "application/octet-stream";
     if (ext === ".html") {
       const key = parts.join("/");
@@ -3976,7 +4122,7 @@ data: ${JSON.stringify(event)}
     const outcome = await store.publish(files, whoOf(viewer), over, merged, CLIENT_ID.test(page) ? page : "");
     const names = Object.keys(files).map((p) => p.replace(/^project\//, ""));
     const made = outcome.version ? ` as version ${outcome.version.n}` : "";
-    stamp(`saved from the page by ${viewer.user.name} (${outcome.status}${outcome.body.code ? ` ${outcome.body.code}` : ""})${made}: ${names.join(", ")}`);
+    stamp2(`saved from the page by ${viewer.user.name} (${outcome.status}${outcome.body.code ? ` ${outcome.body.code}` : ""})${made}: ${names.join(", ")}`);
     sendJson2(response, outcome.status, outcome.body);
     if (outcome.status === 200 && clients.size > 0) {
       const from = String(request.headers["x-deck-client"] ?? "");
@@ -3997,7 +4143,7 @@ data: ${JSON.stringify(event)}
       return;
     }
     const result = await store.putBlob(bytes, contentType);
-    stamp(`uploaded from the page: ${result.url} (${contentType}, ${bytes.length} bytes)`);
+    stamp2(`uploaded from the page: ${result.url} (${contentType}, ${bytes.length} bytes)`);
     sendJson2(response, 200, result);
   };
   const session = (viewer) => {
@@ -4110,6 +4256,24 @@ data: ${JSON.stringify(event)}
       else await upload(request, response);
       return;
     }
+    const dsSync = DESIGN_SYSTEMS ? DS_SYNC.exec(rest) : null;
+    if (dsSync) {
+      const folder = dsSync[1];
+      const status = systemStatus(projectDir, root, INDEX_FILE, folder);
+      if (method === "POST") {
+        request.resume();
+        if (!sameOrigin(request)) return publishError(response, 403, "not_writer", "cross-origin request");
+        if (viewer.guest) return publishError(response, 403, "not_owner", "Only the owner of this computer can sync a design system from its source.");
+        if (status === null) return sendJson2(response, 404, { error: "not_found" });
+        const [result] = syncSystems(projectDir, root, INDEX_FILE, { namespace: folder });
+        return sendJson2(response, 200, { copied: result.copied.length, ...systemStatus(projectDir, root, INDEX_FILE, folder), canSync: true });
+      }
+      if (method !== "GET" && method !== "HEAD") {
+        response.writeHead(405, { Allow: "GET, HEAD, POST" }).end();
+        return;
+      }
+      return status === null ? sendJson2(response, 404, { error: "not_found" }, { "Cache-Control": "no-store" }) : sendJson2(response, 200, { ...status, canSync: !viewer.guest }, { "Cache-Control": "no-store" });
+    }
     if (method !== "GET" && method !== "HEAD") {
       response.writeHead(405, { Allow: "GET, HEAD" }).end();
       return;
@@ -4165,7 +4329,7 @@ data: ${JSON.stringify(event)}
         if (!response.headersSent) publishError(response, 413, "too_large", "request body is too large");
         return;
       }
-      stamp(`request failed: ${error instanceof Error ? error.stack ?? error.message : String(error)}`);
+      stamp2(`request failed: ${error instanceof Error ? error.stack ?? error.message : String(error)}`);
       if (!response.headersSent) publishError(response, 500, "upstream_error", "internal error");
       else response.destroy();
     }
@@ -4228,17 +4392,17 @@ data: ${JSON.stringify(event)}
     throw error;
   });
   const url = `${serverOrigin(host, actualPort)}${editorPath}`;
-  stamp(`serving ${project} at ${url}`);
+  stamp2(`serving ${project} at ${url}`);
   const lanUrls = share.lanUrls();
   return { url, port: actualPort, grant, close, ...lanUrls.length ? { lan: lanUrls } : {} };
 }
 function artifactTitle(root, projectDir) {
   try {
-    const index = JSON.parse(fs10.readFileSync(path10.join(projectDir, INDEX_FILE), "utf8"));
+    const index = JSON.parse(fs11.readFileSync(path11.join(projectDir, INDEX_FILE), "utf8"));
     for (const value of [index.title, index.name]) if (typeof value === "string" && value.trim() && value.trim() !== "project") return value.trim();
   } catch {
   }
-  return path10.basename(root);
+  return path11.basename(root);
 }
 var runningServer2 = (root) => runningServer(root, KIND, ROUTES.session);
 async function serveForeground({ root, port, host, agentHook, lan, portGiven }) {
@@ -4259,18 +4423,18 @@ async function main(argv) {
   }
   if (positional.length !== 1 || flags.has("help")) {
     process.stderr.write(
-      `Usage: node ${path10.basename(SCRIPT)} <root> [--port n] [--host h] [--lan] [--agent-hook "<command>"]
+      `Usage: node ${path11.basename(SCRIPT)} <root> [--port n] [--host h] [--lan] [--agent-hook "<command>"]
 <root> holds project/${INDEX_FILE}.
 `
     );
     return 2;
   }
-  let root = path10.resolve(positional[0]);
-  if (path10.basename(root) === "project" && fs10.existsSync(path10.join(root, INDEX_FILE)) && !fs10.existsSync(path10.join(root, "project"))) {
-    root = path10.dirname(root);
+  let root = path11.resolve(positional[0]);
+  if (path11.basename(root) === "project" && fs11.existsSync(path11.join(root, INDEX_FILE)) && !fs11.existsSync(path11.join(root, "project"))) {
+    root = path11.dirname(root);
   }
-  if (!fs10.statSync(path10.join(root, "project", INDEX_FILE), { throwIfNoEntry: false })?.isFile()) {
-    process.stderr.write(`${JSON.stringify({ error: "NOT_FOUND", message: `${path10.join(root, "project", INDEX_FILE)} does not exist.` })}
+  if (!fs11.statSync(path11.join(root, "project", INDEX_FILE), { throwIfNoEntry: false })?.isFile()) {
+    process.stderr.write(`${JSON.stringify({ error: "NOT_FOUND", message: `${path11.join(root, "project", INDEX_FILE)} does not exist.` })}
 `);
     return 2;
   }
@@ -4294,7 +4458,7 @@ async function main(argv) {
 }
 function isMain(moduleUrl) {
   try {
-    return Boolean(process.argv[1]) && pathToFileURL(fs10.realpathSync(process.argv[1])).href === moduleUrl;
+    return Boolean(process.argv[1]) && pathToFileURL(fs11.realpathSync(process.argv[1])).href === moduleUrl;
   } catch {
     return false;
   }
@@ -4311,7 +4475,7 @@ function createArtifactServer(kind, moduleUrl) {
   kindLabels = kind.labels;
   kindAgentContext = kind.agentContext;
   SCRIPT = fileURLToPath(moduleUrl);
-  EDITOR_DIR = path10.join(path10.dirname(SCRIPT), "editor");
+  EDITOR_DIR = path11.join(path11.dirname(SCRIPT), "editor");
   const runIfMain = () => {
     if (!isMain(moduleUrl)) return;
     main(process.argv.slice(2)).then(
@@ -4362,19 +4526,19 @@ function commentLocation2(input, projectDir) {
   let slideId = match[2];
   if (!slideId) {
     try {
-      const order = JSON.parse(fs11.readFileSync(path11.join(projectDir, INDEX_FILE2), "utf8")).order;
+      const order = JSON.parse(fs12.readFileSync(path12.join(projectDir, INDEX_FILE2), "utf8")).order;
       if (Array.isArray(order) && typeof order[slide - 1] === "string") slideId = order[slide - 1];
     } catch {
     }
   }
   const file = slideId ? projectFile(`slides/${slideId}.html`) : void 0;
-  if (slideId && file && fs11.existsSync(path11.join(projectDir, "slides", `${slideId}.html`))) return { file, slide, slideId };
+  if (slideId && file && fs12.existsSync(path12.join(projectDir, "slides", `${slideId}.html`))) return { file, slide, slideId };
   return { file: "project/deck.json", slide };
 }
 function labels(projectDir) {
   let order = [];
   try {
-    const listed = JSON.parse(fs11.readFileSync(path11.join(projectDir, INDEX_FILE2), "utf8")).order;
+    const listed = JSON.parse(fs12.readFileSync(path12.join(projectDir, INDEX_FILE2), "utf8")).order;
     if (Array.isArray(listed)) order = listed.filter((id) => typeof id === "string");
   } catch {
   }
@@ -4394,7 +4558,7 @@ function agentContext(projectDir, rels) {
   if (!slideId) return null;
   let order = [];
   try {
-    const listed = JSON.parse(fs11.readFileSync(path11.join(projectDir, INDEX_FILE2), "utf8")).order;
+    const listed = JSON.parse(fs12.readFileSync(path12.join(projectDir, INDEX_FILE2), "utf8")).order;
     if (Array.isArray(listed)) order = listed.filter((id) => typeof id === "string");
   } catch {
   }

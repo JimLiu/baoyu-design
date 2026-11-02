@@ -239368,22 +239368,87 @@ function installDesignSystemThemePanel(runtime2) {
     patch[prop] = value;
     return patch;
   };
+  function DesignSystemSync({ systemKey }) {
+    const [status, setStatus] = reactForThemePanel.useState(void 0), [busy, setBusy] = reactForThemePanel.useState(false), [failed, setFailed] = reactForThemePanel.useState(false), url = `__ds-sync/${encodeURIComponent(systemKey)}`;
+    reactForThemePanel.useEffect(() => {
+      let live = true;
+      const load = () => fetch(url, { cache: "no-store" }).then((response) => response.ok ? response.json() : void 0).then(
+        (body) => {
+          if (live) setStatus(body);
+        },
+        () => {
+        }
+      );
+      const onShow = () => {
+        if (document.visibilityState === "visible") load();
+      };
+      load();
+      document.addEventListener("visibilitychange", onShow);
+      window.addEventListener("focus", onShow);
+      return () => {
+        live = false;
+        document.removeEventListener("visibilitychange", onShow);
+        window.removeEventListener("focus", onShow);
+      };
+    }, [url]);
+    const lost = status?.state === "unknown" && status.reason === "not-found";
+    if (status === void 0 || status.state === "unknown" && !lost) return null;
+    const behind = status.state === "behind";
+    const sync = () => {
+      setBusy(true);
+      setFailed(false);
+      fetch(url, { method: "POST" }).then((response) => response.ok ? response.json() : Promise.reject(new Error(String(response.status)))).then(setStatus).catch(() => setFailed(true)).finally(() => setBusy(false));
+    };
+    return jsxForThemePanel.jsxs("div", {
+      "data-testid": "sl-theme-system-sync",
+      "data-state": status.state,
+      style: { margin: "6px 14px 0", fontSize: 12, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" },
+      children: [
+        jsxForThemePanel.jsx("span", {
+          style: { opacity: behind ? 1 : 0.7 },
+          children: failed ? "Could not sync." : lost ? "Can't check for changes: its source folder wasn't found." : behind ? `Behind its source: ${status.changed} ${status.changed === 1 ? "file" : "files"} changed.` : "Up to date with its source."
+        }),
+        behind && status.canSync ? jsxForThemePanel.jsx("button", {
+          type: "button",
+          "data-testid": "sl-theme-system-sync-button",
+          disabled: busy,
+          onClick: sync,
+          style: {
+            font: "inherit",
+            padding: "2px 10px",
+            borderRadius: 6,
+            border: "1px solid currentColor",
+            background: "transparent",
+            color: "inherit",
+            cursor: busy ? "default" : "pointer",
+            opacity: busy ? 0.5 : 1
+          },
+          children: busy ? "Syncing\u2026" : "Sync"
+        }) : behind ? jsxForThemePanel.jsx("span", { style: { opacity: 0.7 }, children: "Ask the owner to sync." }) : null
+      ]
+    });
+  }
   function DesignSystemLink({ system }) {
-    return system === void 0 || /\/v\/\d+\/$/.test(location.pathname) ? null : jsxForThemePanel.jsx("a", {
-      "data-testid": "sl-theme-system-link",
-      href: `__ds/${encodeURIComponent(system.key)}/`,
-      target: "_blank",
-      rel: "noopener",
-      style: {
-        display: "block",
-        margin: "6px 14px 0",
-        fontSize: 12,
-        color: "inherit",
-        opacity: 0.7,
-        textDecoration: "underline",
-        textUnderlineOffset: 2
-      },
-      children: `View ${system.title} design system`
+    return system === void 0 || /\/v\/\d+\/$/.test(location.pathname) ? null : jsxForThemePanel.jsxs(reactForThemePanel.Fragment, {
+      children: [
+        jsxForThemePanel.jsx("a", {
+          "data-testid": "sl-theme-system-link",
+          href: `__ds/${encodeURIComponent(system.key)}/`,
+          target: "_blank",
+          rel: "noopener",
+          style: {
+            display: "block",
+            margin: "6px 14px 0",
+            fontSize: 12,
+            color: "inherit",
+            opacity: 0.7,
+            textDecoration: "underline",
+            textUnderlineOffset: 2
+          },
+          children: `View ${system.title} design system`
+        }),
+        jsxForThemePanel.jsx(DesignSystemSync, { systemKey: system.key })
+      ]
     });
   }
   function ThemePanel({
