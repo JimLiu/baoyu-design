@@ -19,7 +19,7 @@ const says = (i) => [...(caps[i]?.querySelectorAll('.vs-s:not([hidden])') ?? [])
 // How a figure is written, by source and field; any other as it comes.
 const fmt = {'orders.cost': d3.format('$,.2f'), 'said.cost': d3.format('$,~f')};
 let said = [], durs = [], cur = 0, t = Infinity, playing = false, begun = false, raf = 0, last = 0, heard = null, was = null, pace = 1;
-const phase = () => root.getAttribute('data-dash-read-phase'); // there while Listen's player is open
+const phase = () => root.getAttribute('data-dash-read-phase'); // there while the voice is on
 
 // While a reading is open every time is scaled by `pace`: how long the voice took over the last caption it read through, against 15 characters a second.
 const paced = (at) => (phase() ? at * pace : at);
@@ -65,7 +65,7 @@ function draw(i, t) {
 }
 function frame() {
   draw(cur, t);
-  mks.forEach((m, j) => { for (const bar of m.children) bar.style.width = (j < cur ? 1 : j > cur || t === Infinity ? 0 : Math.min(1, t / durs[cur])) * 100 + '%'; });
+  mks.forEach((m, j) => { for (const bar of m.children) bar.style.width = (j < cur ? 1 : j > cur ? 0 : t === Infinity ? +begun : Math.min(1, t / paced(durs[cur]))) * 100 + '%'; }); // whole: full, but for the title before the first Play
 }
 function show(i, from) {
   if (i !== cur) { draw(cur, Infinity); if (!phase()) write(vs.querySelector('.vs-now'), mks[i]?.getAttribute('aria-label') ?? ''); } // what leaves is left whole: its marks are still checked
@@ -85,15 +85,17 @@ function tick(now) {
   raf = requestAnimationFrame(tick);
 }
 const kick = () => { if (!raf) { last = 0; raf = requestAnimationFrame(tick); } };
-function play(on) { playing = on; begun ||= on; vs.classList.toggle('vs-playing', on); vs.querySelector('.vs-toggle')?.setAttribute('aria-label', on ? 'Pause' : 'Play'); frame(); if (on) kick(); }
-const from = (i) => (show(Math.max(0, Math.min(chs.length - 1, i)), 0), play(true));
+function look() { const on = phase() ? /starting|playing/.test(phase()) : playing; vs.classList.toggle('vs-playing', on); vs.querySelector('.vs-toggle')?.setAttribute('aria-label', on ? 'Pause' : 'Play'); } // Play or Pause by the voice's phase, or by the page's own clock when there is no voice
+function play(on) { playing = on; begun ||= on; look(); frame(); if (on) kick(); }
+// While the voice is on, the dashboard hears the same presses (data-read-pause, data-read-move) and the voice keeps time: a press here shows its chapter, and starts and stops no clock.
+const from = (i) => (show(Math.max(0, Math.min(chs.length - 1, i)), 0), phase() || play(true));
 const on = (q, f) => { const b = vs.querySelector(q); if (b) b.onclick = f; }; // a piece may leave a control out
-on('.vs-toggle', () => (playing ? play(false) : t < durs[cur] ? play(true) : from(cur === chs.length - 1 ? 0 : cur)));
+on('.vs-toggle', () => phase() || (playing ? play(false) : t < durs[cur] ? play(true) : from(cur === chs.length - 1 ? 0 : cur)));
 on('.vs-back', () => from(cur - 1));
 on('.vs-next', () => from(cur + 1));
 mks.forEach((m, j) => (m.onclick = () => from(j)));
 on('.vs-cc', (e) => e.currentTarget.setAttribute('aria-pressed', String(!vs.classList.toggle('vs-hush')))); // captions on or off, until the page is loaded again
-// vs-idle: a mouse still for 3 s counts as gone, unless its last move was onto the pill (vs-held); vs-touch: a finger or pen, which may leave no hover, counts as on the stage
+// vs-idle: a mouse still for 3 s counts as gone, unless its last move was onto the controls (vs-held); vs-touch: a finger or pen, which may leave no hover, counts as on the stage
 stage.onpointermove = stage.onpointerdown = (e) => {
   const m = e.pointerType === 'mouse', move = e.type === 'pointermove', l = stage.classList;
   if (move && Math.abs(e.clientX - stage.x) + Math.abs(e.clientY - stage.y) < 4) return; // no move: a click can drift a pixel, and a still mouse gets a move when the page changes under it
@@ -107,59 +109,33 @@ const mo = new MutationObserver(() => {
   if (!vs.isConnected) return mo.disconnect();
   const now = vs.querySelector('[data-dash-read-now]'), p = phase(), again = p === 'starting' && was !== 'starting'; // each start reads its caption from the top
   const through = heard && p === 'playing' && was === 'playing'; // the voice went on by itself, so t is how long the caption took
-  was = p;
-  if (!p) { if (heard) show(cur, Infinity); heard = null; return; }
-  if (playing) play(false); // the voice keeps time now
-  begun = true;
+  const before = was; was = p;
+  if (!p) { if (heard) t /= pace; heard = null; if (before) play(/starting|playing/.test(before)); return; } // the voice is off: go on without it from here, playing if it was starting or playing
+  playing = false; begun = true; look(); // the voice keeps time now
   write(vs.querySelector('.vs-now'), ''); // else a later move to the chapter it names would not be announced, since write() skips unchanged text
   if (now && (now !== heard || again)) {
-    if (through) pace = Math.max(0.5, Math.min(1.5, t / (durs[cur] - 1)));
+    if (through) pace = Math.max(0.5, Math.min(1.5, t / (durs[cur] - 1) || 1));
     const i = caps.indexOf((heard = now));
     if (i >= 0) show(i, 0); // a stamp on anything but a caption moves nothing
   }
-  if (p === 'ended') show(cur, Infinity); // read to its end, or cut short: whole
+  if (p === 'ended') show(cur, Infinity); // read to its end: whole
   kick();
 });
 mo.observe(root, {subtree: true, attributes: true, attributeFilter: ['data-dash-read-phase', 'data-dash-read-now']});
 
-// What is drawn in a chapter: the box of each run of words, each element with a background or a border, each image, canvas and SVG shape, at any opacity.
-// A shadow or a pseudo-element is not seen. A background or border on a wrapper counts over its whole box, and so does an SVG path, a slanting line too.
-// Left out: words under aria-hidden inside the chapter, and the source line, which a caption may cover.
-function ink(ch) {
-  const out = [], walk = document.createTreeWalker(ch, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT), range = document.createRange();
-  for (let n = walk.nextNode(); n; n = walk.nextNode()) {
-    if (n.nodeType === 1) { const s = getComputedStyle(n);
-      if (n.matches('img, canvas, image, use, text') || n instanceof SVGGeometryElement || s.backgroundColor !== 'rgba(0, 0, 0, 0)' || s.backgroundImage !== 'none'
-        || ['Top', 'Right', 'Bottom', 'Left'].some((e) => parseFloat(s['border' + e + 'Width']) && s['border' + e + 'Color'] !== 'rgba(0, 0, 0, 0)')) out.push(n.getBoundingClientRect()); }
-    else if (n.nodeValue.trim() && [null, ch].includes(n.parentElement.closest('[aria-hidden="true"], .vs-src'))) { range.selectNodeContents(n); out.push(...range.getClientRects()); }
-  }
-  return out.filter((b) => b.width > 1 && b.height > 1);
-}
-// Seats each caption at the foot, where it covers nothing of its chapter drawn whole: center, else right, else left; if all three cover something, center.
-// The place is sized for all the chapter's sentences, so it holds while they change. Only the caption moves; the holder stays.
+// Lays each caption over the row its chapter keeps for it under the headline; with no row, over the top of the drawing.
 function seat() {
-  if (!durs.length) return;
-  chs.forEach((_, i) => draw(i, Infinity));
-  const st = stage.getBoundingClientRect(), pad = st.width * 0.036;
-  const over = (a, b) => Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left)) * Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top));
-  chs.forEach((ch, i) => {
-    if (!caps[i]) return; // a person may have deleted it
-    caps[i].style.transform = '';
-    const drawn = ink(ch), rs = [...caps[i].querySelectorAll('.vs-s > span')].flatMap((b) => [...b.getClientRects()]);
-    if (!rs.length) return;
-    const left = d3.min(rs, (r) => r.left) - 10, w = d3.max(rs, (r) => r.right) + 10 - left, top = d3.min(rs, (r) => r.top) - 8, bottom = d3.max(rs, (r) => r.bottom) + 8; // with some air
-    const x = [left, st.right - pad + 10 - w, st.left + pad - 10].find((x) => !drawn.some((o) => over({left: x, right: x + w, top, bottom}, o))) ?? left;
-    caps[i].style.transform = 'translateX(' + (x - left) + 'px)';
-  });
-  frame();
+  const top = vs.querySelector('.vs-in').getBoundingClientRect().top;
+  chs.forEach((ch, i) => { const row = ch.querySelector('.vs-say, .vs-draw'); if (row && caps[i]) caps[i].style.top = row.getBoundingClientRect().top - top + 'px'; }); // a person may have deleted either
+  if (durs.length) frame();
 }
 
 let box = vs.parentElement; // the box the page scrolls in
 while (box.parentElement && !/auto|scroll/.test(getComputedStyle(box).overflowY)) box = box.parentElement;
 const fit = () => vs.style.setProperty('--room', Math.max(240, box.getBoundingClientRect().bottom - box.scrollTop - vs.getBoundingClientRect().top
   - parseFloat(getComputedStyle(root).paddingBottom) - parseFloat(getComputedStyle(box).paddingBottom)) + 'px'); // the box may be padded for a bar that floats over its foot
-const ro = new ResizeObserver(() => (vs.isConnected ? (fit(), seat()) : ro.disconnect())); ro.observe(box); ro.observe(stage); // the stage too: when only its width changes, the dashboard draws each chart again, whole, without settle, and this puts the chapter showing back at t
-document.fonts.ready.then(() => vs.isConnected && seat()); // a web font that comes late moves what is drawn
+const ro = new ResizeObserver(() => (vs.isConnected ? (fit(), seat()) : ro.disconnect())); for (const el of [box, stage, ...vs.querySelectorAll('.vs-draw')]) ro.observe(el); // the stage too: when only its width changes, the dashboard draws each chart again, whole, without settle, and this puts the chapter showing back at t; each drawing's box, which changes height when a headline above it rewraps, as under Translate
+document.fonts.ready.then(() => vs.isConnected && seat()); // a web font that comes late moves the rows
 
 dash.onData(fit);
 dash.draw('settle', () => { timing(); show(cur, t); seat(); }); // the last drawing in the HTML, so it runs once the others have

@@ -4,6 +4,30 @@
 
 本文档记录 `baoyu-design` 的重要变更。
 
+## 2.7.0 - 2026-11-02
+
+### 新功能
+- Share 面板多了 **Export** 页。页面能下载成什么，都列在这里，每行有图标和说明（幻灯片：PDF、HTML、PNG、PPTX；设计稿：Standalone 页面等），最后是主人才有的 **Whole folder (.zip)**。设计系统和 dashboard 原来本地没有下载按钮，现在也在这里下载。
+- 每个编辑器都能把整个 artifact 文件夹下载成 zip，命令行是 `archive <root> [--out file.zip|dir]`。zip 里不含编辑器自己的状态、日志、分享文件、`exports/`、临时文件和符号链接。
+- 幻灯片和设计稿：**Theme** 标签页链接到当前所用设计系统的只读页面，有按主题分的颜色、文字样式、其他 token、组件和指南。页面不运行脚本，也不读符号链接指向的文件。
+- 画布导出的独立 HTML 能跟随画板之间的链接：相对路径的 `<a href="B.dc.html">` 会在同一个画框里打开目标页面，Back 可以返回（[#25](https://github.com/JimLiu/baoyu-design/issues/25)）。
+- 幻灯片的 HTML、PPTX 导出和设计稿的 Standalone 页面会带上用到的字体。名单里无法确认授权的字体照样带上，并提示你自己确认许可，已知许可页时文件里会附上它的地址。按 unicode-range 切成多块的字体，PPTX 里嵌入一个子集文件；字体体积上限从 4 MiB 提到 16 MiB。
+- **Copy link** 现在给的是局域网里别人能打开的地址，复制时顺便把页面共享到网络上。访客可以转发页面，但不能导出：没有 Export 页、没有文件夹 zip、不能下载。
+- 编辑器第一次打开一个项目时，会写一份默认的 `.gitignore`（状态、日志、分享文件、`history/`、临时文件），已有的不动。每个 `SKILL.md` 增加了「放进 git 管理」一节（[#24](https://github.com/JimLiu/baoyu-design/issues/24)）。
+- Share：Tailscale 地址不再当作主链接，而是单独给一条，面板和 `share` 都说明它是明文 http、拿到链接就有权限。
+- DeepSeek Harness：左侧栏多了 **Artifacts** 页，列出 agent 打开过编辑器的所有文件夹，卡片按类型着色，有分类标签页和搜索。点一张卡片会打开它所在的对话，并在那个对话的 Browser 里打开编辑器。所有插件共用这一个入口。
+- DeepSeek Harness：下载能存下来了。它的浏览器会丢掉所有下载，现在导出文件和文件夹 zip 都存进项目的 `exports/`（不覆盖已有的文件），提示里写明路径。
+- Artifacts 侧栏图标改成两张叠在一起的卡片，和 claude.ai 一致。
+
+### 修复
+- `claude-slides`：下载对话框里选 **PDF** 会让整个页面崩溃，页面不崩以后 Download 按钮又没反应。现在都正常。
+- 保存时没带上自己起始版本的写入，如果别人在这期间存过同一个文件，现在会被拒绝并提示冲突，不再悄悄覆盖。
+- `claude-dashboard`：两个页面几乎同时创建同一份文档时，后一个不再把前一个覆盖掉，两边的字段合并，两边设了不同值的字段记进 History。
+- DeepSeek Harness：agent 在同一个 shell 调用里先跑了别的脚本命令再 `open` 时，评论等待照样启动，artifact 也会被记录。
+
+### 文档
+- README 和各 `SKILL.md` 说明了 Export 页、文件夹 zip、Theme 页的设计系统页面，以及放进 git 管理。
+
 ## 2.6.1 - 2026-11-01
 
 ### 修复

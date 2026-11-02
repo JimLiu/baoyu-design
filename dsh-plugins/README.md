@@ -24,7 +24,8 @@ else to install.
    The names are in the table's **npm package** column. The app downloads the plugin from npm, or from the npmmirror
    registry when npm is out of reach.
 3. **Turn it on.** The plugin now shows in the list. If its switch is off, turn it on.
-4. **Quit and reopen the app.** The chat shows comments sent to the agent as cards only after a restart.
+4. **Quit and reopen the app.** The **Artifacts** entry in the left sidebar, and the cards for comments sent to the
+   agent in the chat, show only after a restart.
 
 To install several plugins, repeat steps 1 to 3 for each, then restart once.
 
@@ -76,8 +77,11 @@ it.
      comments, and it starts waiting each time it gives you a link.
    - **None**: this editor has no comments. Tell the agent in the chat what to change and where.
 
-To come back later, open a session in the same workspace and ask the agent to open the deck, design or dashboard
-again. It starts the editor and gives you a new link.
+To come back later, click **Artifacts** in the left sidebar. It lists every deck, design, design system and dashboard
+the agent has opened with these plugins, most recent first, with a search box and a tab for each type. Click one: the
+app goes back to the conversation that made it and opens the editor in the right sidebar's browser. If that
+conversation was deleted or archived, the editor opens in a new window instead. You can also open a session in the same
+workspace and ask the agent to open it again; it starts the editor and gives you a new link.
 
 ## Update
 
@@ -117,6 +121,9 @@ workspace folders.
   plugins by name instead.
 - **The app says the plugin is already installed.** To install it again, for example to update it, uninstall it first.
 - **The link doesn't load, or Send to Agent is missing.** This happens after the app restarts, for example. Ask the
-  agent to open the editor again. That starts the editor and the wait for comments again.
+  agent to open the editor again, or click it in **Artifacts**. That starts the editor and the wait for comments again.
+- **Something you made is missing from Artifacts.** The page lists what the agent opened once the plugin (from the
+  version that added Artifacts) was installed, and leaves out folders that were moved or deleted. Ask the agent to open
+  it once and it shows up.
 
 Each plugin's folder has its own README with more on what is inside.

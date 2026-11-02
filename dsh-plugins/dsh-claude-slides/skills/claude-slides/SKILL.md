@@ -25,7 +25,7 @@ If no deck exists yet: `<root>` = a new folder `designs/<slug>/` named for the d
 working directory, or where the user says; the deck's name goes in `title` (REQUIRED).
 
 Tell the user what happens to the deck, never the mechanism.
-Asked to send it to apps like Canva: there is no Send to here; the editor's download menu saves PDF, HTML and PowerPoint (.pptx) files the user can import there.
+Asked to send it to apps like Canva: there is no Send to here; the editor's download menu saves PDF, HTML and PowerPoint (.pptx) files the user can import there (in a browser that drops downloads, such as DeepSeek Harness's, into the folder's `exports/`; a toast names the path).
 Naming slide 7 to the user? Link it too: `open`'s `url` + `#slide-7` (number, not id).
 
 ## The deck's files
@@ -81,6 +81,8 @@ leave alone stays as it is, and removing a slide is deleting its file. The rest 
 - `check <root>` → `problems` (0: done); when any, `deckProblems` and per slide `problems` with the fix, slide `notes` (hints; fix the "排版" and "警告" ones), and `designSystemNotes` when an install looks incomplete; it exits 1 while problems remain. `notChecked` names what it can't see: text sizes and contrast stay yours.
 - `open <root>` → `{url, pid, stop, …}`: starts the editor page on this machine in the background (once; later calls reuse it, `reused: true`) and prints its address, 127.0.0.1:4710 (the next free port up when 4710 is taken; `--port n` starts from n, `--port 0` takes any). `stop <root>` ends it (`serve <root>` runs it in the foreground instead). The page saves the user's edits into the same files, and shows yours as soon as you write them. `.artifact-server.json` and `.artifact-server.log` beside `project/` are its own: leave them; so is `comments.json` (the comments, see Comments), which only the comment commands below change.
 - `share <root>` (or `open <root> --lan`): opens the page to the local network and prints a link per role (Sharing, below).
+- `archive <root> [--out file.zip|dir]` → `{file, files, bytes, open}`: the whole folder, history and comments too, as one zip beside it (`--out`: another file or folder), to back it up, move it to another computer or send it to someone; unzipped anywhere, `open` carries on. The owner's Download folder button in the page (between History and Share) does the same. The server's own files and the share links stay out.
+- The Theme tab links to a read-only page of the system in use, `<editor>/__ds/<folder>/`: the copy under `project/ds/<folder>/` as this deck carries it (its tokens, its components with their `README.md` and types, its `README.md`). Anyone who can open the deck can open it, and it changes only when the copy does.
 
 ## The slide format
 
@@ -180,7 +182,7 @@ People comment in the open editor: Comment (or C), then a click on anything on a
 - `share <root> --disable <role>` / `--enable <role>` turns a link off or on (`<role>`: one, `editor,viewer`, or `all`); off, it holds everyone who came by it until it is on again. `--reset <role>` gives the role a new link: the old one stops working and the people who came by it are out. `--role <guest>=<role>` gives someone who joined another role (`<guest>`: an id from the `guests` it prints). `--off` stops sharing on the network.
 - Who is here: while someone else has the deck open, their avatars sit before History; each one's card says which slide they are on and whether they are editing, and a click goes there. The slide rail shows their badges and the slide their cursors and selections. Someone starting to edit the slide you are on gets you a short note; nothing is locked (two people on one slide: see History). After you change a file you show there as Agent, on the slide you changed, for about 20 s.
 - Only the owner's page sends to you (Send to Agent); what guests comment is saved for you to read with `comments <root>`.
-- The links and the people who joined are in `<root>/.sharing.json`: leave it. It is plain http on the local network: anyone there with a link gets in.
+- The links and the people who joined are in `<root>/.sharing.json`: leave it. It is plain http on the local network: anyone there can read what passes, and a link is the permission: whoever has one gets its role, so send each only to the people meant to have it, and `--reset` a role's link that went further (the Share panel says so too). When this computer has a Tailscale address (100.64.0.0/10), `share` also prints `tailscale`: the same links at that address, for people on the owner's tailnet from any network (the Share panel: Copy Tailscale link in a link's More menu). Nothing else reaches past the local network; there is no tunnel.
 
 ## History
 
@@ -191,6 +193,24 @@ The server keeps the deck's versions in `<root>/history/` (leave it): who change
 - Someone else's save reaches an open page without a reload: the slides it changed update in place (adding, removing or moving slides may still reload it, keeping unsaved edits).
 - Two people on one slide: when the page has unsaved edits on a slide someone else just saved, the two are merged by line first: changes to different lines both stay, saved as one version, and nothing asks (while the person is still editing in that slide, the merge waits until they leave it). Only when both changed the same lines does a bar name who and which slide, and nothing is saved until the person picks Use theirs (the page's edits on it go), Keep mine (saved over theirs) or Keep both (the slide takes theirs; the page's version becomes a new slide after it). A version saved over someone's change records whose change it replaced, and that person gets a notice on the page (Compare, Bring back, Dismiss). Compare shows only what that save replaced, and Bring back puts only that back, line by line in the slide's file: the other person's other changes to the slide stay, and History says "Partly restored". Your changes on disk count too: someone editing that slide gets the bar with "Agent" and may keep theirs, so check the file (or History) when it matters.
 - Asked who changed something, read `<root>/history/index.json`: `versions`, oldest first, each `{n, at, by, user: {name}, changes}` (`by`: `"human"`, `"agent"` for you, `"system"` for the first; `changes`: path → sha256, null for a delete; paths like `project/slides/<id>.html`), with `restoredFrom` or `overwrote` when it brought a version back or replaced someone's change; a content is `<root>/history/objects/<sha256>`, the file's bytes. To put something back, point the person to History (it records who did it), or write the old content yourself, which makes a version of yours.
+
+## Keeping it in git
+
+`open` writes `<root>/.gitignore` when the folder has none. It leaves out what only this computer's server needs:
+`.artifact-server.json`, `.artifact-server.log`, `.sharing.json` (the share links), `history/` (the versions; git
+keeps its own), save temp files and `.DS_Store`. Everything else, `project/` and `comments.json` included, is the
+deck and goes in git. A `.gitignore` already there is the person's: leave it. Moving or backing up the deck is
+copying or cloning the folder (`archive` puts it,
+history included, in one zip); `open` there starts it again.
+
+Commit, push or set up git only when asked. Asked to check the deck before each commit: write
+`.git/hooks/pre-commit` (and `chmod +x` it) in the repository that holds `<root>`, with this skill's folder as an
+absolute path and `<root>` relative to the repository's top (a hook already there: add the line to it):
+
+```sh
+#!/bin/sh
+node "<this skill's folder>/scripts/artifact.mjs" check "<root>" > /dev/null || { echo "The deck has problems: run artifact.mjs check <root> to see them." >&2; exit 1; }
+```
 
 ## The references
 

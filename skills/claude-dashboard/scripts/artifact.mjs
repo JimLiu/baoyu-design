@@ -3,9 +3,9 @@
 
 import { spawn as spawn2 } from "node:child_process";
 import { createHash as createHash4 } from "node:crypto";
-import fs7 from "node:fs";
+import fs9 from "node:fs";
 import http from "node:http";
-import path6 from "node:path";
+import path8 from "node:path";
 import { fileURLToPath } from "node:url";
 import vm from "node:vm";
 
@@ -16,6 +16,7 @@ import os from "node:os";
 import path from "node:path";
 var STATE_FILE = ".artifact-server.json";
 var LOG_FILE = ".artifact-server.log";
+var EXPORTS_DIR = "exports";
 function readState(root) {
   try {
     return JSON.parse(fs.readFileSync(path.join(root, STATE_FILE), "utf8"));
@@ -45,12 +46,22 @@ function recordServer(state, close, signals = ["SIGINT", "SIGTERM"]) {
   const file = path.join(state.root, STATE_FILE);
   fs.writeFileSync(file, `${JSON.stringify(state, null, 2)}
 `);
+  writeGitignore(state.root, state.kind);
   const shutdown = () => {
     if (readState(state.root)?.pid === process.pid) fs.rmSync(file, { force: true });
     close();
     process.exit(0);
   };
   for (const signal of signals) process.on(signal, shutdown);
+}
+var GITIGNORE_FILE = ".gitignore";
+var gitignoreLines = (kind) => [STATE_FILE, LOG_FILE, ".sharing.json", ...kind === "docs" ? [] : ["history/"], ".*.tmp", ".DS_Store"];
+function writeGitignore(root, kind) {
+  const file = path.join(root, GITIGNORE_FILE);
+  try {
+    fs.writeFileSync(file, ["# Written by baoyu-design when the editor first opened this folder: what only this computer's editor server needs.", ...gitignoreLines(kind), ""].join("\n"), { flag: "wx" });
+  } catch {
+  }
 }
 async function listen(server, port, host) {
   await new Promise((resolve, reject) => {
@@ -73,6 +84,10 @@ var PortsTaken = class extends Error {
   }
 };
 var isBenchmarkRange = (address) => /^198\.1[89]\./.test(address);
+function isTailnet(address) {
+  const m = /^100\.(\d{1,3})\./.exec(address);
+  return !!m && Number(m[1]) >= 64 && Number(m[1]) <= 127;
+}
 function lanAddresses() {
   const out = [];
   for (const list of Object.values(os.networkInterfaces())) {
@@ -81,7 +96,7 @@ function lanAddresses() {
       out.push(entry.address);
     }
   }
-  return [...new Set(out)];
+  return [...new Set(out)].sort((a, b) => Number(isTailnet(a)) - Number(isTailnet(b)));
 }
 function answers(host, port) {
   return new Promise((resolve) => {
@@ -133,8 +148,8 @@ async function listenFree(server, from, host, first) {
   throw new PortsTaken(from, to);
 }
 function serverOrigin(host, port) {
-  const shown = host === "0.0.0.0" || host === "::" ? "127.0.0.1" : host.includes(":") ? `[${host}]` : host;
-  return `http://${shown}:${port}`;
+  const shown2 = host === "0.0.0.0" || host === "::" ? "127.0.0.1" : host.includes(":") ? `[${host}]` : host;
+  return `http://${shown2}:${port}`;
 }
 var pagePathOf = (kind, root) => `/${kind}/${createHash("sha256").update(path.resolve(root)).digest("base64url").slice(0, 22)}/`;
 function pageRoute(pathname, page) {
@@ -201,9 +216,15 @@ function sendFile(request, response, file, headers) {
 }
 
 import { createHash as createHash2 } from "node:crypto";
+import fs5 from "node:fs";
+import os3 from "node:os";
+import path5 from "node:path";
+
 import fs3 from "node:fs";
-import os2 from "node:os";
+import fsp from "node:fs/promises";
 import path3 from "node:path";
+import { promisify } from "node:util";
+import zlib from "node:zlib";
 
 import crypto from "node:crypto";
 import fs2 from "node:fs";
@@ -345,6 +366,293 @@ var Sharing = class _Sharing {
   }
 };
 
+var LOCAL_FILES = /* @__PURE__ */ new Set([STATE_FILE, LOG_FILE, SHARING_FILE]);
+var LOCAL_DIRS = /* @__PURE__ */ new Set([EXPORTS_DIR]);
+var JUNK_FILES = /* @__PURE__ */ new Set([".DS_Store", "Thumbs.db", "desktop.ini"]);
+var isTemp = (name) => name.endsWith(".tmp") || name.startsWith(".tmp-");
+var STORED = /* @__PURE__ */ new Set([".png", ".jpg", ".jpeg", ".gif", ".webp", ".avif", ".heic", ".mp4", ".m4v", ".mov", ".webm", ".mp3", ".m4a", ".aac", ".ogg", ".opus", ".flac", ".woff", ".woff2", ".zip", ".gz", ".br", ".zst", ".7z"]);
+var MAX_ENTRIES = 65535;
+var MAX_BYTES = 4294967295;
+var ArchiveTooLarge = class extends Error {
+  code = "TOO_LARGE";
+};
+async function archiveEntries(root, skip = []) {
+  const folder = path3.basename(path3.resolve(root)) || "artifact";
+  const skipped = new Set(skip.map((file) => path3.resolve(file)));
+  const entries = [];
+  const walk = async (dir, rel) => {
+    let names;
+    try {
+      names = await fsp.readdir(dir, { withFileTypes: true });
+    } catch (error) {
+      if (rel && error.code === "ENOENT") return;
+      throw error;
+    }
+    for (const dirent of names.sort((a, b) => a.name < b.name ? -1 : a.name > b.name ? 1 : 0)) {
+      const name = dirent.name;
+      if (JUNK_FILES.has(name) || isTemp(name) || !rel && (LOCAL_FILES.has(name) || LOCAL_DIRS.has(name) && dirent.isDirectory())) continue;
+      const file = path3.join(dir, name);
+      if (skipped.has(file)) continue;
+      const inner = rel ? `${rel}/${name}` : name;
+      if (dirent.isDirectory()) await walk(file, inner);
+      else if (dirent.isFile()) {
+        const stat = await fsp.stat(file).catch(() => null);
+        if (stat?.isFile()) entries.push({ name: `${folder}/${inner}`, file, size: stat.size, mode: stat.mode & 511, mtime: stat.mtime });
+      }
+    }
+  };
+  await walk(path3.resolve(root), "");
+  if (entries.length > MAX_ENTRIES) throw new ArchiveTooLarge(`The folder holds ${entries.length} files, more than a zip holds (${MAX_ENTRIES}); copy the folder itself instead.`);
+  const bound = entries.reduce((sum, entry) => sum + entry.size + 2 * (46 + Buffer.byteLength(entry.name)), 22);
+  if (bound > MAX_BYTES) throw new ArchiveTooLarge(`The folder holds ${(bound / 2 ** 30).toFixed(1)} GiB, more than a zip holds (4 GiB); copy the folder itself instead.`);
+  return entries;
+}
+var CRC_TABLE = (() => {
+  const table = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = c & 1 ? 3988292384 ^ c >>> 1 : c >>> 1;
+    table[n] = c >>> 0;
+  }
+  return table;
+})();
+function crc32(bytes) {
+  let crc = 4294967295;
+  for (let i = 0; i < bytes.length; i++) crc = CRC_TABLE[(crc ^ bytes[i]) & 255] ^ crc >>> 8;
+  return (crc ^ 4294967295) >>> 0;
+}
+function dosTime(date) {
+  const year = date.getFullYear();
+  if (year < 1980) return { time: 0, date: 1 << 5 | 1 };
+  if (year > 2107) return { time: 23 << 11 | 59 << 5 | 29, date: 127 << 9 | 12 << 5 | 31 };
+  return {
+    time: date.getHours() << 11 | date.getMinutes() << 5 | date.getSeconds() >> 1,
+    date: year - 1980 << 9 | date.getMonth() + 1 << 5 | date.getDate()
+  };
+}
+var deflateRaw = promisify(zlib.deflateRaw);
+var UTF8 = 1 << 11;
+async function writeZip(entries, write) {
+  const central = [];
+  let offset = 0;
+  const put = async (chunk) => {
+    await write(chunk);
+    offset += chunk.length;
+  };
+  for (const entry of entries) {
+    let data;
+    try {
+      data = await fsp.readFile(entry.file);
+    } catch (error) {
+      if (error.code === "ENOENT") continue;
+      throw error;
+    }
+    const crc = crc32(data);
+    let method = 0;
+    let body = data;
+    if (data.length > 0 && !STORED.has(path3.extname(entry.name).toLowerCase())) {
+      const deflated = await deflateRaw(data);
+      if (deflated.length < data.length) {
+        method = 8;
+        body = deflated;
+      }
+    }
+    if (offset + body.length > MAX_BYTES) throw new ArchiveTooLarge("The folder grew past what a zip holds (4 GiB) while it was being zipped.");
+    const name = Buffer.from(entry.name, "utf8");
+    const { time, date } = dosTime(entry.mtime);
+    const local = Buffer.alloc(30);
+    local.writeUInt32LE(67324752, 0);
+    local.writeUInt16LE(20, 4);
+    local.writeUInt16LE(UTF8, 6);
+    local.writeUInt16LE(method, 8);
+    local.writeUInt16LE(time, 10);
+    local.writeUInt16LE(date, 12);
+    local.writeUInt32LE(crc, 14);
+    local.writeUInt32LE(body.length, 18);
+    local.writeUInt32LE(data.length, 22);
+    local.writeUInt16LE(name.length, 26);
+    local.writeUInt16LE(0, 28);
+    const header = Buffer.alloc(46);
+    header.writeUInt32LE(33639248, 0);
+    header.writeUInt16LE(3 << 8 | 20, 4);
+    header.writeUInt16LE(20, 6);
+    header.writeUInt16LE(UTF8, 8);
+    header.writeUInt16LE(method, 10);
+    header.writeUInt16LE(time, 12);
+    header.writeUInt16LE(date, 14);
+    header.writeUInt32LE(crc, 16);
+    header.writeUInt32LE(body.length, 20);
+    header.writeUInt32LE(data.length, 24);
+    header.writeUInt16LE(name.length, 28);
+    header.writeUInt32LE((32768 | (entry.mode || 420) | 384) << 16 >>> 0, 38);
+    header.writeUInt32LE(offset, 42);
+    central.push(header, name);
+    await put(Buffer.concat([local, name]));
+    await put(body);
+  }
+  const start = offset;
+  const directory = Buffer.concat(central);
+  await put(directory);
+  const end = Buffer.alloc(22);
+  end.writeUInt32LE(101010256, 0);
+  end.writeUInt16LE(central.length / 2, 8);
+  end.writeUInt16LE(central.length / 2, 10);
+  end.writeUInt32LE(directory.length, 12);
+  end.writeUInt32LE(start, 16);
+  await put(end);
+  return offset;
+}
+function archiveFileName(root, now = /* @__PURE__ */ new Date()) {
+  const day = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  return `${path3.basename(path3.resolve(root)) || "artifact"}-${day}.zip`;
+}
+async function writeArchive(root, out) {
+  const file = path3.resolve(out);
+  const entries = await archiveEntries(root, [file]);
+  const tmp = path3.join(path3.dirname(file), `.${path3.basename(file)}.${process.pid}.tmp`);
+  const handle = await fsp.open(tmp, "w");
+  let bytes;
+  try {
+    bytes = await writeZip(entries, async (chunk) => {
+      await handle.write(chunk);
+    });
+    await handle.close();
+  } catch (error) {
+    await handle.close().catch(() => {
+    });
+    await fsp.rm(tmp, { force: true });
+    throw error;
+  }
+  await fsp.rename(tmp, file);
+  return { file, files: entries.length, bytes };
+}
+async function archiveCommand(root, out) {
+  const where = out ? path3.resolve(out) : path3.dirname(path3.resolve(root));
+  const target = fs3.statSync(where, { throwIfNoEntry: false })?.isDirectory() ? path3.join(where, archiveFileName(root)) : where;
+  const { file, files, bytes } = await writeArchive(root, target);
+  return { file, folder: path3.basename(path3.resolve(root)), files, bytes, leftOut: [...LOCAL_FILES] };
+}
+function attachment(name) {
+  const ascii = name.replace(/[^\x20-\x7e]|["\\]/g, "_");
+  return `attachment; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(name)}`;
+}
+async function sendArchive(request, response, root) {
+  request.resume();
+  let entries;
+  try {
+    entries = await archiveEntries(root);
+  } catch (error) {
+    const text = JSON.stringify({ code: error instanceof ArchiveTooLarge ? "too_large" : "upstream_error", message: error instanceof Error ? error.message : String(error) });
+    response.writeHead(error instanceof ArchiveTooLarge ? 413 : 500, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" }).end(text);
+    return;
+  }
+  response.writeHead(200, {
+    "Content-Type": "application/zip",
+    "Content-Disposition": attachment(archiveFileName(root)),
+    "Cache-Control": "no-store",
+    "X-Content-Type-Options": "nosniff"
+  });
+  if (request.method === "HEAD") {
+    response.end();
+    return;
+  }
+  const write = (chunk) => new Promise((resolve, reject) => {
+    if (response.destroyed) return reject(new Error("The download was cancelled."));
+    if (response.write(chunk)) return resolve();
+    const drained = () => {
+      response.off("close", closed);
+      resolve();
+    };
+    const closed = () => {
+      response.off("drain", drained);
+      reject(new Error("The download was cancelled."));
+    };
+    response.once("drain", drained);
+    response.once("close", closed);
+  });
+  try {
+    await writeZip(entries, write);
+    response.end();
+  } catch {
+    response.destroy();
+  }
+}
+
+import fs4 from "node:fs";
+import fsp2 from "node:fs/promises";
+import os2 from "node:os";
+import path4 from "node:path";
+var MAX_BYTES2 = 4294967295;
+function shown(file) {
+  const home = os2.homedir();
+  return home && (file === home || file.startsWith(home + path4.sep)) ? `~${file.slice(home.length)}` : file;
+}
+function saved(file, bytes) {
+  return { path: file, name: path4.basename(file), folder: path4.dirname(file), shown: shown(file), bytes };
+}
+function safeFileName(raw) {
+  let name = (raw.replace(/\\/g, "/").split("/").pop() ?? "").replace(/[\u0000-\u001f\u007f<>:"|?*]/g, "_").replace(/^[.\s]+|[.\s]+$/g, "");
+  if (name.length > 200) {
+    const ext = path4.extname(name).slice(0, 16);
+    name = name.slice(0, 200 - ext.length) + ext;
+  }
+  return name || "download";
+}
+async function openFree(dir, name) {
+  const ext = path4.extname(name);
+  const stem = name.slice(0, name.length - ext.length);
+  for (let n = 0; ; n++) {
+    const file = path4.join(dir, n === 0 ? name : `${stem} (${n})${ext}`);
+    try {
+      return { file, handle: await fsp2.open(file, "wx") };
+    } catch (error) {
+      if (error.code !== "EEXIST" || n >= 999) throw error;
+    }
+  }
+}
+async function saveDownload(request, response, root) {
+  const declared = Number(request.headers["content-length"]);
+  if (Number.isFinite(declared) && declared > MAX_BYTES2) {
+    request.resume();
+    return sendJson(response, 413, { code: "too_large", message: "The file is over 4 GiB." });
+  }
+  const name = safeFileName(new URL(request.url ?? "/", "http://local").searchParams.get("name") ?? "");
+  let file = "";
+  let handle = null;
+  let bytes = 0;
+  try {
+    const dir = path4.join(root, EXPORTS_DIR);
+    await fsp2.mkdir(dir, { recursive: true });
+    ({ file, handle } = await openFree(dir, name));
+    for await (const chunk of request) {
+      bytes += chunk.length;
+      if (bytes > MAX_BYTES2) throw Object.assign(new Error("The file is over 4 GiB."), { status: 413 });
+      await handle.write(chunk);
+    }
+    await handle.close();
+    handle = null;
+  } catch (error) {
+    await handle?.close().catch(() => {
+    });
+    if (file) await fsp2.rm(file, { force: true });
+    request.resume();
+    const status = error.status ?? 500;
+    if (!response.headersSent) sendJson(response, status, { code: status === 413 ? "too_large" : "upstream_error", message: error instanceof Error ? error.message : String(error) });
+    return;
+  }
+  sendJson(response, 200, saved(file, bytes));
+}
+async function saveArchive(request, response, root) {
+  request.resume();
+  try {
+    const { file } = await archiveCommand(root, void 0);
+    sendJson(response, 200, saved(file, fs4.statSync(file).size));
+  } catch (error) {
+    const tooLarge = error instanceof ArchiveTooLarge;
+    sendJson(response, tooLarge ? 413 : 500, { code: tooLarge ? "too_large" : "upstream_error", message: error instanceof Error ? error.message : String(error) });
+  }
+}
+
 var NOUNS = {
   docs: { en: "doc", zh: "\u6587\u6863", zhThis: "\u8FD9\u7BC7\u6587\u6863" },
   slides: { en: "deck", zh: "\u6F14\u793A\u6587\u7A3F", zhThis: "\u8FD9\u4EFD\u6F14\u793A\u6587\u7A3F" },
@@ -374,12 +682,12 @@ function ownHosts(host, port) {
 function localOwner() {
   let name = "You";
   try {
-    name = os2.userInfo().username.trim() || name;
+    name = os3.userInfo().username.trim() || name;
   } catch {
   }
   return { id: "local", name, email: `${name}@localhost` };
 }
-var guestCookieName = (kind, root) => `${kind.replace(/-/g, "_")}_guest_${createHash2("sha256").update(path3.resolve(root)).digest("hex").slice(0, 12)}`;
+var guestCookieName = (kind, root) => `${kind.replace(/-/g, "_")}_guest_${createHash2("sha256").update(path5.resolve(root)).digest("hex").slice(0, 12)}`;
 function dbAccess(viewer, segs, adminRead = /* @__PURE__ */ new Set()) {
   const admin = canEditAs(viewer.role);
   const read = segs[0] === "data" && segs[1] === "users" && segs.length > 2 ? segs[2] === viewer.user.id : admin || !adminRead.has(segs[0] ?? "");
@@ -435,7 +743,7 @@ var ShareHost = class {
     const suffix = `:${this.port}`;
     if (!host.endsWith(suffix)) return false;
     const name = host.slice(0, -suffix.length).toLowerCase();
-    const machine = os2.hostname().toLowerCase();
+    const machine = os3.hostname().toLowerCase();
     return this.lanServers.has(name) || name === machine || name === `${machine.replace(/\.local$/, "")}.local`;
   }
   /**
@@ -549,13 +857,16 @@ var ShareHost = class {
     }
     if (method === "GET" && p === "/__share/invite") return sendJson(response, 200, this.invites(viewer, request.headers.host ?? "")), true;
     if (method === "GET" && p === "/__share/ui.js") {
-      fs3.stat(this.options.uiFile, (error, stat) => {
+      fs5.stat(this.options.uiFile, (error, stat) => {
         if (error || !stat.isFile()) return sendJson(response, 404, { code: "not_found", message: "The Share panel is missing." });
         sendFile(request, response, this.options.uiFile, { "Content-Type": "text/javascript; charset=utf-8", "Content-Length": stat.size, "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" });
       });
       return true;
     }
     if (viewer.role !== "owner") return sendJson(response, 403, { code: "not_granted", message: "Only the owner can do this." }), true;
+    if ((method === "GET" || method === "HEAD") && p === "/__share/archive") return await sendArchive(request, response, this.options.root), true;
+    if (method === "POST" && p === "/__share/archive") return await saveArchive(request, response, this.options.root), true;
+    if (method === "POST" && p === "/__share/save") return await saveDownload(request, response, this.options.root), true;
     if (p === "/__share") return await this.shareApi(request, response, method), true;
     sendJson(response, 404, { code: "not_found", message: "Not found" });
     return true;
@@ -566,7 +877,7 @@ var ShareHost = class {
    */
   headTags(_viewer, query = "") {
     let tags = `<script src="/__share/boot.js${query.replace(/[<>"']/g, "").replace(/&/g, "&amp;")}"></script>`;
-    if (fs3.existsSync(this.options.uiFile)) tags += '<script type="module" src="/__share/ui.js"></script>';
+    if (fs5.existsSync(this.options.uiFile)) tags += '<script type="module" src="/__share/ui.js"></script>';
     return tags;
   }
   /** `html` with the head tags first in its <head>; null when it has none. */
@@ -655,18 +966,23 @@ var ShareHost = class {
   }
   /** Links, addresses and people, for the share panel and `artifact.mjs share`. */
   shareView() {
-    const addresses = [...this.lanServers.keys()];
-    const base = addresses.length ? `http://${addresses[0]}:${this.port}` : `http://127.0.0.1:${this.port}`;
+    const addresses = [...this.lanServers.keys()].sort((a, b) => Number(isTailnet(a)) - Number(isTailnet(b)));
+    const local = addresses.filter((a) => !isTailnet(a));
+    const base = local.length ? `http://${local[0]}:${this.port}` : addresses.length ? `http://${addresses[0]}:${this.port}` : `http://127.0.0.1:${this.port}`;
+    const tailnet = addresses.find(isTailnet);
     const online = /* @__PURE__ */ new Set();
     for (const live of this.live) if (live.viewer.guest) online.add(live.viewer.guest.id);
     const { links, guests } = this.sharing.state;
+    const lan = addresses.length ? addresses : [...lanAddresses()].sort((a, b) => Number(isTailnet(a)) - Number(isTailnet(b)));
+    const network = lan.length ? `http://${lan[0]}:${this.port}` : base;
     return {
       title: this.options.title(),
       lan: this.lanServers.size > 0,
       port: this.port,
       addresses,
       local: `http://127.0.0.1:${this.port}/`,
-      links: Object.fromEntries(GUEST_ROLES.map((role) => [role, { on: links[role].on, url: `${base}/s/${links[role].token}` }])),
+      links: Object.fromEntries(GUEST_ROLES.map((role) => [role, { on: links[role].on, url: `${base}/s/${links[role].token}`, networkUrl: `${network}/s/${links[role].token}` }])),
+      ...tailnet ? { tailnet: { address: tailnet, links: Object.fromEntries(GUEST_ROLES.map((role) => [role, { on: links[role].on, url: `http://${tailnet}:${this.port}/s/${links[role].token}` }])) } } : {},
       guests: guests.filter((g) => this.sharing.valid(g) || links[g.role].token === g.link).map((g) => ({ id: g.id, name: g.name, role: g.role, joined: g.joined, ...g.seen ? { seen: g.seen } : {}, online: online.has(g.id), active: this.sharing.valid(g) }))
     };
   }
@@ -995,8 +1311,8 @@ function mergeList(base, mine, current, mineList, currentList, at, conflicts) {
 var utf8 = new TextDecoder("utf-8", { fatal: true });
 
 import { createHash as createHash3, randomBytes } from "node:crypto";
-import fs4 from "node:fs";
-import path4 from "node:path";
+import fs6 from "node:fs";
+import path6 from "node:path";
 var HISTORY_DIR = "history";
 var INDEX = "index.json";
 var OBJECTS = "objects";
@@ -1011,13 +1327,13 @@ var sha256 = (bytes) => createHash3("sha256").update(bytes).digest("hex");
 var SHA = /^[0-9a-f]{64}$/;
 var isRecord3 = (value) => typeof value === "object" && value !== null && !Array.isArray(value);
 function writeAtomic(file, data) {
-  fs4.mkdirSync(path4.dirname(file), { recursive: true });
-  const tmp = path4.join(path4.dirname(file), `.${path4.basename(file)}.${process.pid}.${randomBytes(4).toString("hex")}.tmp`);
+  fs6.mkdirSync(path6.dirname(file), { recursive: true });
+  const tmp = path6.join(path6.dirname(file), `.${path6.basename(file)}.${process.pid}.${randomBytes(4).toString("hex")}.tmp`);
   try {
-    fs4.writeFileSync(tmp, data);
-    fs4.renameSync(tmp, file);
+    fs6.writeFileSync(tmp, data);
+    fs6.renameSync(tmp, file);
   } catch (error) {
-    fs4.rmSync(tmp, { force: true });
+    fs6.rmSync(tmp, { force: true });
     throw error;
   }
 }
@@ -1098,10 +1414,10 @@ var History = class {
   /** path → sha: what the files hold after the newest version. */
   headState;
   constructor(root) {
-    this.dir = path4.join(root, HISTORY_DIR);
+    this.dir = path6.join(root, HISTORY_DIR);
     let raw = null;
     try {
-      raw = JSON.parse(fs4.readFileSync(path4.join(this.dir, INDEX), "utf8"));
+      raw = JSON.parse(fs6.readFileSync(path6.join(this.dir, INDEX), "utf8"));
     } catch {
     }
     this.index = parseIndex(raw);
@@ -1145,7 +1461,7 @@ var History = class {
   read(sha) {
     if (!SHA.test(sha)) return null;
     try {
-      return fs4.readFileSync(path4.join(this.dir, OBJECTS, sha));
+      return fs6.readFileSync(path6.join(this.dir, OBJECTS, sha));
     } catch {
       return null;
     }
@@ -1159,7 +1475,7 @@ var History = class {
   size(sha) {
     if (!SHA.test(sha)) return null;
     try {
-      return fs4.statSync(path4.join(this.dir, OBJECTS, sha)).size;
+      return fs6.statSync(path6.join(this.dir, OBJECTS, sha)).size;
     } catch {
       return null;
     }
@@ -1293,8 +1609,8 @@ var History = class {
     return out;
   }
   putObject(sha, bytes) {
-    const file = path4.join(this.dir, OBJECTS, sha);
-    if (fs4.existsSync(file)) return;
+    const file = path6.join(this.dir, OBJECTS, sha);
+    if (fs6.existsSync(file)) return;
     writeAtomic(file, bytes);
   }
   /** Past MAX_VERSIONS the oldest fold into the base; old notices go; contents no one holds are removed. */
@@ -1331,14 +1647,14 @@ var History = class {
     }
     let names;
     try {
-      names = fs4.readdirSync(path4.join(this.dir, OBJECTS));
+      names = fs6.readdirSync(path6.join(this.dir, OBJECTS));
     } catch {
       return;
     }
-    for (const name of names) if (SHA.test(name) && !keep.has(name)) fs4.rmSync(path4.join(this.dir, OBJECTS, name), { force: true });
+    for (const name of names) if (SHA.test(name) && !keep.has(name)) fs6.rmSync(path6.join(this.dir, OBJECTS, name), { force: true });
   }
   save() {
-    writeAtomic(path4.join(this.dir, INDEX), `${JSON.stringify(this.index)}
+    writeAtomic(path6.join(this.dir, INDEX), `${JSON.stringify(this.index)}
 `);
   }
 };
@@ -1639,12 +1955,12 @@ var DbHistory = class {
    * A page's write of `path` by `who`, until `settle`: the rescan in between records it as theirs. `merge`: the write was
    * merged (mergeDoc) from this base, and these are the values in it that replaced someone else's (empty: nothing lost).
    */
-  attribute(path7, who, merge) {
-    this.pending.set(path7, { who, ...merge ? { merge } : {} });
+  attribute(path9, who, merge) {
+    this.pending.set(path9, { who, ...merge ? { merge } : {} });
   }
   /** After the page's write and its rescan (the write may have changed nothing, or failed). */
-  settle(path7) {
-    this.pending.delete(path7);
+  settle(path9) {
+    this.pending.delete(path9);
   }
   /** Records the rescan's changes; `present` says which documents are on disk now (for the first rescan). */
   record(changes, present) {
@@ -1979,13 +2295,20 @@ async function shareCommand(o) {
   for (const change of changes) view = await shareCall(server.url, change, o.fail);
   if (off || !view.lan) view = await shareCall(server.url, { action: "lan", on: !off }, o.fail);
   const links = view.links;
+  const shown2 = (list) => Object.fromEntries(Object.entries(list).map(([role, link]) => [role, link.on ? link.url : "off"]));
+  const tailnet = view.lan ? view.tailnet : void 0;
   return {
     lan: view.lan,
     ...view.lan ? { addresses: lanUrls(view) } : {},
-    links: Object.fromEntries(Object.entries(links).map(([role, link]) => [role, link.on ? link.url : "off"])),
+    links: shown2(links),
+    ...tailnet ? {
+      tailscale: shown2(tailnet.links),
+      tailscaleNote: `This computer has a Tailscale address (${tailnet.address}): the tailscale links open the same roles for people on your tailnet, from any network. Use the links above for people on this Wi-Fi or LAN.`
+    } : {},
     guests: view.guests,
     ...view.lan ? {
       note: "Send the link for the role you want to give: editor edits, commenter comments, viewer reads. Anyone on this network with a link joins under a name they type. The owner (this computer) shares from the Share button too.",
+      security: "It is plain http: others on the network can read what passes. A link is the permission: whoever has it gets its role, so send it only to the people meant to have it, and reset a role's link if it went further.",
       stop: o.offCommand
     } : { note: "Not shared on the network: the links work on this computer only." }
   };
@@ -2184,20 +2507,20 @@ function agentViews(doc, threads) {
 }
 
 import { spawn } from "node:child_process";
-import fs6 from "node:fs";
-import os3 from "node:os";
+import fs8 from "node:fs";
+import os4 from "node:os";
 
-import fs5 from "node:fs";
-import fsp from "node:fs/promises";
-import path5 from "node:path";
+import fs7 from "node:fs";
+import fsp3 from "node:fs/promises";
+import path7 from "node:path";
 var LOCK_STALE_MS = 1e4;
 var LOCK_WAIT_MS = 5e3;
 var LOCK_RETRY_MS = 20;
-var commentsPath = (root) => path5.join(root, COMMENTS_FILE);
+var commentsPath = (root) => path7.join(root, COMMENTS_FILE);
 async function readComments(root) {
   let text;
   try {
-    text = await fsp.readFile(commentsPath(root), "utf8");
+    text = await fsp3.readFile(commentsPath(root), "utf8");
   } catch (error) {
     if (error.code === "ENOENT") return emptyDoc();
     throw error;
@@ -2215,17 +2538,17 @@ async function lock(root) {
   const deadline = Date.now() + LOCK_WAIT_MS;
   for (; ; ) {
     try {
-      const handle = await fsp.open(file, "wx");
+      const handle = await fsp3.open(file, "wx");
       await handle.writeFile(`${process.pid}
 `);
       await handle.close();
-      return () => fsp.rm(file, { force: true });
+      return () => fsp3.rm(file, { force: true });
     } catch (error) {
       if (error.code !== "EEXIST") throw error;
     }
-    const info = await fsp.stat(file).catch(() => null);
+    const info = await fsp3.stat(file).catch(() => null);
     if (info && Date.now() - info.mtimeMs > LOCK_STALE_MS) {
-      await fsp.rm(file, { force: true });
+      await fsp3.rm(file, { force: true });
       continue;
     }
     if (Date.now() > deadline) throw new CommentsError("COMMENTS_LOCKED", `${file} is held by another process; try again (or delete it if nothing is running).`, 503);
@@ -2233,12 +2556,12 @@ async function lock(root) {
   }
 }
 async function writeAtomic2(file, text) {
-  const temp = path5.join(path5.dirname(file), `.${path5.basename(file)}.${process.pid}.${Date.now().toString(36)}.tmp`);
-  await fsp.writeFile(temp, text);
+  const temp = path7.join(path7.dirname(file), `.${path7.basename(file)}.${process.pid}.${Date.now().toString(36)}.tmp`);
+  await fsp3.writeFile(temp, text);
   try {
-    await fsp.rename(temp, file);
+    await fsp3.rename(temp, file);
   } catch (error) {
-    await fsp.rm(temp, { force: true });
+    await fsp3.rm(temp, { force: true });
     throw error;
   }
 }
@@ -2249,7 +2572,7 @@ async function updateComments(root, change) {
     const before = formatDoc(doc);
     const result = await change(doc);
     const after = formatDoc(doc);
-    const exists = fs5.existsSync(commentsPath(root));
+    const exists = fs7.existsSync(commentsPath(root));
     if (after !== before && (exists || doc.threads.length > 0)) await writeAtomic2(commentsPath(root), after);
     return result;
   } finally {
@@ -2310,7 +2633,7 @@ function readJson(request) {
 }
 function defaultUserName() {
   try {
-    return os3.userInfo().username.trim() || "you";
+    return os4.userInfo().username.trim() || "you";
   } catch {
     return "you";
   }
@@ -2511,7 +2834,7 @@ data: ${JSON.stringify(snap)}
   };
   let watcher = null;
   try {
-    watcher = fs6.watch(root, (_event, name) => {
+    watcher = fs8.watch(root, (_event, name) => {
       if (name === null || name === COMMENTS_FILE) changed();
     });
     watcher.on("error", () => {
@@ -2523,7 +2846,7 @@ data: ${JSON.stringify(snap)}
   }
   let lastStat = "";
   const poll = setInterval(() => {
-    fs6.stat(commentsPath(root), (error, info) => {
+    fs8.stat(commentsPath(root), (error, info) => {
       const stat = error ? "none" : `${info.mtimeMs}:${info.size}`;
       if (stat !== lastStat) {
         const first = lastStat === "";
@@ -2748,8 +3071,8 @@ data: ${JSON.stringify(snap)}
 }
 
 var SCRIPT = fileURLToPath(import.meta.url);
-var SKILL_DIR = path6.dirname(path6.dirname(SCRIPT));
-var EDITOR_DIR = path6.join(path6.dirname(SCRIPT), "editor");
+var SKILL_DIR = path8.dirname(path8.dirname(SCRIPT));
+var EDITOR_DIR = path8.join(path8.dirname(SCRIPT), "editor");
 var LOCAL_USER_ID = "local";
 var MAX_DOC_BYTES = 256 * 1024;
 var MAX_FILE_CHARS = 262144;
@@ -2790,7 +3113,7 @@ var CliError = class extends Error {
 var isObject2 = (v) => typeof v === "object" && v !== null && !Array.isArray(v);
 var bytesOf = (value) => Buffer.byteLength(JSON.stringify(value), "utf8");
 var kb = (n) => n >= 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)} MB` : `${Math.ceil(n / 1024)} KB`;
-var extOf = (name) => path6.extname(name).slice(1).toLowerCase();
+var extOf = (name) => path8.extname(name).slice(1).toLowerCase();
 var contentTypeOf = (name) => CONTENT_TYPES[extOf(name)] ?? "application/octet-stream";
 var quote = (s) => /^[A-Za-z0-9_./:@%+=-]+$/.test(s) ? s : `'${s.replace(/'/g, `'\\''`)}'`;
 var cmd = (name, ...args) => ["node", quote(SCRIPT), name, ...args.map(quote)].join(" ");
@@ -2814,19 +3137,19 @@ function parseArgs(argv) {
   return { positional, flags };
 }
 function writeFileAtomic(file, data) {
-  fs7.mkdirSync(path6.dirname(file), { recursive: true });
-  const tmp = path6.join(path6.dirname(file), `.tmp-${process.pid}-${Date.now()}-${path6.basename(file)}`);
-  fs7.writeFileSync(tmp, data);
-  fs7.renameSync(tmp, file);
+  fs9.mkdirSync(path8.dirname(file), { recursive: true });
+  const tmp = path8.join(path8.dirname(file), `.tmp-${process.pid}-${Date.now()}-${path8.basename(file)}`);
+  fs9.writeFileSync(tmp, data);
+  fs9.renameSync(tmp, file);
 }
 function resolveRoot(given, { create = false } = {}) {
   if (!given) throw new CliError("MISSING_ROOT", "Give the dashboard folder (for example designs/<slug>).");
-  const root = path6.resolve(given);
-  const stat = fs7.statSync(root, { throwIfNoEntry: false });
+  const root = path8.resolve(given);
+  const stat = fs9.statSync(root, { throwIfNoEntry: false });
   if (stat && !stat.isDirectory()) throw new CliError("NOT_A_FOLDER", `${given} is a file; the dashboard is a folder.`);
   if (!stat) {
     if (!create) throw new CliError("NOT_FOUND", `${root} does not exist. Write the dashboard first: ${cmd("write-db", given, "batch.json")}.`);
-    fs7.mkdirSync(root, { recursive: true });
+    fs9.mkdirSync(root, { recursive: true });
   }
   return root;
 }
@@ -2844,20 +3167,20 @@ function docSegments(p) {
   if (segs.length % 2 !== 0) throw new CliError("INVALID_PATH", `${p} names a collection; a document path is collection/doc_id (for example datasets/sales).`);
   return segs;
 }
-var docFile = (root, segs) => path6.join(root, "db", ...segs.slice(0, -1), `${segs.at(-1)}.json`);
+var docFile = (root, segs) => path8.join(root, "db", ...segs.slice(0, -1), `${segs.at(-1)}.json`);
 function listDocFiles(root) {
   const out = /* @__PURE__ */ new Map();
-  const base = path6.join(root, "db");
+  const base = path8.join(root, "db");
   const walk = (dir, rel) => {
     let entries;
     try {
-      entries = fs7.readdirSync(dir, { withFileTypes: true });
+      entries = fs9.readdirSync(dir, { withFileTypes: true });
     } catch {
       return;
     }
     for (const e of entries) {
       if (e.name.startsWith(".")) continue;
-      const full = path6.join(dir, e.name);
+      const full = path8.join(dir, e.name);
       if (e.isDirectory()) walk(full, [...rel, e.name]);
       else if (e.isFile() && e.name.endsWith(".json")) {
         const segs = [...rel, e.name.slice(0, -5)];
@@ -2874,7 +3197,7 @@ function readDoc(root, p) {
   const file = docFile(root, segs);
   let text;
   try {
-    text = fs7.readFileSync(file, "utf8");
+    text = fs9.readFileSync(file, "utf8");
   } catch {
     return { path: segs.join("/"), exists: false, file };
   }
@@ -2891,7 +3214,7 @@ function readAllDocs(root) {
   const damaged = [];
   for (const [p, { file }] of listDocFiles(root)) {
     try {
-      const data = JSON.parse(fs7.readFileSync(file, "utf8"));
+      const data = JSON.parse(fs9.readFileSync(file, "utf8"));
       if (isObject2(data)) docs.set(p, data);
       else damaged.push(p);
     } catch {
@@ -2937,9 +3260,9 @@ function resolveFileRefs(value, where) {
   if (!isObject2(value)) return value;
   const keys = Object.keys(value);
   if (keys.length === 1 && keys[0] === "$file") {
-    const file = path6.resolve(String(value.$file));
+    const file = path8.resolve(String(value.$file));
     try {
-      return fs7.readFileSync(file, "utf8");
+      return fs9.readFileSync(file, "utf8");
     } catch {
       throw new CliError("FILE_NOT_FOUND", `${where}: {"$file": ${JSON.stringify(value.$file)}} \u2014 no such file (paths are relative to ${process.cwd()}).`);
     }
@@ -2974,7 +3297,7 @@ function applyWrites(root, writes, { agent = true } = {}) {
       if (w.data === void 0 === (w.file_path === void 0)) throw new CliError("INVALID_WRITE", `${where} (${op}) needs exactly one of "data" or "file_path".`);
       if (w.file_path !== void 0) {
         try {
-          data = JSON.parse(fs7.readFileSync(path6.resolve(String(w.file_path)), "utf8"));
+          data = JSON.parse(fs9.readFileSync(path8.resolve(String(w.file_path)), "utf8"));
         } catch (error) {
           throw new CliError("INVALID_WRITE", `${where}.file_path ${JSON.stringify(w.file_path)}: ${error.code === "ENOENT" ? "no such file" : `not JSON (${error.message})`}.`);
         }
@@ -2984,7 +3307,7 @@ function applyWrites(root, writes, { agent = true } = {}) {
       if (op === "set" && hasDeleteMarker(data)) throw new CliError("INVALID_WRITE", `${where}: {"__delete__": true} works only in an update; set writes the whole document.`);
     }
     const file = docFile(root, segs);
-    const existing = fs7.existsSync(file) ? readDoc(root, p) : { exists: false };
+    const existing = fs9.existsSync(file) ? readDoc(root, p) : { exists: false };
     let next = null;
     if (op === "set") next = data;
     else if (op === "update") next = mergePatch(existing.exists ? existing.data : {}, data);
@@ -2997,7 +3320,7 @@ function applyWrites(root, writes, { agent = true } = {}) {
   });
   if (total > MAX_BATCH_BYTES) throw new CliError("BATCH_TOO_LARGE", `The batch writes ${kb(total)}; a batch is at most 1 MB. Split it.`);
   for (const w of planned) {
-    if (w.op === "delete") fs7.rmSync(w.file, { force: true });
+    if (w.op === "delete") fs9.rmSync(w.file, { force: true });
     else writeFileAtomic(w.file, `${JSON.stringify(w.next, null, 2)}
 `);
   }
@@ -3009,10 +3332,10 @@ function applyWrites(root, writes, { agent = true } = {}) {
     ...w.op === "delete" && !w.existed ? { note: "there was no such document" } : {}
   }));
 }
-var blobFile = (root, id) => path6.join(root, "_blobs", id);
+var blobFile = (root, id) => path8.join(root, "_blobs", id);
 function readBlobMeta(root, id) {
   try {
-    return JSON.parse(fs7.readFileSync(`${blobFile(root, id)}.json`, "utf8"));
+    return JSON.parse(fs9.readFileSync(`${blobFile(root, id)}.json`, "utf8"));
   } catch {
     return null;
   }
@@ -3020,7 +3343,7 @@ function readBlobMeta(root, id) {
 function putBlob(root, bytes, name, contentType) {
   const id = createHash4("sha256").update(bytes).digest("hex").slice(0, 32);
   const file = blobFile(root, id);
-  if (!fs7.existsSync(file)) writeFileAtomic(file, bytes);
+  if (!fs9.existsSync(file)) writeFileAtomic(file, bytes);
   const meta = { name, contentType, bytes: bytes.length, uploadedAt: (/* @__PURE__ */ new Date()).toISOString() };
   writeFileAtomic(`${file}.json`, `${JSON.stringify(meta, null, 2)}
 `);
@@ -3028,16 +3351,16 @@ function putBlob(root, bytes, name, contentType) {
 }
 function upload(root, given, flags) {
   if (!given) throw new CliError("MISSING_FILE", "Give the file to attach (CSV, TSV or JSON).");
-  const file = path6.resolve(given);
-  const stat = fs7.statSync(file, { throwIfNoEntry: false });
+  const file = path8.resolve(given);
+  const stat = fs9.statSync(file, { throwIfNoEntry: false });
   if (!stat) throw new CliError("FILE_NOT_FOUND", `No such file: ${given}`);
   if (!stat.isFile()) throw new CliError("NOT_A_FILE", `${given} is not a regular file.`);
   if (stat.size > MAX_DATA_BYTES) {
     throw new CliError("FILE_TOO_LARGE", `${given} is ${kb(stat.size)}; a file dataset over 8 MB is refused. Keep only the columns and rows the dashboard shows, or aggregate first.`);
   }
-  const name = flags.get("name") ?? path6.basename(file);
+  const name = flags.get("name") ?? path8.basename(file);
   const type = flags.get("type") ?? contentTypeOf(name);
-  const result = putBlob(root, fs7.readFileSync(file), name, type);
+  const result = putBlob(root, fs9.readFileSync(file), name, type);
   const ext = extOf(name);
   return {
     ...result,
@@ -3056,11 +3379,11 @@ function referencesTo(root, id) {
 function deleteAsset(root, given) {
   const id = BLOB_URL.exec(String(given ?? ""))?.[1] ?? (BLOB_ID.test(String(given ?? "")) ? given : null);
   if (!id) throw new CliError("INVALID_ASSET", "Give the attached file as its url (/_blob/<id>) or id (32 hex).");
-  if (!fs7.existsSync(blobFile(root, id))) throw new CliError("NOT_FOUND", `No attached file ${id} in ${root}/_blobs.`);
+  if (!fs9.existsSync(blobFile(root, id))) throw new CliError("NOT_FOUND", `No attached file ${id} in ${root}/_blobs.`);
   const users = referencesTo(root, id);
   if (users.length > 0) throw new CliError("IN_USE", `${id} is still named by ${users.join(", ")}; change or delete those first.`);
-  fs7.rmSync(blobFile(root, id), { force: true });
-  fs7.rmSync(`${blobFile(root, id)}.json`, { force: true });
+  fs9.rmSync(blobFile(root, id), { force: true });
+  fs9.rmSync(`${blobFile(root, id)}.json`, { force: true });
   return { deleted: `/_blob/${id}` };
 }
 function readDb(root, given, flags) {
@@ -3068,7 +3391,7 @@ function readDb(root, given, flags) {
     const files = listDocFiles(root);
     return {
       root,
-      documents: [...files.keys()].sort().map((p) => ({ path: p, bytes: fs7.statSync(files.get(p).file).size }))
+      documents: [...files.keys()].sort().map((p) => ({ path: p, bytes: fs9.statSync(files.get(p).file).size }))
     };
   }
   const segs = splitPath(given, "collection or document");
@@ -3252,9 +3575,9 @@ function definedRuntimeTokens() {
   if (runtimeTokens) return runtimeTokens;
   runtimeTokens = /* @__PURE__ */ new Set();
   try {
-    for (const name of fs7.readdirSync(path6.join(EDITOR_DIR, "assets"))) {
+    for (const name of fs9.readdirSync(path8.join(EDITOR_DIR, "assets"))) {
       if (!name.endsWith(".css")) continue;
-      const css = fs7.readFileSync(path6.join(EDITOR_DIR, "assets", name), "utf8");
+      const css = fs9.readFileSync(path8.join(EDITOR_DIR, "assets", name), "utf8");
       for (const m of css.matchAll(/(--[A-Za-z0-9_-]+)\s*:/g)) runtimeTokens.add(m[1]);
     }
   } catch {
@@ -3586,7 +3909,7 @@ function check(root) {
       continue;
     }
     const file = blobFile(root, blob);
-    const stat = fs7.statSync(file, { throwIfNoEntry: false });
+    const stat = fs9.statSync(file, { throwIfNoEntry: false });
     if (!stat) {
       issue(p, `source.url ${source.url}: no such attached file in _blobs/. Upload the file again and use the url it prints.`);
       continue;
@@ -3598,7 +3921,7 @@ function check(root) {
     if (typeof source.name !== "string" || !source.name.trim()) issue(p, "source.name: the file\u2019s own name (it sets the format when format is left out).");
     if (source.format !== void 0 && !["csv", "tsv", "json"].includes(source.format)) issue(p, 'source.format is "csv", "tsv" or "json" (only when the name\u2019s extension doesn\u2019t say).');
     const format = ["csv", "tsv", "json"].includes(source.format) ? source.format : inferFormat(source.name);
-    const text = fs7.readFileSync(file, "utf8");
+    const text = fs9.readFileSync(file, "utf8");
     const table = format === "json" ? parseJsonTable(text) : parseDelimited(text, format === "tsv" ? "	" : ",");
     if (!table || table.columns.length === 0) {
       issue(p, `the file has no rows the page can read as ${format}${format === "json" ? " (an array of row objects, or one under rows/data/results)" : ""}.`);
@@ -3839,8 +4162,8 @@ function check(root) {
   const runs = docs.get(`data/users/${LOCAL_USER_ID}/runs`);
   if (runs) {
     const runsFile = docFile(root, ["data", "users", LOCAL_USER_ID, "runs"]);
-    const writtenAt = fs7.statSync(runsFile).mtime;
-    const pageChanged = [...docs.keys()].some((p) => /^(files|datasets)\//.test(p) && fs7.statSync(docFile(root, p.split("/"))).mtime > writtenAt);
+    const writtenAt = fs9.statSync(runsFile).mtime;
+    const pageChanged = [...docs.keys()].some((p) => /^(files|datasets)\//.test(p) && fs9.statSync(docFile(root, p.split("/"))).mtime > writtenAt);
     const failedSources = Object.entries(isObject2(runs.datasets) ? runs.datasets : {}).filter(([, d]) => isObject2(d) && d.status !== "ok");
     pageReport = {
       writtenAt: writtenAt.toISOString(),
@@ -3865,8 +4188,8 @@ function check(root) {
   let pageCheck;
   const checkDoc = docs.get(`data/users/${LOCAL_USER_ID}/check`);
   if (checkDoc) {
-    const writtenAt = fs7.statSync(docFile(root, ["data", "users", LOCAL_USER_ID, "check"])).mtime;
-    const changedSince = (re) => [...docs.keys()].some((p) => re.test(p) && fs7.statSync(docFile(root, p.split("/"))).mtime > writtenAt);
+    const writtenAt = fs9.statSync(docFile(root, ["data", "users", LOCAL_USER_ID, "check"])).mtime;
+    const changedSince = (re) => [...docs.keys()].some((p) => re.test(p) && fs9.statSync(docFile(root, p.split("/"))).mtime > writtenAt);
     const stale = changedSince(/^files\//) ? "a page file changed after the page wrote this; the open page checks again when it picks the change up, then rewrites or removes it" : changedSince(/^(datasets|dash)\//) ? "a dataset or dash document changed after the page wrote this; only a page-file write (or opening the page again) checks again" : checkDoc.status === "checking" && Date.now() - writtenAt.getTime() > CHECK_ABANDONED_MS ? "it has said checking for over 30 seconds: the page was closed while it checked; it checks again when it is opened" : void 0;
     pageCheck = {
       status: checkDoc.status,
@@ -3955,7 +4278,7 @@ function historyLabel(p, docs) {
   return null;
 }
 async function serve(root, flags) {
-  if (!["index.html", "local-host.js", "comments.js"].every((name) => fs7.existsSync(path6.join(EDITOR_DIR, name)))) {
+  if (!["index.html", "local-host.js", "comments.js"].every((name) => fs9.existsSync(path8.join(EDITOR_DIR, name)))) {
     throw new CliError("EDITOR_MISSING", `The editor page is missing (${EDITOR_DIR}); reinstall the skill.`);
   }
   const existing = await runningServer2(root);
@@ -3970,8 +4293,8 @@ async function serve(root, flags) {
   if (!Number.isInteger(port) || port < 0 || port > 65535) throw new CliError("INVALID_PORT", "--port is a number from 0 to 65535.");
   const log = (line) => process.stderr.write(`[${(/* @__PURE__ */ new Date()).toISOString()}] ${line}
 `);
-  const dbDir = path6.join(root, "db");
-  fs7.mkdirSync(dbDir, { recursive: true });
+  const dbDir = path8.join(root, "db");
+  fs9.mkdirSync(dbDir, { recursive: true });
   const known = /* @__PURE__ */ new Map();
   const clients = /* @__PURE__ */ new Map();
   const presence = new PresenceHub();
@@ -3997,7 +4320,7 @@ data: ${JSON.stringify(data)}
     for (const [p, { file }] of files) {
       let stat;
       try {
-        stat = fs7.statSync(file);
+        stat = fs9.statSync(file);
       } catch {
         continue;
       }
@@ -4005,7 +4328,7 @@ data: ${JSON.stringify(data)}
       if (prev && prev.mtimeMs === stat.mtimeMs && prev.size === stat.size) continue;
       let data;
       try {
-        data = JSON.parse(fs7.readFileSync(file, "utf8"));
+        data = JSON.parse(fs9.readFileSync(file, "utf8"));
         if (!isObject2(data)) throw new Error("not an object");
       } catch {
         continue;
@@ -4039,7 +4362,7 @@ data: ${JSON.stringify(data)}
   };
   let watcher = null;
   try {
-    watcher = fs7.watch(dbDir, { recursive: true }, soon);
+    watcher = fs9.watch(dbDir, { recursive: true }, soon);
     watcher.on("error", () => {
     });
   } catch (error) {
@@ -4055,7 +4378,7 @@ data: ${JSON.stringify(data)}
     title: () => dashboardTitle(root),
     log,
     createServer: () => http.createServer(handle),
-    uiFile: path6.join(EDITOR_DIR, "share-ui.js"),
+    uiFile: path8.join(EDITOR_DIR, "share-ui.js"),
     globals: (viewer, query) => ({ __baoyuHistory: history.bootGlobal(viewer, query) })
   });
   const comments = createCommentsService({
@@ -4072,7 +4395,7 @@ data: ${JSON.stringify(data)}
   });
   const json = (res, status, body) => sendJson(res, status, body);
   const serveFile = (req, res, file, type, cache) => {
-    fs7.stat(file, (error, stat) => {
+    fs9.stat(file, (error, stat) => {
       if (error || !stat.isFile()) return json(res, 404, { code: "not_found", message: "Not found" });
       sendFile(req, res, file, { "Content-Type": type, "Content-Length": stat.size, "Cache-Control": cache, "X-Content-Type-Options": "nosniff" });
     });
@@ -4080,7 +4403,7 @@ data: ${JSON.stringify(data)}
   const servePage = (res, viewer, at) => {
     let html;
     try {
-      html = fs7.readFileSync(path6.join(EDITOR_DIR, "index.html"), "utf8");
+      html = fs9.readFileSync(path8.join(EDITOR_DIR, "index.html"), "utf8");
     } catch {
       return json(res, 404, { code: "not_found", message: "The editor page is missing." });
     }
@@ -4141,13 +4464,13 @@ data: ${JSON.stringify(data)}
           return json(res, 403, { code: "invalid_argument", message: "This is an earlier version: open the current one to change it." });
         }
       }
-      if (req.method === "GET" && (p === "/local-host.js" || p === "/comments.js")) return serveFile(req, res, path6.join(EDITOR_DIR, p.slice(1)), "text/javascript; charset=utf-8", "no-store");
+      if (req.method === "GET" && (p === "/local-host.js" || p === "/comments.js")) return serveFile(req, res, path8.join(EDITOR_DIR, p.slice(1)), "text/javascript; charset=utf-8", "no-store");
       if (p === COMMENTS_ROUTE || p.startsWith(`${COMMENTS_ROUTE}/`)) {
         const sub = p.slice(COMMENTS_ROUTE.length);
         if (sub === "/events") share2.hold(viewer, res);
         return await comments.handle(req, res, sub);
       }
-      if (req.method === "GET" && /^\/assets\/[A-Za-z0-9_.-]+$/.test(p)) return serveFile(req, res, path6.join(EDITOR_DIR, p), contentTypeOf(p), "public, max-age=31536000, immutable");
+      if (req.method === "GET" && /^\/assets\/[A-Za-z0-9_.-]+$/.test(p)) return serveFile(req, res, path8.join(EDITOR_DIR, p), contentTypeOf(p), "public, max-age=31536000, immutable");
       const blob = /^\/_blob\/([0-9a-f]{32})$/.exec(p);
       if (req.method === "GET" && blob) {
         const meta = readBlobMeta(root, blob[1]);
@@ -4202,17 +4525,18 @@ data: ${JSON.stringify(data)}
         if (!access(viewer, segs.join("/")).write) return json(res, 403, { code: "invalid_argument", message: `${segs.join("/")} is another person's own: only they read and write it.` });
         let write = { op: body.op, path: given, ...body.op === "delete" ? {} : { data: body.data } };
         let merge;
-        if ((body.op === "set" || body.op === "update" || body.op === "delete") && isObject2(body.base) && (body.op === "delete" || isObject2(body.data))) {
+        const base = isObject2(body.base) ? body.base : body.base === null && body.op !== "delete" ? {} : null;
+        if ((body.op === "set" || body.op === "update" || body.op === "delete") && base && (body.op === "delete" || isObject2(body.data))) {
           let now = null;
           try {
             now = readDoc(root, segs.join("/"));
           } catch {
           }
-          if (now) {
-            const mine = body.op === "delete" ? null : body.op === "update" ? mergePatch(body.base, body.data) : body.data;
-            const merged = mergeWrite(body.base, mine, now.exists ? now.data : null);
+          if (now && (now.exists || body.base !== null)) {
+            const mine = body.op === "delete" ? null : body.op === "update" ? mergePatch(base, body.data) : body.data;
+            const merged = mergeWrite(base, mine, now.exists ? now.data : null);
             write = merged.result === null ? { op: "delete", path: given } : { op: "set", path: given, data: merged.result };
-            merge = { base: body.base, conflicts: merged.conflicts, ...body.chosen === true ? { chosen: true } : {} };
+            merge = { base, conflicts: merged.conflicts, ...body.chosen === true ? { chosen: true } : {} };
           }
         }
         history.attribute(segs.join("/"), whoOf(viewer), merge);
@@ -4285,20 +4609,20 @@ var lanOn2 = (url, flags) => lanOn(url, flags, fail);
 async function open(root, flags) {
   const existing = await runningServer2(root);
   if (existing) {
-    print({ url: existing.url, root, pid: existing.pid, reused: true, ...await lanOn2(existing.url, flags), log: path6.join(root, LOG_FILE), stop: cmd("stop", root) }, true);
+    print({ url: existing.url, root, pid: existing.pid, reused: true, ...await lanOn2(existing.url, flags), log: path8.join(root, LOG_FILE), stop: cmd("stop", root) }, true);
     return;
   }
   const state = await startBackground(root, flags);
   const view = await shareCall2(state.url, null).catch(() => null);
-  const empty = !fs7.existsSync(docFile(root, ["files", "index.html"]));
-  print({ url: state.url, root, pid: state.pid, ...view?.lan ? { lan: lanUrls(view) } : {}, log: path6.join(root, LOG_FILE), stop: cmd("stop", root), ...empty ? { note: "files/index.html is not written yet: the page is empty until it is." } : {} }, true);
+  const empty = !fs9.existsSync(docFile(root, ["files", "index.html"]));
+  print({ url: state.url, root, pid: state.pid, ...view?.lan ? { lan: lanUrls(view) } : {}, log: path8.join(root, LOG_FILE), stop: cmd("stop", root), ...empty ? { note: "files/index.html is not written yet: the page is empty until it is." } : {} }, true);
 }
 async function startBackground(root, flags) {
-  const logFile = path6.join(root, LOG_FILE);
-  const fd = fs7.openSync(logFile, "a");
+  const logFile = path8.join(root, LOG_FILE);
+  const fd = fs9.openSync(logFile, "a");
   const child = spawn2(process.execPath, [SCRIPT, "serve", root, ...serverFlags(flags)], { detached: true, stdio: ["ignore", "ignore", fd] });
   child.unref();
-  fs7.closeSync(fd);
+  fs9.closeSync(fd);
   let exited = false;
   child.once("exit", () => exited = true);
   const deadline = Date.now() + 15e3;
@@ -4308,14 +4632,14 @@ async function startBackground(root, flags) {
     if (state && state.pid === child.pid) return state;
     if (exited) break;
   }
-  const tail = fs7.existsSync(logFile) ? fs7.readFileSync(logFile, "utf8").split("\n").slice(-12).join("\n") : "";
+  const tail = fs9.existsSync(logFile) ? fs9.readFileSync(logFile, "utf8").split("\n").slice(-12).join("\n") : "";
   throw new CliError("SERVER_FAILED", `The editor server did not start. Run ${cmd("serve", root)} in the foreground to see why.${tail ? `
 ${tail}` : ""}`);
 }
 function stop(root) {
   const state = readState(root);
   if (!state || !alive(state.pid)) {
-    fs7.rmSync(path6.join(root, STATE_FILE), { force: true });
+    fs9.rmSync(path8.join(root, STATE_FILE), { force: true });
     print({ stopped: false, message: "No editor server is running for this folder." }, true);
     return;
   }
@@ -4358,7 +4682,7 @@ function dashboardTitle(root) {
     title = meta.exists ? meta.data?.title : void 0;
   } catch {
   }
-  return typeof title === "string" && title.trim() ? title.trim() : path6.basename(root);
+  return typeof title === "string" && title.trim() ? title.trim() : path8.basename(root);
 }
 async function waitComments(root, flags) {
   const timeout = flags.has("timeout") ? Number(flags.get("timeout")) : Infinity;
@@ -4458,6 +4782,8 @@ Usage:
   node scripts/artifact.mjs comments <root> --wait [--timeout s] wait for a comment sent to the agent from the open page
   node scripts/artifact.mjs comment-reply <root> <id> <text|->   reply as the agent (-: text on stdin) [--resolve]
   node scripts/artifact.mjs comment-resolve <root> <id> [--reopen]  mark a comment resolved (or open again)
+  node scripts/artifact.mjs archive  <root> [--out file.zip|dir] the whole folder as one zip (backup, another computer,
+                                                                  someone else); beside the folder unless --out says
 
 <root> is the dashboard's folder: documents at <root>/db/<collection>/<doc_id>.json, attached files in <root>/_blobs/,
 comments in <root>/comments.json.
@@ -4474,7 +4800,7 @@ async function main() {
       if (!from) throw new CliError("MISSING_BATCH", "Give the batch: a JSON file, or - to read it from stdin.");
       let text;
       try {
-        text = from === "-" ? fs7.readFileSync(0, "utf8") : fs7.readFileSync(path6.resolve(from), "utf8");
+        text = from === "-" ? fs9.readFileSync(0, "utf8") : fs9.readFileSync(path8.resolve(from), "utf8");
       } catch {
         throw new CliError("FILE_NOT_FOUND", `No such batch file: ${from}`);
       }
@@ -4531,6 +4857,11 @@ async function main() {
     case "comment-resolve":
       print(await resolveComment(resolveRoot(positional[0]), positional[1], flags.has("reopen")), true);
       return 0;
+    case "archive": {
+      const made = await archiveCommand(resolveRoot(positional[0]), flags.get("out"));
+      print({ ...made, open: `unzip it anywhere, then ${cmd("open", `<there>/${made.folder}`)}` }, true);
+      return 0;
+    }
     case void 0:
     case "help":
     case "--help":

@@ -14,9 +14,10 @@ unless the dashboard says there is a voice.
   characters in one, or some 20,000 in all, nothing is read.
 - Where there is a voice the dashboard draws its own Listen button just above
   the `data-read` element, and its own player there once that is pressed. For
-  room it makes that element's top margin 44px (64px on a touch screen) where
-  it is less and not negative. The page writes no player, no script for either
-  and no `speechSynthesis`.
+  room it raises that element's top margin, where it is less and not negative,
+  to 44px (64px on a touch screen), or to 72px (92px) where the element's first
+  words start within 12px of its top edge. The page writes no player, no script
+  for either and no `speechSynthesis`.
 - `data-read-play` on a `<button>` of the page's own starts the reading instead,
   wherever the design wants it; the dashboard then draws no button, and makes
   the room only while its player is open. Where a press would do nothing the
@@ -29,10 +30,10 @@ unless the dashboard says there is a voice.
   icon, a caption) is shown by CSS alone, and kept outside the `data-read`
   element, or it is read aloud too:
   `#dash-root:not([data-dash-read="ready"], [data-dash-read="reading"]) .hear { display: none }`.
-- While the player is open `#dash-root` also has
+- While a reading is open `#dash-root` also has
   `data-dash-read-phase="starting|playing|paused|ended"`, and the
   `data-read-step` being read, or read last, has `data-dash-read-now`. Both go
-  when the player is closed. A page can move with the reading by these two, in
+  when it is closed. A page can move with the reading by these two, in
   CSS or through a `MutationObserver` on `#dash-root` (`subtree`, and
   `attributeFilter` with the two names). Four things break otherwise:
   - Put every rule that fades what lacks the stamp under
@@ -68,10 +69,50 @@ unless the dashboard says there is a voice.
   the room is made at its bottom margin. So the `data-read` element reads best
   as the last thing in the stage, where nothing falls between the words and
   the controls, with a bottom margin of 48px (68px on a touch screen) from the
-  start, so that nothing moves when a voice comes. A stage that fits the view
+  start, so that nothing moves when a voice comes (a page with a speaker, below,
+  needs no such margin). A stage that fits the view
   with that margin shows whole. Of a taller one only the end that has the
   controls shows as the player opens, and at rest a Listen button at its foot
   is below the fold.
+- A piece that plays by itself, with the voice or without, keeps one set of
+  controls of its own for both, and the dashboard then draws no button and no
+  player, makes no room, moves no focus and, under a `data-read-stage`, scrolls
+  nothing. Three attributes, none with a value, each on a `<button>` outside the
+  `data-read` element:
+  - `data-read-sound` on the speaker, in place of `data-read-play`. It is what
+    tells the dashboard that the page keeps its own controls. A press brings
+    the voice in at the top of the `data-read-step` that has
+    `aria-current="true"`, or from the top if none has; a second press ends the
+    reading at once. The dashboard hides it where there is no voice, as it does
+    `data-read-play`, and keeps `aria-pressed` on it, `"true"` while a reading
+    is open: store it `aria-pressed="false"`, draw its two icons by that, and
+    never write it yourself.
+  - `data-read-pause` on Play and Pause. While a reading is open a press pauses
+    or resumes the voice, or, when all has been read, reads it again from the
+    top.
+  - `data-read-move` on Back, Next and each chapter's mark. While a reading is
+    open a press takes the voice to the top of the step that has
+    `aria-current="true"` once the button's own `onclick` has run, and plays it
+    from there, from a pause too; if that is the step being read, it starts
+    again. The dashboard hears the press at `#dash-root`, after every listener
+    inside it. So that `onclick` is on the button, not on `document`, moves
+    `aria-current` at once, not in a timer or a frame, and never calls
+    `stopPropagation()`.
+
+  The last two are never hidden, and with no reading open the dashboard leaves
+  their presses alone: they are the page's own controls first. While
+  `data-dash-read-phase` is there the voice keeps time: make their `onclick`s
+  show the chapter and move `aria-current`, and start or stop no clock of the
+  page's own. On such a page a reading that is refused or cut short ends by
+  itself, since there is no player to say so (the dashboard shows a refusal in a
+  toast): the phase goes, with no `ended` first, and the speaker is off again.
+  So whenever the phase goes, carry on without the voice from the same place:
+  playing if the phase was `starting` or `playing`, paused otherwise. `ended`
+  comes only when all has been read, and the speaker stays on.
+  While the phase is there the speaker is the page's Stop, so it stays in
+  place: never `display: none`, `hidden` or `visibility: hidden`. It may fade
+  with the other controls, as a video's do, so long as any move of the pointer
+  over the piece, any tap on it and Tab bring it back.
 - Say nothing of listening in your reply unless the person asked to listen.
-  Then say only that a Listen button shows for readers who have read-aloud,
-  which may not yet include them.
+  Then say only that a Listen button, or the page's speaker, shows for readers
+  who have read-aloud, which may not yet include them.

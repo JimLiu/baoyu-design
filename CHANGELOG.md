@@ -4,6 +4,30 @@ English | [中文](./CHANGELOG.zh.md)
 
 All notable changes to `baoyu-design` are tracked in this file.
 
+## 2.7.0 - 2026-11-02
+
+### Features
+- Share has an **Export** tab. It lists everything the page can be downloaded as, in rows with an icon and a description (slides: PDF, HTML, PNG, PPTX; design: Standalone page and the rest), with the owner's **Whole folder (.zip)** at the end. The design system and the dashboard, which had no local download button, get theirs here.
+- Download the whole artifact folder as a zip from every editor, or with `archive <root> [--out file.zip|dir]` from the command line. The zip leaves out the editor's own state, log, sharing file, `exports/`, temporary files and symlinks.
+- Slides and design: the **Theme** tab links to a read-only page for the design system in use, with its colours by theme, text styles, other tokens, components and guide. The page runs no script and reads nothing through a symlink.
+- The exported standalone HTML of a canvas follows links between artboards: a relative `<a href="B.dc.html">` opens the linked page in the same frame, and Back works ([#25](https://github.com/JimLiu/baoyu-design/issues/25)).
+- Slides HTML and PPTX exports and the design Standalone page carry the fonts in use. A family whose licence the lists cannot vouch for goes in with a note asking you to check it, and the file points at its licence page when one is known. PPTX embeds one subset file for a font cut into unicode-range blocks, and the font budget goes from 4 MiB to 16 MiB.
+- **Copy link** gives the address other people on the network can open, and shares the page on the network as it copies. A guest can pass the page on but not export it: no Export tab, no folder zip, no downloads.
+- A new project gets a default `.gitignore` the first time an editor opens it (state, log, sharing, `history/`, temporary files). An existing one is left alone. Each `SKILL.md` has a "Keeping it in git" section ([#24](https://github.com/JimLiu/baoyu-design/issues/24)).
+- Share: a Tailscale address is offered as a separate link, not as the main one, and the panel and `share` explain it is plain http and that a link is the permission.
+- DeepSeek Harness: an **Artifacts** page in the left sidebar lists every folder the agent opened an editor on, in cards tinted by type with a tab per type and search. A card opens its conversation and the editor in that conversation's Browser. All the plugins share the one entry.
+- DeepSeek Harness: downloads are saved. Its browser drops every download, so exports, and the folder zip now land in `exports/` in the project (never over an existing file), and a toast names the path.
+- The Artifacts sidebar icon is two overlapping cards, after claude.ai's.
+
+### Fixes
+- `claude-slides`: choosing **PDF** in the Download dialog crashed the page, and then its Download button did nothing. Both work.
+- A save that omits the version it started from is refused with a conflict when someone else has saved that path since, instead of silently overwriting.
+- `claude-dashboard`: when two pages create the same document, the second no longer replaces the first. Their fields are merged, and a value both set is recorded in History.
+- DeepSeek Harness: the comments wait starts, and the artifact is recorded, when the agent runs `open` after other script commands in the same shell call.
+
+### Documentation
+- The READMEs and each `SKILL.md` describe the Export tab, the folder zip, the Theme tab's design system page and Keeping it in git.
+
 ## 2.6.1 - 2026-11-01
 
 ### Fixes

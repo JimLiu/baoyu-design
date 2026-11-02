@@ -43,6 +43,8 @@ https://github.com/user-attachments/assets/d5b4f39b-a701-49de-87b8-64f3c6ef9c61
 
 别人开着同一个页面时，他们的头像排在 History 旁边。在幻灯片和画布编辑器里，点开能看到每个人在第几页、哪块画板、是不是正在改，页面上也有他们的光标和选中框；有人开始改你正在看的地方，会弹一句提醒，但什么都不会锁住。Claude 改文件的时候，也会出现在这一排里。
 
+要备份、换电脑或者把项目交给别人时，主人在 Share 面板的 Export 标签里（只有主人有；访客可以转发链接，不能导出）选最后一项 **Whole folder (.zip)**，整个文件夹（连同版本历史和评论）打成一个 zip 下载下来；命令行里用 `artifact.mjs archive <root>` 也一样。解压到哪里都行，用同一个 skill `open` 就能接着做。这台电脑上的服务器状态和分享链接不在里面，所以发出去的副本不会自动分享，要它的新主人自己再分享。
+
 ### `claude-slides`：幻灯片
 
 <img src="assets/screenshots/claude-slides-editor.webp" alt="claude-slides 编辑器里打开的一份讲睡眠的 5 页健康课幻灯片" width="880">
@@ -95,6 +97,8 @@ node skills/claude-slides/scripts/artifact.mjs share designs/q3-review          
 | [`dsh-claude-dashboard`](https://www.npmjs.com/package/dsh-claude-dashboard) | `/claude-dashboard`：数据仪表盘 | [![npm](https://img.shields.io/npm/v/dsh-claude-dashboard)](https://www.npmjs.com/package/dsh-claude-dashboard) |
 
 幻灯片、画布、设计系统编辑器和仪表盘页面里的评论可以直接交给 Agent：Agent 每次打开编辑器，插件都会开始等评论。在页面上标注，勾选 **Send to Agent**，Agent 就会醒来，读你的评论，改好页面，再在评论串里回复你。评论也会以卡片的形式出现在对话里。
+
+插件还会在应用左侧栏加一个 **Artifacts**（中文界面是「作品」）入口：列出 Agent 打开过的所有幻灯片、画布、设计系统和仪表盘，最近打开的在前，可以搜索，也可以按类型筛选。点一个，应用就回到做它的那个对话，在右侧栏里打开编辑器。
 
 ### 从 npm 安装
 

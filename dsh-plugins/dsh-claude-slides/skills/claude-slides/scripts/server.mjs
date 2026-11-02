@@ -1,14 +1,14 @@
 #!/usr/bin/env node
 // claude-slides: local editor server (prebuilt; do not edit).
 
-import fs8 from "node:fs";
-import path7 from "node:path";
+import fs11 from "node:fs";
+import path11 from "node:path";
 
 import { createHash as createHash3, randomBytes as randomBytes2, randomUUID } from "node:crypto";
-import fs7 from "node:fs";
-import fsp2 from "node:fs/promises";
+import fs10 from "node:fs";
+import fsp4 from "node:fs/promises";
 import http from "node:http";
-import path6 from "node:path";
+import path10 from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { spawn } from "node:child_process";
@@ -773,6 +773,8 @@ import net from "node:net";
 import os2 from "node:os";
 import path2 from "node:path";
 var STATE_FILE = ".artifact-server.json";
+var LOG_FILE = ".artifact-server.log";
+var EXPORTS_DIR = "exports";
 function readState(root) {
   try {
     return JSON.parse(fs3.readFileSync(path2.join(root, STATE_FILE), "utf8"));
@@ -802,12 +804,22 @@ function recordServer(state, close, signals = ["SIGINT", "SIGTERM"]) {
   const file = path2.join(state.root, STATE_FILE);
   fs3.writeFileSync(file, `${JSON.stringify(state, null, 2)}
 `);
+  writeGitignore(state.root, state.kind);
   const shutdown = () => {
     if (readState(state.root)?.pid === process.pid) fs3.rmSync(file, { force: true });
     close();
     process.exit(0);
   };
   for (const signal of signals) process.on(signal, shutdown);
+}
+var GITIGNORE_FILE = ".gitignore";
+var gitignoreLines = (kind) => [STATE_FILE, LOG_FILE, ".sharing.json", ...kind === "docs" ? [] : ["history/"], ".*.tmp", ".DS_Store"];
+function writeGitignore(root, kind) {
+  const file = path2.join(root, GITIGNORE_FILE);
+  try {
+    fs3.writeFileSync(file, ["# Written by baoyu-design when the editor first opened this folder: what only this computer's editor server needs.", ...gitignoreLines(kind), ""].join("\n"), { flag: "wx" });
+  } catch {
+  }
 }
 async function listen(server2, port, host) {
   await new Promise((resolve, reject) => {
@@ -830,6 +842,10 @@ var PortsTaken = class extends Error {
   }
 };
 var isBenchmarkRange = (address) => /^198\.1[89]\./.test(address);
+function isTailnet(address) {
+  const m = /^100\.(\d{1,3})\./.exec(address);
+  return !!m && Number(m[1]) >= 64 && Number(m[1]) <= 127;
+}
 function lanAddresses() {
   const out = [];
   for (const list of Object.values(os2.networkInterfaces())) {
@@ -838,7 +854,7 @@ function lanAddresses() {
       out.push(entry.address);
     }
   }
-  return [...new Set(out)];
+  return [...new Set(out)].sort((a, b) => Number(isTailnet(a)) - Number(isTailnet(b)));
 }
 function answers(host, port) {
   return new Promise((resolve) => {
@@ -890,8 +906,8 @@ async function listenFree(server2, from, host, first) {
   throw new PortsTaken(from, to);
 }
 function serverOrigin(host, port) {
-  const shown = host === "0.0.0.0" || host === "::" ? "127.0.0.1" : host.includes(":") ? `[${host}]` : host;
-  return `http://${shown}:${port}`;
+  const shown2 = host === "0.0.0.0" || host === "::" ? "127.0.0.1" : host.includes(":") ? `[${host}]` : host;
+  return `http://${shown2}:${port}`;
 }
 function sendJson2(response, status, body, headers = {}) {
   const text = JSON.stringify(body);
@@ -1088,9 +1104,401 @@ function mergeTextBytes(base, mine, current) {
   }
 }
 
-import { createHash, randomBytes } from "node:crypto";
+import path4 from "node:path";
+
 import fs4 from "node:fs";
 import path3 from "node:path";
+var FOLDER = /^[a-z0-9][a-z0-9_-]{0,63}$/;
+var COMPONENT = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$/;
+var NOT_COMPONENTS = /* @__PURE__ */ new Set(["lib", "src", "api", "archived"]);
+var MAX_COMPONENTS = 400;
+var MAX_TOKENS = 2e3;
+var MAX_README = 24e3;
+var MAX_COMPONENT_README = 8e3;
+var MAX_TYPES = 4e3;
+var MAX_FILE_BYTES = 2 * 1024 * 1024;
+var str = (v) => typeof v === "string" ? v : typeof v === "number" ? String(v) : void 0;
+function noLink(p) {
+  try {
+    return fs4.realpathSync(p) === path3.resolve(p);
+  } catch {
+    return false;
+  }
+}
+function readText(file, max) {
+  try {
+    if (!noLink(file)) return void 0;
+    const stat = fs4.lstatSync(file);
+    if (!stat.isFile() || stat.size > MAX_FILE_BYTES) return void 0;
+    const text = fs4.readFileSync(file, "utf8");
+    return text.length > max ? `${text.slice(0, max)}
+\u2026` : text;
+  } catch {
+    return void 0;
+  }
+}
+function readable(file) {
+  return noLink(file) && fs4.lstatSync(file).isFile();
+}
+function readJson2(file) {
+  const text = readText(file, MAX_FILE_BYTES);
+  if (text === void 0) return void 0;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return void 0;
+  }
+}
+function tokensOf(tokens) {
+  const themes = [];
+  const families = [];
+  let count = 0;
+  for (const [name, family] of Object.entries(tokens)) {
+    if (name === "type" || !family || typeof family !== "object" || Array.isArray(family)) continue;
+    const list = family.tokens;
+    if (!Array.isArray(list)) continue;
+    if (name === "color") {
+      for (const theme of family.themes ?? []) {
+        const t = theme;
+        const id = str(t?.id);
+        if (id) themes.push({ id, name: str(t.name) ?? id });
+      }
+    }
+    const out = [];
+    for (const raw of list) {
+      if (count >= MAX_TOKENS) break;
+      const t = raw;
+      const tokenName = str(t?.name);
+      if (!tokenName) continue;
+      let value = str(t.value);
+      if (value === void 0 && t.value && typeof t.value === "object" && !Array.isArray(t.value)) {
+        const byTheme = {};
+        for (const [k, v] of Object.entries(t.value)) if (str(v) !== void 0) byTheme[k] = str(v);
+        value = byTheme;
+      }
+      if (value === void 0) continue;
+      out.push({ name: tokenName, value, ...str(t.usage) ? { usage: str(t.usage) } : {} });
+      count += 1;
+    }
+    if (out.length) families.push({ name, tokens: out });
+  }
+  families.sort((a, b) => Number(b.name === "color") - Number(a.name === "color"));
+  const type = tokens.type ?? {};
+  const fontFamilies = {};
+  if (type.families && typeof type.families === "object") {
+    for (const [k, v] of Object.entries(type.families)) if (str(v)) fontFamilies[k] = str(v);
+  }
+  const textStyles = [];
+  for (const g of Array.isArray(type.groups) ? type.groups : []) {
+    const group = g;
+    for (const st of Array.isArray(group.styles) ? group.styles : []) {
+      const s = st;
+      const name = str(s?.name);
+      if (!name || textStyles.length >= MAX_TOKENS) continue;
+      textStyles.push({
+        group: str(group.name) ?? "",
+        name,
+        ...str(s.family) ?? str(group.family) ? { family: str(s.family) ?? str(group.family) } : {},
+        ...str(s.fontSize) ? { fontSize: str(s.fontSize) } : {},
+        ...str(s.lineHeight) ? { lineHeight: str(s.lineHeight) } : {},
+        ...str(s.fontWeight) ? { fontWeight: str(s.fontWeight) } : {}
+      });
+    }
+  }
+  return { themes, families, fontFamilies, textStyles };
+}
+function summaryOf(readme) {
+  const body = readme.split("\n").filter((line) => !/^\s*#/.test(line)).join(" ").replace(/\s+/g, " ").trim();
+  if (!body) return void 0;
+  const sentence = /^(.+?[.!?。！？])(\s|$)/.exec(body)?.[1] ?? body;
+  return sentence.length > 200 ? `${sentence.slice(0, 200)}\u2026` : sentence;
+}
+function typesOf(dts, name) {
+  const lines = dts.split("\n");
+  const named = new RegExp(`^\\s*(?:export\\s+)?(?:declare\\s+)?(?:function|const|let|class|interface|type|namespace)\\s+${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:Props)?\\b`);
+  const out = [];
+  for (let i = 0; i < lines.length; i += 1) {
+    if (!named.test(lines[i])) continue;
+    let start = i;
+    while (start > 0 && /^\s*(\*|\/\*\*|\*\/)/.test(lines[start - 1])) start -= 1;
+    let end = i;
+    let depth = 0;
+    for (; end < lines.length; end += 1) {
+      for (const ch of lines[end]) depth += ch === "{" ? 1 : ch === "}" ? -1 : 0;
+      if (depth <= 0 && (/[;}]\s*$/.test(lines[end]) || end > i)) break;
+    }
+    out.push(lines.slice(start, end + 1).join("\n"));
+    i = end;
+    if (out.join("\n\n").length > MAX_TYPES) break;
+  }
+  const text = out.join("\n\n");
+  return text ? text.length > MAX_TYPES ? `${text.slice(0, MAX_TYPES)}
+\u2026` : text : void 0;
+}
+function componentsOf(dir) {
+  const components = path3.join(dir, "components");
+  if (!noLink(components)) return [];
+  let entries;
+  try {
+    entries = fs4.readdirSync(components, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+  const dts = readText(path3.join(components, "index.d.ts"), MAX_FILE_BYTES) ?? "";
+  const out = [];
+  for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
+    if (out.length >= MAX_COMPONENTS) break;
+    if (!entry.isDirectory() || !COMPONENT.test(entry.name) || NOT_COMPONENTS.has(entry.name)) continue;
+    const own = path3.join(components, entry.name);
+    const readme = readText(path3.join(own, "README.md"), MAX_COMPONENT_README);
+    const types = dts ? typesOf(dts, entry.name) : void 0;
+    out.push({
+      name: entry.name,
+      ...readme ? { readme } : {},
+      ...readme && summaryOf(readme) ? { summary: summaryOf(readme) } : {},
+      ...types ? { types } : {},
+      preview: readable(path3.join(own, "preview.html"))
+    });
+  }
+  return out;
+}
+function insideDs(projectDir, dir) {
+  try {
+    if (!noLink(dir)) return false;
+    const real = fs4.realpathSync(dir);
+    const ds = fs4.realpathSync(path3.join(projectDir, "ds"));
+    return real === ds || real.startsWith(ds + path3.sep);
+  } catch {
+    return false;
+  }
+}
+function designSystemOf(projectDir, indexFile, folder) {
+  if (!FOLDER.test(folder)) return null;
+  const dir = path3.join(projectDir, "ds", folder);
+  if (!fs4.existsSync(dir) || !insideDs(projectDir, dir) || !fs4.lstatSync(dir).isDirectory()) return null;
+  const index = readJson2(path3.join(projectDir, indexFile));
+  const records = Array.isArray(index?.designSystems) ? index.designSystems : [];
+  const record = records.find((r) => str(r?.namespace) === folder);
+  const tokens = readJson2(path3.join(dir, "tokens.json"));
+  const usable = tokens && typeof tokens === "object" && !Array.isArray(tokens) ? tokens : void 0;
+  const readme = readText(path3.join(dir, "README.md"), MAX_README);
+  return {
+    folder,
+    title: (str(record?.title) ?? str(usable?.name) ?? folder).replace(/\s+[-\u2013\u2014]\s+design system$/i, ""),
+    ...str(record?.version) ? { version: str(record.version) } : {},
+    ...str(record?.copiedAt) ? { copiedAt: str(record.copiedAt) } : {},
+    ...readme ? { readme } : {},
+    ...usable ? tokensOf(usable) : { themes: [], families: [], fontFamilies: {}, textStyles: [] },
+    components: componentsOf(dir)
+  };
+}
+
+var DS_PAGE = /^__ds\/([^/]+)\/$/;
+var esc = (text) => text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+var copyHref = (folder, rel) => `../../project/ds/${folder}/${rel}`;
+function linkHref(href, folder, dir) {
+  if (/^(https?:|mailto:)/i.test(href)) return href;
+  if (/^[a-z][a-z0-9+.-]*:/i.test(href) || href.startsWith("/") || href.startsWith("#")) return null;
+  const rel = path4.posix.normalize(path4.posix.join(dir, href));
+  return rel.startsWith("..") ? null : copyHref(folder, rel);
+}
+var INLINE = /(`+)(.+?)\1|!?\[([^\]]*)\]\(([^)\s]+)(?:\s+"[^"]*")?\)|\*\*(.+?)\*\*|\*([^*\s][^*]*?)\*/g;
+function inline(text, folder, dir) {
+  let out = "";
+  let at = 0;
+  for (const m of text.matchAll(INLINE)) {
+    out += esc(text.slice(at, m.index));
+    at = m.index + m[0].length;
+    if (m[2] !== void 0) out += `<code>${esc(m[2])}</code>`;
+    else if (m[4] !== void 0) {
+      const href = linkHref(m[4], folder, dir);
+      const label = inline(m[3] || m[4], folder, dir);
+      out += href === null ? label : `<a href="${esc(href)}" rel="noreferrer">${label}</a>`;
+    } else if (m[5] !== void 0) out += `<strong>${inline(m[5], folder, dir)}</strong>`;
+    else out += `<em>${inline(m[6], folder, dir)}</em>`;
+  }
+  return out + esc(text.slice(at));
+}
+var tableCells = (line) => line.trim().replace(/^\|/, "").replace(/\|$/, "").split("|").map((cell) => cell.trim());
+function markdown(source, folder, dir) {
+  const lines = source.replace(/\r\n/g, "\n").replace(/^---\n[\s\S]*?\n---\n/, "").split("\n");
+  const out = [];
+  let i = 0;
+  const startsBlock = (line) => /^\s*(#{1,6}\s|```|>|[-*+]\s|\d+[.)]\s)/.test(line) || /^\s*([-*_])\1{2,}\s*$/.test(line);
+  while (i < lines.length) {
+    const line = lines[i];
+    const fence = /^\s*(```+)/.exec(line);
+    if (fence) {
+      const code = [];
+      for (i += 1; i < lines.length && !lines[i].trim().startsWith(fence[1]); i += 1) code.push(lines[i]);
+      i += 1;
+      out.push(`<pre><code>${esc(code.join("\n"))}</code></pre>`);
+    } else if (!line.trim()) {
+      i += 1;
+    } else if (/^#{1,6}\s/.test(line)) {
+      const hashes = /^#+/.exec(line)[0].length;
+      const level = Math.min(hashes + 3, 6);
+      out.push(`<h${level}>${inline(line.slice(hashes).trim().replace(/\s#+$/, ""), folder, dir)}</h${level}>`);
+      i += 1;
+    } else if (/^\s*([-*_])\1{2,}\s*$/.test(line)) {
+      out.push("<hr>");
+      i += 1;
+    } else if (line.includes("|") && /^\s*\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)*\|?\s*$/.test(lines[i + 1] ?? "")) {
+      const rows = [`<tr>${tableCells(line).map((c) => `<th>${inline(c, folder, dir)}</th>`).join("")}</tr>`];
+      for (i += 2; i < lines.length && lines[i].includes("|"); i += 1) {
+        rows.push(`<tr>${tableCells(lines[i]).map((c) => `<td>${inline(c, folder, dir)}</td>`).join("")}</tr>`);
+      }
+      out.push(`<div class="scroll"><table>${rows.join("")}</table></div>`);
+    } else if (/^\s*>/.test(line)) {
+      const quote = [];
+      for (; i < lines.length && /^\s*>/.test(lines[i]); i += 1) quote.push(lines[i].replace(/^\s*>\s?/, ""));
+      out.push(`<blockquote>${markdown(quote.join("\n"), folder, dir)}</blockquote>`);
+    } else if (/^\s*([-*+]|\d+[.)])\s/.test(line)) {
+      const ordered = /^\s*\d/.test(line);
+      const items = [];
+      for (; i < lines.length && /^\s*([-*+]|\d+[.)])\s/.test(lines[i]); i += 1) {
+        const item = /^(\s*)(?:[-*+]|\d+[.)])\s+(.*)$/.exec(lines[i]);
+        const depth = Math.floor(item[1].length / 2);
+        items.push(`<li${depth ? ` style="margin-left:${Math.min(depth, 4)}em"` : ""}>${inline(item[2], folder, dir)}</li>`);
+      }
+      out.push(`<${ordered ? "ol" : "ul"}>${items.join("")}</${ordered ? "ol" : "ul"}>`);
+    } else {
+      const text = [];
+      for (; i < lines.length && lines[i].trim() && !startsBlock(lines[i]); i += 1) text.push(lines[i].trim());
+      if (!text.length) text.push(lines[i++].trim());
+      out.push(`<p>${inline(text.join(" "), folder, dir)}</p>`);
+    }
+  }
+  return out.join("\n");
+}
+function colorOf(token2, theme, all, depth = 0) {
+  const value = typeof token2.value === "string" ? token2.value : token2.value[theme ?? ""] ?? Object.values(token2.value)[0] ?? "";
+  const ref = /^\{([^{}]+)\}$/.exec(value.trim());
+  const target = ref ? all.get(ref[1]) : void 0;
+  return target && depth < 8 ? colorOf(target, theme, all, depth + 1) : value;
+}
+function colorsSection(family, system) {
+  const all = new Map(family.tokens.map((token2) => [token2.name, token2]));
+  const columns = system.themes.length ? system.themes : [{ id: "", name: "" }];
+  const head = system.themes.length ? `<tr><th></th>${columns.map((t) => `<th>${esc(t.name)}</th>`).join("")}<th></th></tr>` : "";
+  const rows = family.tokens.map((token2) => {
+    const cells = columns.map((theme) => {
+      const value = colorOf(token2, theme.id || void 0, all);
+      return `<td><span class="swatch" style="background:${esc(value)}"></span><code>${esc(value)}</code></td>`;
+    });
+    return `<tr><th scope="row">${esc(token2.name)}</th>${cells.join("")}<td class="muted">${esc(token2.usage ?? "")}</td></tr>`;
+  });
+  return `<h3>Colours</h3><div class="scroll"><table class="tokens">${head}${rows.join("")}</table></div>`;
+}
+var tokenValue = (token2) => typeof token2.value === "string" ? token2.value : Object.entries(token2.value).map(([theme, value]) => `${theme}: ${value}`).join(", ");
+function familySection(family) {
+  const rows = family.tokens.map(
+    (token2) => `<tr><th scope="row">${esc(token2.name)}</th><td><code>${esc(tokenValue(token2))}</code></td><td class="muted">${esc(token2.usage ?? "")}</td></tr>`
+  );
+  const title = family.name.charAt(0).toUpperCase() + family.name.slice(1);
+  return `<h3>${esc(title)}</h3><div class="scroll"><table class="tokens">${rows.join("")}</table></div>`;
+}
+function textSection(system) {
+  if (!system.textStyles.length) return "";
+  const rows = system.textStyles.map((style) => {
+    const stack = style.family ? system.fontFamilies[style.family] ?? style.family : void 0;
+    const css = [
+      stack ? `font-family:${stack}` : "",
+      style.fontSize ? `font-size:${style.fontSize}` : "",
+      style.lineHeight ? `line-height:${style.lineHeight}` : "",
+      style.fontWeight ? `font-weight:${style.fontWeight}` : ""
+    ].filter(Boolean).join(";");
+    const facts = [style.fontSize, style.lineHeight, style.fontWeight, style.family].filter(Boolean).join(" \xB7 ");
+    return `<tr><td class="sample" style="${esc(css)}">${esc(style.name)}</td><td class="muted">${esc(style.group)}</td><td><code>${esc(facts)}</code></td></tr>`;
+  });
+  return `<h3>Text styles</h3><div class="scroll"><table class="tokens">${rows.join("")}</table></div>`;
+}
+function componentBlock(component, folder) {
+  const dir = `components/${component.name}`;
+  const preview = component.preview ? `<p><a href="${esc(copyHref(folder, `${dir}/preview.html`))}">Open its preview</a></p>` : "";
+  const body = component.readme?.replace(/^\s*#\s+.*\n?/, "");
+  const readme = body?.trim() ? `<div class="md">${markdown(body, folder, dir)}</div>` : "";
+  const types = component.types ? `<h4>Types</h4><pre><code>${esc(component.types)}</code></pre>` : "";
+  const empty = preview || readme || types ? "" : '<p class="muted">This component has no guidelines, types or preview.</p>';
+  return `<details><summary><strong>${esc(component.name)}</strong>${component.summary ? `<span class="muted">${inline(component.summary, folder, dir)}</span>` : ""}</summary><div class="body">${preview}${readme}${types}${empty}</div></details>`;
+}
+var STYLE = `
+:root{color-scheme:light dark;--ink:#1f1e1d;--muted:#6f6e69;--line:#e4e2dc;--ground:#faf9f7;--panel:#fff;--code:#f1efea}
+@media (prefers-color-scheme:dark){:root{--ink:#ecebe7;--muted:#a3a29c;--line:#3a3936;--ground:#1f1e1d;--panel:#262624;--code:#32312e}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--ink);font:14px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:960px;margin:0 auto;padding:40px 24px 80px}
+h1{font-size:28px;line-height:1.2;margin:0 0 6px}
+h2{font-size:20px;margin:44px 0 12px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+h3{font-size:15px;margin:24px 0 8px}
+h4,h5,h6{font-size:14px;margin:18px 0 6px}
+a{color:inherit;text-underline-offset:2px}
+code{font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace}
+p code,li code,td code{background:var(--code);padding:1px 4px;border-radius:4px}
+pre{background:var(--code);padding:12px;border-radius:8px;overflow-x:auto;margin:10px 0}
+nav{display:flex;flex-wrap:wrap;gap:16px;margin-top:14px}
+hr{border:0;border-top:1px solid var(--line);margin:18px 0}
+blockquote{margin:10px 0;padding-left:12px;border-left:3px solid var(--line);color:var(--muted)}
+table{border-collapse:collapse;width:100%}
+th,td{padding:7px 12px 7px 0;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle;font-weight:400}
+tr:first-child th:not([scope]){color:var(--muted);font-size:12px}
+.md th{font-weight:600}
+th[scope]{font-weight:500;white-space:nowrap}
+.scroll{overflow-x:auto}
+.muted{color:var(--muted)}
+.swatch{display:inline-block;width:18px;height:18px;border-radius:5px;vertical-align:middle;margin-right:7px;box-shadow:inset 0 0 0 1px rgba(127,127,127,.35)}
+.tokens td code{background:none;padding:0;white-space:nowrap}
+.sample{white-space:nowrap}
+details{background:var(--panel);border:1px solid var(--line);border-radius:8px;margin:8px 0}
+summary{cursor:pointer;padding:10px 14px}
+summary .muted{margin-left:10px}
+.body{padding:2px 14px 12px;border-top:1px solid var(--line)}
+@media (max-width:600px){main{padding:24px 16px 60px}summary .muted{display:block;margin:2px 0 0}}
+`;
+function designSystemPage(projectDir, indexFile, folder, noun) {
+  const system = designSystemOf(projectDir, indexFile, folder);
+  if (system === null) return null;
+  const colors = system.families.find((family) => family.name === "color");
+  const others = system.families.filter((family) => family !== colors);
+  const hasTokens = system.families.length > 0 || system.textStyles.length > 0;
+  const facts = [
+    `Read-only copy this ${noun} carries, in <code>project/ds/${esc(folder)}/</code>`,
+    ...system.version ? [`version ${esc(system.version)}`] : [],
+    ...system.copiedAt ? [`copied ${esc(system.copiedAt.slice(0, 10))}`] : []
+  ].join(" \xB7 ");
+  const nav = [
+    hasTokens ? '<a href="#tokens">Tokens</a>' : "",
+    system.components.length ? `<a href="#components">Components (${system.components.length})</a>` : "",
+    system.readme ? '<a href="#guide">Guide</a>' : ""
+  ].filter(Boolean).join("");
+  const sections = [
+    hasTokens ? `<section id="tokens"><h2>Tokens</h2>${colors ? colorsSection(colors, system) : ""}${textSection(system)}${others.map(familySection).join("")}</section>` : "",
+    system.components.length ? `<section id="components"><h2>Components</h2>${system.components.map((component) => componentBlock(component, folder)).join("")}</section>` : "",
+    system.readme ? `<section id="guide"><h2>Guide</h2><div class="md">${markdown(system.readme, folder, "")}</div></section>` : ""
+  ].filter(Boolean).join("");
+  return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${esc(system.title)}</title>
+<style>${STYLE}</style>
+</head>
+<body>
+<main>
+<h1>${esc(system.title)}</h1>
+<p class="muted">${facts}</p>
+${nav ? `<nav>${nav}</nav>` : ""}
+${sections || '<p class="muted">This copy has no tokens, components or guide.</p>'}
+</main>
+</body>
+</html>
+`;
+}
+
+import { createHash, randomBytes } from "node:crypto";
+import fs5 from "node:fs";
+import path5 from "node:path";
 var HISTORY_DIR = "history";
 var INDEX = "index.json";
 var OBJECTS = "objects";
@@ -1105,13 +1513,13 @@ var sha256 = (bytes) => createHash("sha256").update(bytes).digest("hex");
 var SHA = /^[0-9a-f]{64}$/;
 var isRecord2 = (value) => typeof value === "object" && value !== null && !Array.isArray(value);
 function writeAtomic2(file, data) {
-  fs4.mkdirSync(path3.dirname(file), { recursive: true });
-  const tmp = path3.join(path3.dirname(file), `.${path3.basename(file)}.${process.pid}.${randomBytes(4).toString("hex")}.tmp`);
+  fs5.mkdirSync(path5.dirname(file), { recursive: true });
+  const tmp = path5.join(path5.dirname(file), `.${path5.basename(file)}.${process.pid}.${randomBytes(4).toString("hex")}.tmp`);
   try {
-    fs4.writeFileSync(tmp, data);
-    fs4.renameSync(tmp, file);
+    fs5.writeFileSync(tmp, data);
+    fs5.renameSync(tmp, file);
   } catch (error) {
-    fs4.rmSync(tmp, { force: true });
+    fs5.rmSync(tmp, { force: true });
     throw error;
   }
 }
@@ -1192,10 +1600,10 @@ var History = class {
   /** path → sha: what the files hold after the newest version. */
   headState;
   constructor(root) {
-    this.dir = path3.join(root, HISTORY_DIR);
+    this.dir = path5.join(root, HISTORY_DIR);
     let raw = null;
     try {
-      raw = JSON.parse(fs4.readFileSync(path3.join(this.dir, INDEX), "utf8"));
+      raw = JSON.parse(fs5.readFileSync(path5.join(this.dir, INDEX), "utf8"));
     } catch {
     }
     this.index = parseIndex(raw);
@@ -1239,7 +1647,7 @@ var History = class {
   read(sha) {
     if (!SHA.test(sha)) return null;
     try {
-      return fs4.readFileSync(path3.join(this.dir, OBJECTS, sha));
+      return fs5.readFileSync(path5.join(this.dir, OBJECTS, sha));
     } catch {
       return null;
     }
@@ -1253,7 +1661,7 @@ var History = class {
   size(sha) {
     if (!SHA.test(sha)) return null;
     try {
-      return fs4.statSync(path3.join(this.dir, OBJECTS, sha)).size;
+      return fs5.statSync(path5.join(this.dir, OBJECTS, sha)).size;
     } catch {
       return null;
     }
@@ -1387,8 +1795,8 @@ var History = class {
     return out;
   }
   putObject(sha, bytes) {
-    const file = path3.join(this.dir, OBJECTS, sha);
-    if (fs4.existsSync(file)) return;
+    const file = path5.join(this.dir, OBJECTS, sha);
+    if (fs5.existsSync(file)) return;
     writeAtomic2(file, bytes);
   }
   /** Past MAX_VERSIONS the oldest fold into the base; old notices go; contents no one holds are removed. */
@@ -1425,14 +1833,14 @@ var History = class {
     }
     let names;
     try {
-      names = fs4.readdirSync(path3.join(this.dir, OBJECTS));
+      names = fs5.readdirSync(path5.join(this.dir, OBJECTS));
     } catch {
       return;
     }
-    for (const name of names) if (SHA.test(name) && !keep.has(name)) fs4.rmSync(path3.join(this.dir, OBJECTS, name), { force: true });
+    for (const name of names) if (SHA.test(name) && !keep.has(name)) fs5.rmSync(path5.join(this.dir, OBJECTS, name), { force: true });
   }
   save() {
-    writeAtomic2(path3.join(this.dir, INDEX), `${JSON.stringify(this.index)}
+    writeAtomic2(path5.join(this.dir, INDEX), `${JSON.stringify(this.index)}
 `);
   }
 };
@@ -1502,13 +1910,19 @@ function diffContents(before, after) {
 }
 
 import { createHash as createHash2 } from "node:crypto";
-import fs6 from "node:fs";
-import os3 from "node:os";
-import path5 from "node:path";
+import fs9 from "node:fs";
+import os4 from "node:os";
+import path9 from "node:path";
+
+import fs7 from "node:fs";
+import fsp2 from "node:fs/promises";
+import path7 from "node:path";
+import { promisify } from "node:util";
+import zlib from "node:zlib";
 
 import crypto from "node:crypto";
-import fs5 from "node:fs";
-import path4 from "node:path";
+import fs6 from "node:fs";
+import path6 from "node:path";
 var GUEST_ROLES = ["editor", "commenter", "viewer"];
 var isGuestRole = (value) => typeof value === "string" && GUEST_ROLES.includes(value);
 var SHARING_FILE = ".sharing.json";
@@ -1535,13 +1949,13 @@ var Sharing = class _Sharing {
   file;
   state;
   constructor(root) {
-    this.file = path4.join(root, SHARING_FILE);
+    this.file = path6.join(root, SHARING_FILE);
     this.state = _Sharing.read(this.file);
   }
   static read(file) {
     let raw;
     try {
-      raw = JSON.parse(fs5.readFileSync(file, "utf8"));
+      raw = JSON.parse(fs6.readFileSync(file, "utf8"));
     } catch {
       return fresh();
     }
@@ -1573,9 +1987,9 @@ var Sharing = class _Sharing {
   }
   save() {
     const tmp = `${this.file}.${process.pid}.tmp`;
-    fs5.writeFileSync(tmp, `${JSON.stringify(this.state, null, 2)}
+    fs6.writeFileSync(tmp, `${JSON.stringify(this.state, null, 2)}
 `, { mode: 384 });
-    fs5.renameSync(tmp, this.file);
+    fs6.renameSync(tmp, this.file);
   }
   /** The role whose link has this token, while that link is on. */
   linkRole(tokenGiven) {
@@ -1646,6 +2060,293 @@ var Sharing = class _Sharing {
   }
 };
 
+var LOCAL_FILES = /* @__PURE__ */ new Set([STATE_FILE, LOG_FILE, SHARING_FILE]);
+var LOCAL_DIRS = /* @__PURE__ */ new Set([EXPORTS_DIR]);
+var JUNK_FILES = /* @__PURE__ */ new Set([".DS_Store", "Thumbs.db", "desktop.ini"]);
+var isTemp = (name) => name.endsWith(".tmp") || name.startsWith(".tmp-");
+var STORED = /* @__PURE__ */ new Set([".png", ".jpg", ".jpeg", ".gif", ".webp", ".avif", ".heic", ".mp4", ".m4v", ".mov", ".webm", ".mp3", ".m4a", ".aac", ".ogg", ".opus", ".flac", ".woff", ".woff2", ".zip", ".gz", ".br", ".zst", ".7z"]);
+var MAX_ENTRIES = 65535;
+var MAX_BYTES = 4294967295;
+var ArchiveTooLarge = class extends Error {
+  code = "TOO_LARGE";
+};
+async function archiveEntries(root, skip = []) {
+  const folder = path7.basename(path7.resolve(root)) || "artifact";
+  const skipped = new Set(skip.map((file) => path7.resolve(file)));
+  const entries = [];
+  const walk = async (dir, rel) => {
+    let names;
+    try {
+      names = await fsp2.readdir(dir, { withFileTypes: true });
+    } catch (error) {
+      if (rel && error.code === "ENOENT") return;
+      throw error;
+    }
+    for (const dirent of names.sort((a, b) => a.name < b.name ? -1 : a.name > b.name ? 1 : 0)) {
+      const name = dirent.name;
+      if (JUNK_FILES.has(name) || isTemp(name) || !rel && (LOCAL_FILES.has(name) || LOCAL_DIRS.has(name) && dirent.isDirectory())) continue;
+      const file = path7.join(dir, name);
+      if (skipped.has(file)) continue;
+      const inner = rel ? `${rel}/${name}` : name;
+      if (dirent.isDirectory()) await walk(file, inner);
+      else if (dirent.isFile()) {
+        const stat = await fsp2.stat(file).catch(() => null);
+        if (stat?.isFile()) entries.push({ name: `${folder}/${inner}`, file, size: stat.size, mode: stat.mode & 511, mtime: stat.mtime });
+      }
+    }
+  };
+  await walk(path7.resolve(root), "");
+  if (entries.length > MAX_ENTRIES) throw new ArchiveTooLarge(`The folder holds ${entries.length} files, more than a zip holds (${MAX_ENTRIES}); copy the folder itself instead.`);
+  const bound = entries.reduce((sum, entry) => sum + entry.size + 2 * (46 + Buffer.byteLength(entry.name)), 22);
+  if (bound > MAX_BYTES) throw new ArchiveTooLarge(`The folder holds ${(bound / 2 ** 30).toFixed(1)} GiB, more than a zip holds (4 GiB); copy the folder itself instead.`);
+  return entries;
+}
+var CRC_TABLE = (() => {
+  const table = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = c & 1 ? 3988292384 ^ c >>> 1 : c >>> 1;
+    table[n] = c >>> 0;
+  }
+  return table;
+})();
+function crc32(bytes) {
+  let crc = 4294967295;
+  for (let i = 0; i < bytes.length; i++) crc = CRC_TABLE[(crc ^ bytes[i]) & 255] ^ crc >>> 8;
+  return (crc ^ 4294967295) >>> 0;
+}
+function dosTime(date) {
+  const year = date.getFullYear();
+  if (year < 1980) return { time: 0, date: 1 << 5 | 1 };
+  if (year > 2107) return { time: 23 << 11 | 59 << 5 | 29, date: 127 << 9 | 12 << 5 | 31 };
+  return {
+    time: date.getHours() << 11 | date.getMinutes() << 5 | date.getSeconds() >> 1,
+    date: year - 1980 << 9 | date.getMonth() + 1 << 5 | date.getDate()
+  };
+}
+var deflateRaw = promisify(zlib.deflateRaw);
+var UTF8 = 1 << 11;
+async function writeZip(entries, write) {
+  const central = [];
+  let offset = 0;
+  const put = async (chunk) => {
+    await write(chunk);
+    offset += chunk.length;
+  };
+  for (const entry of entries) {
+    let data;
+    try {
+      data = await fsp2.readFile(entry.file);
+    } catch (error) {
+      if (error.code === "ENOENT") continue;
+      throw error;
+    }
+    const crc = crc32(data);
+    let method = 0;
+    let body = data;
+    if (data.length > 0 && !STORED.has(path7.extname(entry.name).toLowerCase())) {
+      const deflated = await deflateRaw(data);
+      if (deflated.length < data.length) {
+        method = 8;
+        body = deflated;
+      }
+    }
+    if (offset + body.length > MAX_BYTES) throw new ArchiveTooLarge("The folder grew past what a zip holds (4 GiB) while it was being zipped.");
+    const name = Buffer.from(entry.name, "utf8");
+    const { time, date } = dosTime(entry.mtime);
+    const local = Buffer.alloc(30);
+    local.writeUInt32LE(67324752, 0);
+    local.writeUInt16LE(20, 4);
+    local.writeUInt16LE(UTF8, 6);
+    local.writeUInt16LE(method, 8);
+    local.writeUInt16LE(time, 10);
+    local.writeUInt16LE(date, 12);
+    local.writeUInt32LE(crc, 14);
+    local.writeUInt32LE(body.length, 18);
+    local.writeUInt32LE(data.length, 22);
+    local.writeUInt16LE(name.length, 26);
+    local.writeUInt16LE(0, 28);
+    const header = Buffer.alloc(46);
+    header.writeUInt32LE(33639248, 0);
+    header.writeUInt16LE(3 << 8 | 20, 4);
+    header.writeUInt16LE(20, 6);
+    header.writeUInt16LE(UTF8, 8);
+    header.writeUInt16LE(method, 10);
+    header.writeUInt16LE(time, 12);
+    header.writeUInt16LE(date, 14);
+    header.writeUInt32LE(crc, 16);
+    header.writeUInt32LE(body.length, 20);
+    header.writeUInt32LE(data.length, 24);
+    header.writeUInt16LE(name.length, 28);
+    header.writeUInt32LE((32768 | (entry.mode || 420) | 384) << 16 >>> 0, 38);
+    header.writeUInt32LE(offset, 42);
+    central.push(header, name);
+    await put(Buffer.concat([local, name]));
+    await put(body);
+  }
+  const start = offset;
+  const directory = Buffer.concat(central);
+  await put(directory);
+  const end = Buffer.alloc(22);
+  end.writeUInt32LE(101010256, 0);
+  end.writeUInt16LE(central.length / 2, 8);
+  end.writeUInt16LE(central.length / 2, 10);
+  end.writeUInt32LE(directory.length, 12);
+  end.writeUInt32LE(start, 16);
+  await put(end);
+  return offset;
+}
+function archiveFileName(root, now = /* @__PURE__ */ new Date()) {
+  const day = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  return `${path7.basename(path7.resolve(root)) || "artifact"}-${day}.zip`;
+}
+async function writeArchive(root, out) {
+  const file = path7.resolve(out);
+  const entries = await archiveEntries(root, [file]);
+  const tmp = path7.join(path7.dirname(file), `.${path7.basename(file)}.${process.pid}.tmp`);
+  const handle = await fsp2.open(tmp, "w");
+  let bytes;
+  try {
+    bytes = await writeZip(entries, async (chunk) => {
+      await handle.write(chunk);
+    });
+    await handle.close();
+  } catch (error) {
+    await handle.close().catch(() => {
+    });
+    await fsp2.rm(tmp, { force: true });
+    throw error;
+  }
+  await fsp2.rename(tmp, file);
+  return { file, files: entries.length, bytes };
+}
+async function archiveCommand(root, out) {
+  const where = out ? path7.resolve(out) : path7.dirname(path7.resolve(root));
+  const target = fs7.statSync(where, { throwIfNoEntry: false })?.isDirectory() ? path7.join(where, archiveFileName(root)) : where;
+  const { file, files, bytes } = await writeArchive(root, target);
+  return { file, folder: path7.basename(path7.resolve(root)), files, bytes, leftOut: [...LOCAL_FILES] };
+}
+function attachment(name) {
+  const ascii = name.replace(/[^\x20-\x7e]|["\\]/g, "_");
+  return `attachment; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(name)}`;
+}
+async function sendArchive(request, response, root) {
+  request.resume();
+  let entries;
+  try {
+    entries = await archiveEntries(root);
+  } catch (error) {
+    const text = JSON.stringify({ code: error instanceof ArchiveTooLarge ? "too_large" : "upstream_error", message: error instanceof Error ? error.message : String(error) });
+    response.writeHead(error instanceof ArchiveTooLarge ? 413 : 500, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" }).end(text);
+    return;
+  }
+  response.writeHead(200, {
+    "Content-Type": "application/zip",
+    "Content-Disposition": attachment(archiveFileName(root)),
+    "Cache-Control": "no-store",
+    "X-Content-Type-Options": "nosniff"
+  });
+  if (request.method === "HEAD") {
+    response.end();
+    return;
+  }
+  const write = (chunk) => new Promise((resolve, reject) => {
+    if (response.destroyed) return reject(new Error("The download was cancelled."));
+    if (response.write(chunk)) return resolve();
+    const drained = () => {
+      response.off("close", closed);
+      resolve();
+    };
+    const closed = () => {
+      response.off("drain", drained);
+      reject(new Error("The download was cancelled."));
+    };
+    response.once("drain", drained);
+    response.once("close", closed);
+  });
+  try {
+    await writeZip(entries, write);
+    response.end();
+  } catch {
+    response.destroy();
+  }
+}
+
+import fs8 from "node:fs";
+import fsp3 from "node:fs/promises";
+import os3 from "node:os";
+import path8 from "node:path";
+var MAX_BYTES2 = 4294967295;
+function shown(file) {
+  const home = os3.homedir();
+  return home && (file === home || file.startsWith(home + path8.sep)) ? `~${file.slice(home.length)}` : file;
+}
+function saved(file, bytes) {
+  return { path: file, name: path8.basename(file), folder: path8.dirname(file), shown: shown(file), bytes };
+}
+function safeFileName(raw) {
+  let name = (raw.replace(/\\/g, "/").split("/").pop() ?? "").replace(/[\u0000-\u001f\u007f<>:"|?*]/g, "_").replace(/^[.\s]+|[.\s]+$/g, "");
+  if (name.length > 200) {
+    const ext = path8.extname(name).slice(0, 16);
+    name = name.slice(0, 200 - ext.length) + ext;
+  }
+  return name || "download";
+}
+async function openFree(dir, name) {
+  const ext = path8.extname(name);
+  const stem = name.slice(0, name.length - ext.length);
+  for (let n = 0; ; n++) {
+    const file = path8.join(dir, n === 0 ? name : `${stem} (${n})${ext}`);
+    try {
+      return { file, handle: await fsp3.open(file, "wx") };
+    } catch (error) {
+      if (error.code !== "EEXIST" || n >= 999) throw error;
+    }
+  }
+}
+async function saveDownload(request, response, root) {
+  const declared = Number(request.headers["content-length"]);
+  if (Number.isFinite(declared) && declared > MAX_BYTES2) {
+    request.resume();
+    return sendJson2(response, 413, { code: "too_large", message: "The file is over 4 GiB." });
+  }
+  const name = safeFileName(new URL(request.url ?? "/", "http://local").searchParams.get("name") ?? "");
+  let file = "";
+  let handle = null;
+  let bytes = 0;
+  try {
+    const dir = path8.join(root, EXPORTS_DIR);
+    await fsp3.mkdir(dir, { recursive: true });
+    ({ file, handle } = await openFree(dir, name));
+    for await (const chunk of request) {
+      bytes += chunk.length;
+      if (bytes > MAX_BYTES2) throw Object.assign(new Error("The file is over 4 GiB."), { status: 413 });
+      await handle.write(chunk);
+    }
+    await handle.close();
+    handle = null;
+  } catch (error) {
+    await handle?.close().catch(() => {
+    });
+    if (file) await fsp3.rm(file, { force: true });
+    request.resume();
+    const status = error.status ?? 500;
+    if (!response.headersSent) sendJson2(response, status, { code: status === 413 ? "too_large" : "upstream_error", message: error instanceof Error ? error.message : String(error) });
+    return;
+  }
+  sendJson2(response, 200, saved(file, bytes));
+}
+async function saveArchive(request, response, root) {
+  request.resume();
+  try {
+    const { file } = await archiveCommand(root, void 0);
+    sendJson2(response, 200, saved(file, fs8.statSync(file).size));
+  } catch (error) {
+    const tooLarge = error instanceof ArchiveTooLarge;
+    sendJson2(response, tooLarge ? 413 : 500, { code: tooLarge ? "too_large" : "upstream_error", message: error instanceof Error ? error.message : String(error) });
+  }
+}
+
 var NOUNS = {
   docs: { en: "doc", zh: "\u6587\u6863", zhThis: "\u8FD9\u7BC7\u6587\u6863" },
   slides: { en: "deck", zh: "\u6F14\u793A\u6587\u7A3F", zhThis: "\u8FD9\u4EFD\u6F14\u793A\u6587\u7A3F" },
@@ -1666,7 +2367,7 @@ function commentsViewer(viewer) {
   };
 }
 var isRecord4 = (value) => typeof value === "object" && value !== null && !Array.isArray(value);
-var esc = (text) => text.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+var esc2 = (text) => text.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 var script = (value) => JSON.stringify(value).replace(/</g, "\\u003c");
 function ownHosts(host, port) {
   const named = host === "0.0.0.0" || host === "::" ? [] : [host.includes(":") ? `[${host}]:${port}` : `${host}:${port}`];
@@ -1675,12 +2376,12 @@ function ownHosts(host, port) {
 function localOwner() {
   let name = "You";
   try {
-    name = os3.userInfo().username.trim() || name;
+    name = os4.userInfo().username.trim() || name;
   } catch {
   }
   return { id: "local", name, email: `${name}@localhost` };
 }
-var guestCookieName = (kind, root) => `${kind.replace(/-/g, "_")}_guest_${createHash2("sha256").update(path5.resolve(root)).digest("hex").slice(0, 12)}`;
+var guestCookieName = (kind, root) => `${kind.replace(/-/g, "_")}_guest_${createHash2("sha256").update(path9.resolve(root)).digest("hex").slice(0, 12)}`;
 var ShareHost = class {
   sharing;
   options;
@@ -1731,7 +2432,7 @@ var ShareHost = class {
     const suffix = `:${this.port}`;
     if (!host.endsWith(suffix)) return false;
     const name = host.slice(0, -suffix.length).toLowerCase();
-    const machine = os3.hostname().toLowerCase();
+    const machine = os4.hostname().toLowerCase();
     return this.lanServers.has(name) || name === machine || name === `${machine.replace(/\.local$/, "")}.local`;
   }
   /**
@@ -1845,13 +2546,16 @@ var ShareHost = class {
     }
     if (method === "GET" && p === "/__share/invite") return sendJson2(response, 200, this.invites(viewer, request.headers.host ?? "")), true;
     if (method === "GET" && p === "/__share/ui.js") {
-      fs6.stat(this.options.uiFile, (error, stat) => {
+      fs9.stat(this.options.uiFile, (error, stat) => {
         if (error || !stat.isFile()) return sendJson2(response, 404, { code: "not_found", message: "The Share panel is missing." });
         sendFile(request, response, this.options.uiFile, { "Content-Type": "text/javascript; charset=utf-8", "Content-Length": stat.size, "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" });
       });
       return true;
     }
     if (viewer.role !== "owner") return sendJson2(response, 403, { code: "not_granted", message: "Only the owner can do this." }), true;
+    if ((method === "GET" || method === "HEAD") && p === "/__share/archive") return await sendArchive(request, response, this.options.root), true;
+    if (method === "POST" && p === "/__share/archive") return await saveArchive(request, response, this.options.root), true;
+    if (method === "POST" && p === "/__share/save") return await saveDownload(request, response, this.options.root), true;
     if (p === "/__share") return await this.shareApi(request, response, method), true;
     sendJson2(response, 404, { code: "not_found", message: "Not found" });
     return true;
@@ -1862,7 +2566,7 @@ var ShareHost = class {
    */
   headTags(_viewer, query = "") {
     let tags = `<script src="/__share/boot.js${query.replace(/[<>"']/g, "").replace(/&/g, "&amp;")}"></script>`;
-    if (fs6.existsSync(this.options.uiFile)) tags += '<script type="module" src="/__share/ui.js"></script>';
+    if (fs9.existsSync(this.options.uiFile)) tags += '<script type="module" src="/__share/ui.js"></script>';
     return tags;
   }
   /** `html` with the head tags first in its <head>; null when it has none. */
@@ -1886,11 +2590,11 @@ var ShareHost = class {
     const navigation = (request.method === "GET" || request.method === "HEAD") && /\btext\/html\b/.test(request.headers.accept ?? "");
     if (!navigation) return sendJson2(response, 403, { code: "not_granted", message: `This ${this.options.noun.en} is not shared with you.` });
     const t = this.words(request);
-    this.sendPage(response, 403, t.noAccessTitle, `<h1>${esc(t.noAccessTitle)}</h1><p>${esc(t.noAccess)}</p>${this.ownerHint(request, t)}`);
+    this.sendPage(response, 403, t.noAccessTitle, `<h1>${esc2(t.noAccessTitle)}</h1><p>${esc2(t.noAccess)}</p>${this.ownerHint(request, t)}`);
   }
   /** A small page of our own (the join form, the refusal), in the reader's language. */
   sendPage(response, status, title, body, headers = {}) {
-    const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title><style>${PAGE_CSS}</style></head><body><main>${body}</main></body></html>`;
+    const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc2(title)}</title><style>${PAGE_CSS}</style></head><body><main>${body}</main></body></html>`;
     response.writeHead(status, {
       "Content-Type": "text/html; charset=utf-8",
       "Cache-Control": "no-store",
@@ -1904,7 +2608,7 @@ var ShareHost = class {
     const from = (request.socket.remoteAddress ?? "").replace(/^::ffff:/, "");
     if (!this.lanServers.has(from)) return "";
     const url = `http://127.0.0.1:${this.port}/`;
-    return `<p class="note">${esc(t.ownerHere)} <a href="${esc(url)}">${esc(url)}</a></p>`;
+    return `<p class="note">${esc2(t.ownerHere)} <a href="${esc2(url)}">${esc2(url)}</a></p>`;
   }
   /** GET /s/<token>: the name form (or straight in, for a guest already in through this link); POST: join. */
   async join(request, response, method, token2) {
@@ -1913,12 +2617,12 @@ var ShareHost = class {
     const local = isLoopback(request.socket.remoteAddress);
     const form = method === "POST" ? await readBody(request, 8 << 10).then((body) => body.toString("utf8"), () => "") : "";
     const title = this.options.title();
-    if (!role || !local && !this.lanServers.size) return this.sendPage(response, 404, t.linkGoneTitle, `<h1>${esc(t.linkGoneTitle)}</h1><p>${esc(t.linkGone)}</p>`);
+    if (!role || !local && !this.lanServers.size) return this.sendPage(response, 404, t.linkGoneTitle, `<h1>${esc2(t.linkGoneTitle)}</h1><p>${esc2(t.linkGone)}</p>`);
     if (local) {
       const lan = [...this.lanServers.keys()][0];
       const there = lan ? `http://${lan}:${this.port}/s/${token2}` : "";
-      const tryIt = there ? `<p>${esc(t.tryRole(t.roles[role]))} <a href="${esc(there)}">${esc(there)}</a></p>` : "";
-      return this.sendPage(response, 200, title, `<h1>${esc(title)}</h1><p>${esc(t.youOwn)} <a href="/">${esc(t.openAsOwner)}</a></p>${tryIt}`);
+      const tryIt = there ? `<p>${esc2(t.tryRole(t.roles[role]))} <a href="${esc2(there)}">${esc2(there)}</a></p>` : "";
+      return this.sendPage(response, 200, title, `<h1>${esc2(title)}</h1><p>${esc2(t.youOwn)} <a href="/">${esc2(t.openAsOwner)}</a></p>${tryIt}`);
     }
     const current = this.sharing.guest(this.cookie(request));
     if (method === "GET" && current && current.link === this.sharing.state.links[role].token) {
@@ -1930,7 +2634,7 @@ var ShareHost = class {
         response,
         200,
         title,
-        `<h1>${esc(title)}</h1><p>${esc(t.invited(t.roles[role]))}</p><form method="post"><label for="n">${esc(t.yourName)}</label><input id="n" name="name" maxlength="${MAX_NAME}" value="${esc(current?.name ?? "")}" required autofocus autocomplete="name"><button type="submit">${esc(t.open)}</button></form><p class="note">${esc(t.nameNote)}</p>`
+        `<h1>${esc2(title)}</h1><p>${esc2(t.invited(t.roles[role]))}</p><form method="post"><label for="n">${esc2(t.yourName)}</label><input id="n" name="name" maxlength="${MAX_NAME}" value="${esc2(current?.name ?? "")}" required autofocus autocomplete="name"><button type="submit">${esc2(t.open)}</button></form><p class="note">${esc2(t.nameNote)}</p>`
       );
     }
     const name = new URLSearchParams(form).get("name") ?? "";
@@ -1951,18 +2655,23 @@ var ShareHost = class {
   }
   /** Links, addresses and people, for the share panel and `artifact.mjs share`. */
   shareView() {
-    const addresses = [...this.lanServers.keys()];
-    const base = addresses.length ? `http://${addresses[0]}:${this.port}` : `http://127.0.0.1:${this.port}`;
+    const addresses = [...this.lanServers.keys()].sort((a, b) => Number(isTailnet(a)) - Number(isTailnet(b)));
+    const local = addresses.filter((a) => !isTailnet(a));
+    const base = local.length ? `http://${local[0]}:${this.port}` : addresses.length ? `http://${addresses[0]}:${this.port}` : `http://127.0.0.1:${this.port}`;
+    const tailnet = addresses.find(isTailnet);
     const online = /* @__PURE__ */ new Set();
     for (const live of this.live) if (live.viewer.guest) online.add(live.viewer.guest.id);
     const { links, guests } = this.sharing.state;
+    const lan = addresses.length ? addresses : [...lanAddresses()].sort((a, b) => Number(isTailnet(a)) - Number(isTailnet(b)));
+    const network = lan.length ? `http://${lan[0]}:${this.port}` : base;
     return {
       title: this.options.title(),
       lan: this.lanServers.size > 0,
       port: this.port,
       addresses,
       local: `http://127.0.0.1:${this.port}/`,
-      links: Object.fromEntries(GUEST_ROLES.map((role) => [role, { on: links[role].on, url: `${base}/s/${links[role].token}` }])),
+      links: Object.fromEntries(GUEST_ROLES.map((role) => [role, { on: links[role].on, url: `${base}/s/${links[role].token}`, networkUrl: `${network}/s/${links[role].token}` }])),
+      ...tailnet ? { tailnet: { address: tailnet, links: Object.fromEntries(GUEST_ROLES.map((role) => [role, { on: links[role].on, url: `http://${tailnet}:${this.port}/s/${links[role].token}` }])) } } : {},
       guests: guests.filter((g) => this.sharing.valid(g) || links[g.role].token === g.link).map((g) => ({ id: g.id, name: g.name, role: g.role, joined: g.joined, ...g.seen ? { seen: g.seen } : {}, online: online.has(g.id), active: this.sharing.valid(g) }))
     };
   }
@@ -2403,6 +3112,7 @@ data: ${JSON.stringify({ peers: this.list() })}
 var KIND = "";
 var NOUN = "";
 var INDEX_FILE = "";
+var DESIGN_SYSTEMS = false;
 var LAYOUT;
 var pageScriptSrc;
 var sessionExtras;
@@ -2556,10 +3266,10 @@ async function collectFiles(root, limit) {
   const seen = /* @__PURE__ */ new Set();
   let truncated = false;
   const visit = async (relDir, descend) => {
-    const dir = relDir === "" ? root : path6.join(root, ...relDir.split("/"));
+    const dir = relDir === "" ? root : path10.join(root, ...relDir.split("/"));
     let entries;
     try {
-      entries = await fsp2.readdir(dir, { withFileTypes: true });
+      entries = await fsp4.readdir(dir, { withFileTypes: true });
     } catch {
       return;
     }
@@ -2587,13 +3297,13 @@ async function collectFiles(root, limit) {
   return { rels, truncated };
 }
 async function writeFileAtomic(file, bytes) {
-  await fsp2.mkdir(path6.dirname(file), { recursive: true });
-  const tmp = path6.join(path6.dirname(file), `.${path6.basename(file)}.${randomUUID()}.tmp`);
+  await fsp4.mkdir(path10.dirname(file), { recursive: true });
+  const tmp = path10.join(path10.dirname(file), `.${path10.basename(file)}.${randomUUID()}.tmp`);
   try {
-    await fsp2.writeFile(tmp, bytes);
-    await fsp2.rename(tmp, file);
+    await fsp4.writeFile(tmp, bytes);
+    await fsp4.rename(tmp, file);
   } catch (error) {
-    await fsp2.rm(tmp, { force: true }).catch(() => {
+    await fsp4.rm(tmp, { force: true }).catch(() => {
     });
     throw error;
   }
@@ -2606,6 +3316,11 @@ var Store = class {
   ownWrites;
   /** "<user id>\0project/<path>" → when the server last refused that person's save of the file as a conflict. */
   refused;
+  /**
+   * "<page>\0project/<path>" → the sha256 of that page's last save of the file ('' for a delete). A page sends no
+   * ifMatch for a file whose version it believes is still its own last save; the server checks that belief for it.
+   */
+  lastSaved;
   queue;
   seq;
   truncationReported;
@@ -2617,6 +3332,7 @@ var Store = class {
     this.log = log;
     this.ownWrites = /* @__PURE__ */ new Map();
     this.refused = /* @__PURE__ */ new Map();
+    this.lastSaved = /* @__PURE__ */ new Map();
     this.queue = Promise.resolve();
     this.seq = 0;
     this.truncationReported = false;
@@ -2636,19 +3352,19 @@ var Store = class {
   }
   /** The file on disk (it may not exist yet); null when a directory on the way is a symlink or the name is not a file. */
   async diskPath(rel) {
-    const realRoot = await fsp2.realpath(this.root).catch(() => null);
+    const realRoot = await fsp4.realpath(this.root).catch(() => null);
     if (realRoot === null) return null;
-    const file = path6.join(realRoot, ...rel.split("/"));
-    for (let dir = path6.dirname(file); ; dir = path6.dirname(dir)) {
-      const real = await fsp2.realpath(dir).catch(() => null);
+    const file = path10.join(realRoot, ...rel.split("/"));
+    for (let dir = path10.dirname(file); ; dir = path10.dirname(dir)) {
+      const real = await fsp4.realpath(dir).catch(() => null);
       if (real === null) {
-        if (path6.dirname(dir) === dir) return null;
+        if (path10.dirname(dir) === dir) return null;
         continue;
       }
       if (real !== dir) return null;
       break;
     }
-    const info = await fsp2.lstat(file).catch(() => null);
+    const info = await fsp4.lstat(file).catch(() => null);
     return info && !info.isFile() ? null : file;
   }
   async listing() {
@@ -2663,7 +3379,7 @@ var Store = class {
     for (const rel of rels.sort()) {
       const file = await this.diskPath(rel);
       if (file === null) continue;
-      const bytes = await fsp2.readFile(file).catch(() => null);
+      const bytes = await fsp4.readFile(file).catch(() => null);
       if (bytes === null) continue;
       files[`project/${rel}`] = { sha256: sha2562(bytes), size: bytes.length, contentType: contentTypeOf(rel) };
     }
@@ -2673,16 +3389,18 @@ var Store = class {
     const rel = this.fileOf(p);
     const file = rel === null ? null : await this.diskPath(rel);
     if (file === null) return null;
-    return fsp2.readFile(file).catch(() => null);
+    return fsp4.readFile(file).catch(() => null);
   }
   /**
    * A save from the page by `who`: all entries or none (ifMatch is checked for all before anything is written). It is
    * a version in the history under their name; what changed on disk before it is one of its own, Claude's.
    */
-  publish(batch, who, over = [], merged = []) {
-    return this.exclusive(() => this.publishNow(batch, who, over, merged));
+  publish(batch, who, over = [], merged = [], page = "") {
+    return this.exclusive(() => this.publishNow(batch, who, over, merged, page));
   }
-  async publishNow(batch, who, over, merged) {
+  async publishNow(batch, who, over, merged, page) {
+    const saver = page ? `page:${page}` : `user:${who.user.id}`;
+    const named = new Set([...over, ...merged].map((o) => o.path));
     const files = /* @__PURE__ */ new Map();
     let total = 0;
     for (const [p, entry] of Object.entries(batch)) {
@@ -2705,8 +3423,12 @@ var Store = class {
     const conflicts = [];
     for (const [p, entry] of Object.entries(batch)) {
       const expected = entry?.ifMatch;
-      if (expected === void 0) continue;
       const actual = before.files[p]?.sha256 ?? null;
+      if (expected === void 0) {
+        const own = this.lastSaved.get(`${saver}\0${p}`);
+        if (own !== void 0 && !named.has(p) && (actual ?? "") !== own) conflicts.push({ path: p, actual, expected: own || null });
+        continue;
+      }
       if (actual !== expected) conflicts.push({ path: p, actual, expected });
     }
     if (conflicts.length > 0) {
@@ -2730,13 +3452,15 @@ var Store = class {
       const file = files.get(p);
       if (!isWriteEntry(entry)) {
         this.ownWrites.set(p, "");
-        await fsp2.rm(file, { force: true });
+        this.rememberSave(saver, p, "");
+        await fsp4.rm(file, { force: true });
         written.set(p, null);
         continue;
       }
       const bytes = Buffer.from(entry.base64, "base64");
       const sha = sha2562(bytes);
       this.ownWrites.set(p, sha);
+      this.rememberSave(saver, p, sha);
       await writeFileAtomic(file, bytes);
       shas[p] = sha;
       written.set(p, bytes);
@@ -2745,6 +3469,13 @@ var Store = class {
     const after = await this.listing();
     this.seq += 1;
     return { status: 200, body: { version: after.ver, seq: this.seq, shas }, version };
+  }
+  /** A page's last save of a file (lastSaved), the oldest forgotten past a few thousand. */
+  rememberSave(saver, p, sha) {
+    const key = `${saver}\0${p}`;
+    this.lastSaved.delete(key);
+    this.lastSaved.set(key, sha);
+    if (this.lastSaved.size > 4e3) this.lastSaved.delete(this.lastSaved.keys().next().value);
   }
   /**
    * The files this save replaces without its page having seen them: the server refused this person's save of the file
@@ -2815,7 +3546,7 @@ var Store = class {
         if (file === null) continue;
         if (bytes === null) {
           this.ownWrites.set(p, "");
-          await fsp2.rm(file, { force: true });
+          await fsp4.rm(file, { force: true });
         } else {
           this.ownWrites.set(p, sha2562(bytes));
           await writeFileAtomic(file, bytes);
@@ -2829,7 +3560,7 @@ var Store = class {
     try {
       const file = await this.diskPath(`${LAYOUT.blobDir}/${ASSET_INDEX}`);
       if (file === null) return {};
-      const parsed = JSON.parse(await fsp2.readFile(file, "utf8"));
+      const parsed = JSON.parse(await fsp4.readFile(file, "utf8"));
       return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
     } catch {
       return {};
@@ -2857,11 +3588,11 @@ var Store = class {
   }
   async findBlobFile(id) {
     try {
-      const names = await fsp2.readdir(path6.join(this.root, LAYOUT.blobDir));
+      const names = await fsp4.readdir(path10.join(this.root, LAYOUT.blobDir));
       const name = names.find((n) => n.startsWith(`${id}.`) && !n.endsWith(".tmp"));
       if (name === void 0) return null;
       const file = await this.diskPath(`${LAYOUT.blobDir}/${name}`);
-      return file !== null && (await fsp2.lstat(file).catch(() => null))?.isFile() ? file : null;
+      return file !== null && (await fsp4.lstat(file).catch(() => null))?.isFile() ? file : null;
     } catch {
       return null;
     }
@@ -2884,7 +3615,7 @@ var Store = class {
       let sha = "";
       try {
         const file = await this.diskPath(rel);
-        if (file !== null && (await fsp2.lstat(file)).isFile()) sha = sha2562(await fsp2.readFile(file));
+        if (file !== null && (await fsp4.lstat(file)).isFile()) sha = sha2562(await fsp4.readFile(file));
       } catch {
         sha = "";
       }
@@ -2912,13 +3643,13 @@ function watchArtifact(store, onChange, onError) {
     const directories = /* @__PURE__ */ new Map();
     const visit = (rel, descend) => {
       if (directories.size >= maxDirectories) return;
-      const dir = rel === "" ? store.root : path6.join(store.root, ...rel.split("/"));
-      if (directories.has(dir) || !fs7.existsSync(dir)) return;
-      const info = fs7.lstatSync(dir);
+      const dir = rel === "" ? store.root : path10.join(store.root, ...rel.split("/"));
+      if (directories.has(dir) || !fs10.existsSync(dir)) return;
+      const info = fs10.lstatSync(dir);
       if (!info.isDirectory()) return;
       directories.set(dir, `${info.dev}:${info.ino}`);
       if (!descend) return;
-      for (const entry of fs7.readdirSync(dir, { withFileTypes: true })) {
+      for (const entry of fs10.readdirSync(dir, { withFileTypes: true })) {
         if (!entry.isDirectory() || entry.name.startsWith(".")) continue;
         const child = rel === "" ? entry.name : `${rel}/${entry.name}`;
         if (LAYOUT.descendInto(child)) visit(child, true);
@@ -2935,19 +3666,19 @@ function watchArtifact(store, onChange, onError) {
       if (watchers.has(dir)) continue;
       let watcher;
       try {
-        watcher = fs7.watch(dir, (event, name) => {
+        watcher = fs10.watch(dir, (event, name) => {
           if (stopped) return;
           if (name) {
-            const changed = path6.join(dir, String(name));
+            const changed = path10.join(dir, String(name));
             if (event === "rename" && watchers.has(changed)) {
               for (const [watchedDir, item] of watchers) {
-                if (watchedDir === changed || watchedDir.startsWith(changed + path6.sep)) {
+                if (watchedDir === changed || watchedDir.startsWith(changed + path10.sep)) {
                   item.watcher.close();
                   watchers.delete(watchedDir);
                 }
               }
             }
-            const rel = path6.relative(store.root, changed).split(path6.sep).join("/");
+            const rel = path10.relative(store.root, changed).split(path10.sep).join("/");
             if (isIgnoredPath(rel) || !LAYOUT.watches(rel)) return;
           }
           schedule();
@@ -2983,7 +3714,7 @@ function watchArtifact(store, onChange, onError) {
     const { rels } = await collectFiles(store.root, LAYOUT.maxFiles);
     const parts = [];
     for (const rel of rels) {
-      const info = await fsp2.lstat(path6.join(store.root, ...rel.split("/"))).catch(() => null);
+      const info = await fsp4.lstat(path10.join(store.root, ...rel.split("/"))).catch(() => null);
       parts.push(info ? `${rel}\0${info.size}\0${info.mtimeMs}\0${info.ino}` : `${rel}\0-`);
     }
     return parts.join("\n");
@@ -3014,9 +3745,9 @@ function watchArtifact(store, onChange, onError) {
 var publishError = (response, status, code, message) => sendJson2(response, status, { code, message });
 async function startServer({ root, port = DEFAULT_PORTS[KIND], host = "127.0.0.1", log = (line) => process.stderr.write(`${line}
 `), agentHook, lan = false, portGiven = false }) {
-  const project = path6.join(root, "project");
+  const project = path10.join(root, "project");
   const stamp = (line) => log(`[${(/* @__PURE__ */ new Date()).toISOString()}] ${line}`);
-  const projectDir = await fsp2.realpath(project);
+  const projectDir = await fsp4.realpath(project);
   const history = new History(root);
   const store = new Store(projectDir, history, stamp);
   const owner = localOwner();
@@ -3028,7 +3759,7 @@ async function startServer({ root, port = DEFAULT_PORTS[KIND], host = "127.0.0.1
     title: () => artifactTitle(root, projectDir),
     log: stamp,
     createServer: () => http.createServer(handle),
-    uiFile: path6.join(EDITOR_DIR, "share-ui.js"),
+    uiFile: path10.join(EDITOR_DIR, "share-ui.js"),
     // The History panel's address and what this person may do there; on a version's page (?at=n), which version.
     globals: (viewer, query) => {
       const at = Number(query.get("at") ?? "");
@@ -3161,7 +3892,7 @@ data: ${JSON.stringify(event)}
       return;
     }
     const found = await store.blobFile(id);
-    const info = found === null ? null : await fsp2.stat(found.file).catch(() => null);
+    const info = found === null ? null : await fsp4.stat(found.file).catch(() => null);
     if (found === null || !info?.isFile()) {
       response.writeHead(404, { "Cache-Control": "no-store" }).end();
       return;
@@ -3178,10 +3909,10 @@ data: ${JSON.stringify(event)}
   const serveEditor = async (request, response, rest, viewer, query = "") => {
     const parts = rest === "" ? ["index.html"] : rest.split("/");
     const invalid = parts.some((p) => p === "" || p === "." || p === ".." || p.startsWith(".") || p.includes("\\")) || parts[0] === "node";
-    const realDist = invalid ? null : await fsp2.realpath(EDITOR_DIR).catch(() => null);
-    const file = realDist === null ? null : path6.join(realDist, ...parts);
-    const real = file === null ? null : await fsp2.realpath(file).catch(() => null);
-    const info = real === null ? null : await fsp2.lstat(real).catch(() => null);
+    const realDist = invalid ? null : await fsp4.realpath(EDITOR_DIR).catch(() => null);
+    const file = realDist === null ? null : path10.join(realDist, ...parts);
+    const real = file === null ? null : await fsp4.realpath(file).catch(() => null);
+    const info = real === null ? null : await fsp4.lstat(real).catch(() => null);
     if (file === null || real !== file || !info?.isFile()) {
       if (realDist === null && !invalid && parts[0] === "index.html") {
         response.writeHead(503, { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" }).end("The editor page is missing; reinstall the skill.");
@@ -3190,13 +3921,13 @@ data: ${JSON.stringify(event)}
       response.writeHead(404, { "Cache-Control": "no-store" }).end();
       return;
     }
-    const ext = path6.extname(file).toLowerCase();
+    const ext = path10.extname(file).toLowerCase();
     const type = STATIC_TYPES[ext] ?? "application/octet-stream";
     if (ext === ".html") {
       const key = parts.join("/");
       let page = pageCache.get(key);
       if (!page || page.mtimeMs !== info.mtimeMs) {
-        const html = await fsp2.readFile(file, "utf8");
+        const html = await fsp4.readFile(file, "utf8");
         page = { mtimeMs: info.mtimeMs, html, csp: pageCsp(pageScriptSrc(html)) };
         pageCache.set(key, page);
       }
@@ -3241,7 +3972,8 @@ data: ${JSON.stringify(event)}
       publishError(response, 400, "invalid_content", "malformed publish request");
       return;
     }
-    const outcome = await store.publish(files, whoOf(viewer), over, merged);
+    const page = String(request.headers["x-deck-client"] ?? "");
+    const outcome = await store.publish(files, whoOf(viewer), over, merged, CLIENT_ID.test(page) ? page : "");
     const names = Object.keys(files).map((p) => p.replace(/^project\//, ""));
     const made = outcome.version ? ` as version ${outcome.version.n}` : "";
     stamp(`saved from the page by ${viewer.user.name} (${outcome.status}${outcome.body.code ? ` ${outcome.body.code}` : ""})${made}: ${names.join(", ")}`);
@@ -3385,6 +4117,26 @@ data: ${JSON.stringify(event)}
     if (rest === ROUTES.listing) return sendJson2(response, 200, await store.listing());
     if (rest === ROUTES.session) return sendJson2(response, 200, session(viewer));
     if (rest === ROUTES.events) return events(request, response, viewer);
+    const dsPage = DESIGN_SYSTEMS ? DS_PAGE.exec(rest) : null;
+    if (dsPage) {
+      const html = designSystemPage(projectDir, INDEX_FILE, dsPage[1], NOUN);
+      if (html === null) {
+        response.writeHead(404, { "Cache-Control": "no-store" }).end();
+        return;
+      }
+      const body = Buffer.from(html);
+      response.writeHead(200, {
+        "Content-Type": "text/html; charset=utf-8",
+        "Content-Length": body.length,
+        "Cache-Control": "no-store",
+        "X-Content-Type-Options": "nosniff",
+        // The address holds the grant, and a README may link anywhere.
+        "Referrer-Policy": "no-referrer",
+        "Content-Security-Policy": DATA_CSP
+      });
+      response.end(method === "HEAD" ? void 0 : body);
+      return;
+    }
     if (rest.startsWith("project/")) {
       const bytes = await store.readProjectFile(rest);
       if (bytes === null) {
@@ -3482,11 +4234,11 @@ data: ${JSON.stringify(event)}
 }
 function artifactTitle(root, projectDir) {
   try {
-    const index = JSON.parse(fs7.readFileSync(path6.join(projectDir, INDEX_FILE), "utf8"));
+    const index = JSON.parse(fs10.readFileSync(path10.join(projectDir, INDEX_FILE), "utf8"));
     for (const value of [index.title, index.name]) if (typeof value === "string" && value.trim() && value.trim() !== "project") return value.trim();
   } catch {
   }
-  return path6.basename(root);
+  return path10.basename(root);
 }
 var runningServer2 = (root) => runningServer(root, KIND, ROUTES.session);
 async function serveForeground({ root, port, host, agentHook, lan, portGiven }) {
@@ -3507,18 +4259,18 @@ async function main(argv) {
   }
   if (positional.length !== 1 || flags.has("help")) {
     process.stderr.write(
-      `Usage: node ${path6.basename(SCRIPT)} <root> [--port n] [--host h] [--lan] [--agent-hook "<command>"]
+      `Usage: node ${path10.basename(SCRIPT)} <root> [--port n] [--host h] [--lan] [--agent-hook "<command>"]
 <root> holds project/${INDEX_FILE}.
 `
     );
     return 2;
   }
-  let root = path6.resolve(positional[0]);
-  if (path6.basename(root) === "project" && fs7.existsSync(path6.join(root, INDEX_FILE)) && !fs7.existsSync(path6.join(root, "project"))) {
-    root = path6.dirname(root);
+  let root = path10.resolve(positional[0]);
+  if (path10.basename(root) === "project" && fs10.existsSync(path10.join(root, INDEX_FILE)) && !fs10.existsSync(path10.join(root, "project"))) {
+    root = path10.dirname(root);
   }
-  if (!fs7.statSync(path6.join(root, "project", INDEX_FILE), { throwIfNoEntry: false })?.isFile()) {
-    process.stderr.write(`${JSON.stringify({ error: "NOT_FOUND", message: `${path6.join(root, "project", INDEX_FILE)} does not exist.` })}
+  if (!fs10.statSync(path10.join(root, "project", INDEX_FILE), { throwIfNoEntry: false })?.isFile()) {
+    process.stderr.write(`${JSON.stringify({ error: "NOT_FOUND", message: `${path10.join(root, "project", INDEX_FILE)} does not exist.` })}
 `);
     return 2;
   }
@@ -3542,7 +4294,7 @@ async function main(argv) {
 }
 function isMain(moduleUrl) {
   try {
-    return Boolean(process.argv[1]) && pathToFileURL(fs7.realpathSync(process.argv[1])).href === moduleUrl;
+    return Boolean(process.argv[1]) && pathToFileURL(fs10.realpathSync(process.argv[1])).href === moduleUrl;
   } catch {
     return false;
   }
@@ -3551,6 +4303,7 @@ function createArtifactServer(kind, moduleUrl) {
   KIND = kind.kind;
   NOUN = kind.noun;
   INDEX_FILE = kind.indexFile;
+  DESIGN_SYSTEMS = kind.designSystems === true;
   LAYOUT = kind.layout;
   pageScriptSrc = kind.pageScriptSrc;
   sessionExtras = kind.sessionExtras;
@@ -3558,7 +4311,7 @@ function createArtifactServer(kind, moduleUrl) {
   kindLabels = kind.labels;
   kindAgentContext = kind.agentContext;
   SCRIPT = fileURLToPath(moduleUrl);
-  EDITOR_DIR = path6.join(path6.dirname(SCRIPT), "editor");
+  EDITOR_DIR = path10.join(path10.dirname(SCRIPT), "editor");
   const runIfMain = () => {
     if (!isMain(moduleUrl)) return;
     main(process.argv.slice(2)).then(
@@ -3609,19 +4362,19 @@ function commentLocation2(input, projectDir) {
   let slideId = match[2];
   if (!slideId) {
     try {
-      const order = JSON.parse(fs8.readFileSync(path7.join(projectDir, INDEX_FILE2), "utf8")).order;
+      const order = JSON.parse(fs11.readFileSync(path11.join(projectDir, INDEX_FILE2), "utf8")).order;
       if (Array.isArray(order) && typeof order[slide - 1] === "string") slideId = order[slide - 1];
     } catch {
     }
   }
   const file = slideId ? projectFile(`slides/${slideId}.html`) : void 0;
-  if (slideId && file && fs8.existsSync(path7.join(projectDir, "slides", `${slideId}.html`))) return { file, slide, slideId };
+  if (slideId && file && fs11.existsSync(path11.join(projectDir, "slides", `${slideId}.html`))) return { file, slide, slideId };
   return { file: "project/deck.json", slide };
 }
 function labels(projectDir) {
   let order = [];
   try {
-    const listed = JSON.parse(fs8.readFileSync(path7.join(projectDir, INDEX_FILE2), "utf8")).order;
+    const listed = JSON.parse(fs11.readFileSync(path11.join(projectDir, INDEX_FILE2), "utf8")).order;
     if (Array.isArray(listed)) order = listed.filter((id) => typeof id === "string");
   } catch {
   }
@@ -3641,7 +4394,7 @@ function agentContext(projectDir, rels) {
   if (!slideId) return null;
   let order = [];
   try {
-    const listed = JSON.parse(fs8.readFileSync(path7.join(projectDir, INDEX_FILE2), "utf8")).order;
+    const listed = JSON.parse(fs11.readFileSync(path11.join(projectDir, INDEX_FILE2), "utf8")).order;
     if (Array.isArray(listed)) order = listed.filter((id) => typeof id === "string");
   } catch {
   }
@@ -3653,6 +4406,7 @@ var server = createArtifactServer(
     kind: KIND2,
     noun: NOUN2,
     indexFile: INDEX_FILE2,
+    designSystems: true,
     layout: LAYOUT2,
     /**
      * The editor page's own files, plus index.html's inline scripts by hash. 'unsafe-eval': the PPTX export's WOFF2

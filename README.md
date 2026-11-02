@@ -43,6 +43,8 @@ Every change is kept as a version, with who made it: a guest by the name they ty
 
 While others have the page open, their avatars sit beside History. In the slides and canvas editors each one's card says which slide or artboard they are on and whether they are editing, and their cursors and selections show where they work; when someone starts editing what you are looking at, you get a short note, and nothing is ever locked. While Claude changes the files, it shows up there too.
 
+To back a project up, move it to another computer or hand it to someone, the owner's **Whole folder (.zip)** item, last in the Share panel's Export tab (the owner's: guests can pass a link on but not export), downloads the whole folder as one zip, its history and comments included; `artifact.mjs archive <root>` does the same from the command line. Unzip it anywhere and `open` it with the same skill to carry on. This computer's server state and the share links are left out, so a copy you send is not shared until its new owner shares it.
+
 ### `claude-slides`: slide decks
 
 <img src="assets/screenshots/claude-slides-editor.webp" alt="A five-slide health class deck about sleep open in the claude-slides editor" width="880">
@@ -95,6 +97,8 @@ The four editor skills also come as [DeepSeek Harness](https://github.com/deepse
 | [`dsh-claude-dashboard`](https://www.npmjs.com/package/dsh-claude-dashboard) | `/claude-dashboard`: data‑backed dashboards | [![npm](https://img.shields.io/npm/v/dsh-claude-dashboard)](https://www.npmjs.com/package/dsh-claude-dashboard) |
 
 In the slides, canvas and design-system editors and on the dashboard page, a comment goes straight to the agent: whenever the agent opens an editor, the plugin waits for comments. Mark up the page, tick **Send to Agent**, and the agent wakes up, reads your comment, makes the change and replies in the comment thread. The comment also shows in the chat as a card.
+
+The plugins also add **Artifacts** to the app's left sidebar: every deck, canvas, design system and dashboard the agent has opened, most recent first, with search and a tab for each type. Click one and the app goes back to the conversation that made it and opens the editor in the right sidebar.
 
 ### Install from npm
 

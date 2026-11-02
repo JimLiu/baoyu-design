@@ -2,9 +2,9 @@
 // claude-design: local Artifact tool (prebuilt; do not edit).
 
 import { spawn } from "node:child_process";
-import fs10 from "node:fs";
-import fsp2 from "node:fs/promises";
-import path12 from "node:path";
+import fs11 from "node:fs";
+import fsp3 from "node:fs/promises";
+import path13 from "node:path";
 import { fileURLToPath as fileURLToPath2, pathToFileURL } from "node:url";
 
 var BLOB_ID_PATTERN = /^[0-9a-f]{32}$/;
@@ -2474,6 +2474,7 @@ import fs8 from "node:fs";
 import path10 from "node:path";
 var STATE_FILE = ".artifact-server.json";
 var LOG_FILE = ".artifact-server.log";
+var EXPORTS_DIR = "exports";
 function readState(root) {
   try {
     return JSON.parse(fs8.readFileSync(path10.join(root, STATE_FILE), "utf8"));
@@ -2500,6 +2501,12 @@ async function runningServer(root, kind, probe) {
   }
 }
 var DEFAULT_PORTS = { slides: 4710, design: 4720, "design-system": 4730, dashboard: 4740, docs: 4750, motion: 4760 };
+
+import fs10 from "node:fs";
+import fsp2 from "node:fs/promises";
+import path12 from "node:path";
+import { promisify } from "node:util";
+import zlib from "node:zlib";
 
 import crypto from "node:crypto";
 import fs9 from "node:fs";
@@ -2633,6 +2640,173 @@ var Sharing = class _Sharing {
   }
 };
 
+var LOCAL_FILES = /* @__PURE__ */ new Set([STATE_FILE, LOG_FILE, SHARING_FILE]);
+var LOCAL_DIRS = /* @__PURE__ */ new Set([EXPORTS_DIR]);
+var JUNK_FILES = /* @__PURE__ */ new Set([".DS_Store", "Thumbs.db", "desktop.ini"]);
+var isTemp = (name) => name.endsWith(".tmp") || name.startsWith(".tmp-");
+var STORED = /* @__PURE__ */ new Set([".png", ".jpg", ".jpeg", ".gif", ".webp", ".avif", ".heic", ".mp4", ".m4v", ".mov", ".webm", ".mp3", ".m4a", ".aac", ".ogg", ".opus", ".flac", ".woff", ".woff2", ".zip", ".gz", ".br", ".zst", ".7z"]);
+var MAX_ENTRIES = 65535;
+var MAX_BYTES = 4294967295;
+var ArchiveTooLarge = class extends Error {
+  code = "TOO_LARGE";
+};
+async function archiveEntries(root, skip = []) {
+  const folder = path12.basename(path12.resolve(root)) || "artifact";
+  const skipped = new Set(skip.map((file) => path12.resolve(file)));
+  const entries = [];
+  const walk = async (dir, rel) => {
+    let names;
+    try {
+      names = await fsp2.readdir(dir, { withFileTypes: true });
+    } catch (error) {
+      if (rel && error.code === "ENOENT") return;
+      throw error;
+    }
+    for (const dirent of names.sort((a, b) => a.name < b.name ? -1 : a.name > b.name ? 1 : 0)) {
+      const name = dirent.name;
+      if (JUNK_FILES.has(name) || isTemp(name) || !rel && (LOCAL_FILES.has(name) || LOCAL_DIRS.has(name) && dirent.isDirectory())) continue;
+      const file = path12.join(dir, name);
+      if (skipped.has(file)) continue;
+      const inner = rel ? `${rel}/${name}` : name;
+      if (dirent.isDirectory()) await walk(file, inner);
+      else if (dirent.isFile()) {
+        const stat = await fsp2.stat(file).catch(() => null);
+        if (stat?.isFile()) entries.push({ name: `${folder}/${inner}`, file, size: stat.size, mode: stat.mode & 511, mtime: stat.mtime });
+      }
+    }
+  };
+  await walk(path12.resolve(root), "");
+  if (entries.length > MAX_ENTRIES) throw new ArchiveTooLarge(`The folder holds ${entries.length} files, more than a zip holds (${MAX_ENTRIES}); copy the folder itself instead.`);
+  const bound = entries.reduce((sum, entry) => sum + entry.size + 2 * (46 + Buffer.byteLength(entry.name)), 22);
+  if (bound > MAX_BYTES) throw new ArchiveTooLarge(`The folder holds ${(bound / 2 ** 30).toFixed(1)} GiB, more than a zip holds (4 GiB); copy the folder itself instead.`);
+  return entries;
+}
+var CRC_TABLE = (() => {
+  const table = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = c & 1 ? 3988292384 ^ c >>> 1 : c >>> 1;
+    table[n] = c >>> 0;
+  }
+  return table;
+})();
+function crc32(bytes) {
+  let crc = 4294967295;
+  for (let i = 0; i < bytes.length; i++) crc = CRC_TABLE[(crc ^ bytes[i]) & 255] ^ crc >>> 8;
+  return (crc ^ 4294967295) >>> 0;
+}
+function dosTime(date) {
+  const year = date.getFullYear();
+  if (year < 1980) return { time: 0, date: 1 << 5 | 1 };
+  if (year > 2107) return { time: 23 << 11 | 59 << 5 | 29, date: 127 << 9 | 12 << 5 | 31 };
+  return {
+    time: date.getHours() << 11 | date.getMinutes() << 5 | date.getSeconds() >> 1,
+    date: year - 1980 << 9 | date.getMonth() + 1 << 5 | date.getDate()
+  };
+}
+var deflateRaw = promisify(zlib.deflateRaw);
+var UTF8 = 1 << 11;
+async function writeZip(entries, write) {
+  const central = [];
+  let offset = 0;
+  const put = async (chunk) => {
+    await write(chunk);
+    offset += chunk.length;
+  };
+  for (const entry of entries) {
+    let data;
+    try {
+      data = await fsp2.readFile(entry.file);
+    } catch (error) {
+      if (error.code === "ENOENT") continue;
+      throw error;
+    }
+    const crc = crc32(data);
+    let method = 0;
+    let body = data;
+    if (data.length > 0 && !STORED.has(path12.extname(entry.name).toLowerCase())) {
+      const deflated = await deflateRaw(data);
+      if (deflated.length < data.length) {
+        method = 8;
+        body = deflated;
+      }
+    }
+    if (offset + body.length > MAX_BYTES) throw new ArchiveTooLarge("The folder grew past what a zip holds (4 GiB) while it was being zipped.");
+    const name = Buffer.from(entry.name, "utf8");
+    const { time, date } = dosTime(entry.mtime);
+    const local = Buffer.alloc(30);
+    local.writeUInt32LE(67324752, 0);
+    local.writeUInt16LE(20, 4);
+    local.writeUInt16LE(UTF8, 6);
+    local.writeUInt16LE(method, 8);
+    local.writeUInt16LE(time, 10);
+    local.writeUInt16LE(date, 12);
+    local.writeUInt32LE(crc, 14);
+    local.writeUInt32LE(body.length, 18);
+    local.writeUInt32LE(data.length, 22);
+    local.writeUInt16LE(name.length, 26);
+    local.writeUInt16LE(0, 28);
+    const header = Buffer.alloc(46);
+    header.writeUInt32LE(33639248, 0);
+    header.writeUInt16LE(3 << 8 | 20, 4);
+    header.writeUInt16LE(20, 6);
+    header.writeUInt16LE(UTF8, 8);
+    header.writeUInt16LE(method, 10);
+    header.writeUInt16LE(time, 12);
+    header.writeUInt16LE(date, 14);
+    header.writeUInt32LE(crc, 16);
+    header.writeUInt32LE(body.length, 20);
+    header.writeUInt32LE(data.length, 24);
+    header.writeUInt16LE(name.length, 28);
+    header.writeUInt32LE((32768 | (entry.mode || 420) | 384) << 16 >>> 0, 38);
+    header.writeUInt32LE(offset, 42);
+    central.push(header, name);
+    await put(Buffer.concat([local, name]));
+    await put(body);
+  }
+  const start = offset;
+  const directory = Buffer.concat(central);
+  await put(directory);
+  const end = Buffer.alloc(22);
+  end.writeUInt32LE(101010256, 0);
+  end.writeUInt16LE(central.length / 2, 8);
+  end.writeUInt16LE(central.length / 2, 10);
+  end.writeUInt32LE(directory.length, 12);
+  end.writeUInt32LE(start, 16);
+  await put(end);
+  return offset;
+}
+function archiveFileName(root, now = /* @__PURE__ */ new Date()) {
+  const day = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  return `${path12.basename(path12.resolve(root)) || "artifact"}-${day}.zip`;
+}
+async function writeArchive(root, out) {
+  const file = path12.resolve(out);
+  const entries = await archiveEntries(root, [file]);
+  const tmp = path12.join(path12.dirname(file), `.${path12.basename(file)}.${process.pid}.tmp`);
+  const handle = await fsp2.open(tmp, "w");
+  let bytes;
+  try {
+    bytes = await writeZip(entries, async (chunk) => {
+      await handle.write(chunk);
+    });
+    await handle.close();
+  } catch (error) {
+    await handle.close().catch(() => {
+    });
+    await fsp2.rm(tmp, { force: true });
+    throw error;
+  }
+  await fsp2.rename(tmp, file);
+  return { file, files: entries.length, bytes };
+}
+async function archiveCommand(root, out) {
+  const where = out ? path12.resolve(out) : path12.dirname(path12.resolve(root));
+  const target = fs10.statSync(where, { throwIfNoEntry: false })?.isDirectory() ? path12.join(where, archiveFileName(root)) : where;
+  const { file, files, bytes } = await writeArchive(root, target);
+  return { file, folder: path12.basename(path12.resolve(root)), files, bytes, leftOut: [...LOCAL_FILES] };
+}
+
 async function shareCall(url, action, fail2) {
   const response = await fetch(new URL("/__share", url), action ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(action) } : {});
   const body = await response.json().catch(() => ({}));
@@ -2683,13 +2857,20 @@ async function shareCommand(o) {
   for (const change of changes) view = await shareCall(server.url, change, o.fail);
   if (off || !view.lan) view = await shareCall(server.url, { action: "lan", on: !off }, o.fail);
   const links = view.links;
+  const shown = (list) => Object.fromEntries(Object.entries(list).map(([role, link]) => [role, link.on ? link.url : "off"]));
+  const tailnet = view.lan ? view.tailnet : void 0;
   return {
     lan: view.lan,
     ...view.lan ? { addresses: lanUrls(view) } : {},
-    links: Object.fromEntries(Object.entries(links).map(([role, link]) => [role, link.on ? link.url : "off"])),
+    links: shown(links),
+    ...tailnet ? {
+      tailscale: shown(tailnet.links),
+      tailscaleNote: `This computer has a Tailscale address (${tailnet.address}): the tailscale links open the same roles for people on your tailnet, from any network. Use the links above for people on this Wi-Fi or LAN.`
+    } : {},
     guests: view.guests,
     ...view.lan ? {
       note: "Send the link for the role you want to give: editor edits, commenter comments, viewer reads. Anyone on this network with a link joins under a name they type. The owner (this computer) shares from the Share button too.",
+      security: "It is plain http: others on the network can read what passes. A link is the permission: whoever has it gets its role, so send it only to the people meant to have it, and reset a role's link if it went further.",
       stop: o.offCommand
     } : { note: "Not shared on the network: the links work on this computer only." }
   };
@@ -2707,8 +2888,8 @@ process.emitWarning = ((warning, ...rest) => {
 });
 var KIND = "design";
 var SCRIPT = fileURLToPath2(import.meta.url);
-var EDITOR_DIR = path12.join(path12.dirname(SCRIPT), "editor");
-var SERVER_SCRIPT = path12.join(path12.dirname(SCRIPT), "server.mjs");
+var EDITOR_DIR = path13.join(path13.dirname(SCRIPT), "editor");
+var SERVER_SCRIPT = path13.join(path13.dirname(SCRIPT), "server.mjs");
 var MAX_LISTED = 200;
 var UPLOAD_MAX_BYTES = 20 * 1024 * 1024;
 var INDEX_FILE = KIND === "slides" ? "deck.json" : KIND === "design" ? CANVAS_FILE : DESIGN_SYSTEM_FILE;
@@ -2747,13 +2928,13 @@ function quote(s) {
 }
 function resolveArtifact(given, mustExist = true) {
   if (!given) throw new CliError("MISSING_ROOT", `Give the artifact folder: the one that holds project/${INDEX_FILE}.`);
-  let root = path12.resolve(given);
-  if (path12.basename(root) === "project" && fs10.existsSync(path12.join(root, INDEX_FILE)) && !fs10.existsSync(path12.join(root, "project"))) {
-    root = path12.dirname(root);
+  let root = path13.resolve(given);
+  if (path13.basename(root) === "project" && fs11.existsSync(path13.join(root, INDEX_FILE)) && !fs11.existsSync(path13.join(root, "project"))) {
+    root = path13.dirname(root);
   }
-  const project = path12.join(root, "project");
+  const project = path13.join(root, "project");
   if (mustExist) {
-    const stat = fs10.statSync(project, { throwIfNoEntry: false });
+    const stat = fs11.statSync(project, { throwIfNoEntry: false });
     if (!stat?.isDirectory()) {
       throw new CliError("NOT_FOUND", `${project} does not exist. Write project/${INDEX_FILE} and the other files under ${root} first.`);
     }
@@ -2775,7 +2956,7 @@ function localize(value) {
 function designSystemNotes(project, indexFile) {
   let index;
   try {
-    index = JSON.parse(fs10.readFileSync(path12.join(project, indexFile), "utf8"));
+    index = JSON.parse(fs11.readFileSync(path13.join(project, indexFile), "utf8"));
   } catch {
     return [];
   }
@@ -2789,10 +2970,10 @@ function designSystemNotes(project, indexFile) {
       notes.push(`designSystems namespace ${JSON.stringify(ns)} is not a folder name ([a-z0-9][a-z0-9_-]{0,63}): the page skips it. Use the lower-case folder (list prints it as folder), the same in the record and in project/ds/<folder>/.`);
       continue;
     }
-    const folder = path12.join(project, "ds", ns);
-    if (!fs10.existsSync(folder)) {
+    const folder = path13.join(project, "ds", ns);
+    if (!fs11.existsSync(folder)) {
       notes.push(`designSystems names "${ns}" but project/ds/${ns}/ does not exist: copy the system's project/tokens.json (and the files you use) there, or take the record out.`);
-    } else if (!fs10.existsSync(path12.join(folder, "tokens.json"))) {
+    } else if (!fs11.existsSync(path13.join(folder, "tokens.json"))) {
       notes.push(`project/ds/${ns}/ has no tokens.json, so the Theme and color menus show bare hexes: copy the system's project/tokens.json there (a system with none: nothing to do).`);
     }
   }
@@ -2804,9 +2985,9 @@ async function check(a) {
     try {
       rt = loadSlidesCompiler(EDITOR_DIR);
     } catch {
-      throw new CliError("COMPILER_MISSING", `The slides compiler is missing (${path12.join(EDITOR_DIR, "node", "compiler.cjs")}); reinstall the skill.`);
+      throw new CliError("COMPILER_MISSING", `The slides compiler is missing (${path13.join(EDITOR_DIR, "node", "compiler.cjs")}); reinstall the skill.`);
     }
-    if (!fs10.existsSync(path12.join(a.project, "deck.json"))) {
+    if (!fs11.existsSync(path13.join(a.project, "deck.json"))) {
       return {
         problems: 1,
         result: {
@@ -2870,11 +3051,11 @@ async function check(a) {
   }
   const r = await checkDesignSystem(a.project);
   const problems = r.issues.length;
-  if (fs10.existsSync(path12.join(a.project, DESIGN_SYSTEM_FILE))) {
-    if (!fs10.existsSync(path12.join(a.project, "README.md"))) {
+  if (fs11.existsSync(path13.join(a.project, DESIGN_SYSTEM_FILE))) {
+    if (!fs11.existsSync(path13.join(a.project, "README.md"))) {
       r.notes.push({ file: "README.md", message: "missing: every system includes project/README.md; every reader starts there (Creating, step 1)" });
     }
-    if (!fs10.existsSync(path12.join(a.project, "components", "Cover", "preview.html"))) {
+    if (!fs11.existsSync(path13.join(a.project, "components", "Cover", "preview.html"))) {
       r.notes.push({ file: "components/Cover/preview.html", message: "missing: every system gets a cover, written last before the index (cover.md)" });
     }
   }
@@ -2900,11 +3081,11 @@ function formatBytes(n) {
 }
 async function upload(a, given, group) {
   if (!given) throw new CliError("MISSING_FILE", "Give the file to upload.");
-  const file = path12.resolve(given);
-  const stat = await fsp2.stat(file).catch(() => null);
+  const file = path13.resolve(given);
+  const stat = await fsp3.stat(file).catch(() => null);
   if (!stat) throw new CliError("FILE_NOT_FOUND", `No such file: ${given}`);
   if (!stat.isFile()) throw new CliError("NOT_A_FILE", `${given} is not a regular file.`);
-  const ext = path12.extname(file).slice(1).toLowerCase();
+  const ext = path13.extname(file).slice(1).toLowerCase();
   const type = contentTypeOf(file);
   const isMedia = type.startsWith("image/") || type.startsWith("font/");
   let limit = UPLOAD_MAX_BYTES;
@@ -2927,9 +3108,9 @@ async function upload(a, given, group) {
     limit = designSystemUploadLimit(type);
   }
   if (stat.size > limit) throw new CliError("FILE_TOO_LARGE", `${given} is ${formatBytes(stat.size)}, over the ${formatBytes(limit)} limit: compress or shrink it first.`);
-  const bytes = await fsp2.readFile(file);
+  const bytes = await fsp3.readFile(file);
   const uploaded = await new DeckStore(a.project, LAYOUT).putBlob(bytes, type);
-  const base = path12.basename(file);
+  const base = path13.basename(file);
   if (KIND !== "design-system") {
     return {
       url: uploaded.url,
@@ -2961,12 +3142,12 @@ function folderName(name) {
 }
 var SKIP_DIRS = /* @__PURE__ */ new Set(["node_modules", "dist", "build", "out", "vendor", "target"]);
 async function listSystems(dirs) {
-  const extra = (process.env.CLAUDE_DESIGN_SYSTEMS ?? "").split(path12.delimiter).filter(Boolean);
-  const starts = [...dirs.length > 0 ? dirs : [process.cwd()], ...extra].map((d) => path12.resolve(d));
+  const extra = (process.env.CLAUDE_DESIGN_SYSTEMS ?? "").split(path13.delimiter).filter(Boolean);
+  const starts = [...dirs.length > 0 ? dirs : [process.cwd()], ...extra].map((d) => path13.resolve(d));
   const found = /* @__PURE__ */ new Map();
   const visit = async (dir, depth) => {
-    const project = path12.join(dir, "project");
-    if (fs10.existsSync(path12.join(project, DESIGN_SYSTEM_FILE)) && !found.has(dir)) {
+    const project = path13.join(dir, "project");
+    if (fs11.existsSync(path13.join(project, DESIGN_SYSTEM_FILE)) && !found.has(dir)) {
       const info = await readDesignSystemInfo(project).catch(() => null);
       if (info) {
         const namespace = info.namespace;
@@ -2975,17 +3156,17 @@ async function listSystems(dirs) {
           namespace: namespace ?? null,
           folder: folderName(typeof namespace === "string" && namespace.trim() ? namespace : String(info.title ?? "")),
           root: dir,
-          readme: fs10.existsSync(path12.join(project, "README.md")) ? path12.join(project, "README.md") : null,
-          tokens: fs10.existsSync(path12.join(project, "tokens.json")) ? path12.join(project, "tokens.json") : null
+          readme: fs11.existsSync(path13.join(project, "README.md")) ? path13.join(project, "README.md") : null,
+          tokens: fs11.existsSync(path13.join(project, "tokens.json")) ? path13.join(project, "tokens.json") : null
         });
         return;
       }
     }
     if (depth <= 0) return;
-    const entries = await fsp2.readdir(dir, { withFileTypes: true }).catch(() => []);
+    const entries = await fsp3.readdir(dir, { withFileTypes: true }).catch(() => []);
     for (const entry of entries) {
       if (!entry.isDirectory() || entry.name.startsWith(".") || SKIP_DIRS.has(entry.name) || entry.name === "project") continue;
-      await visit(path12.join(dir, entry.name), depth - 1);
+      await visit(path13.join(dir, entry.name), depth - 1);
     }
   };
   for (const start of starts) await visit(start, 4);
@@ -3009,10 +3190,10 @@ function reusedNote(a, flags) {
   return flags.get("agent-hook") ? { note: `--agent-hook was not applied: the server was already running. To use it: ${script("stop", a.root)}, then open again.` } : {};
 }
 function assertServerFiles() {
-  if (!fs10.existsSync(path12.join(EDITOR_DIR, "index.html"))) {
+  if (!fs11.existsSync(path13.join(EDITOR_DIR, "index.html"))) {
     throw new CliError("EDITOR_MISSING", `The editor page is missing (${EDITOR_DIR}); reinstall the skill.`);
   }
-  if (!fs10.existsSync(SERVER_SCRIPT)) {
+  if (!fs11.existsSync(SERVER_SCRIPT)) {
     throw new CliError("EDITOR_MISSING", `The editor server is missing (${SERVER_SCRIPT}); reinstall the skill.`);
   }
 }
@@ -3045,16 +3226,16 @@ async function open(a, flags) {
   }
   const state = await startBackground(a, flags);
   const view = await shareCall2(state.url, null).catch(() => null);
-  print({ url: state.url, root: a.root, pid: state.pid, ...view?.lan ? { lan: lanUrls(view) } : {}, log: path12.join(a.root, LOG_FILE), stop: script("stop", a.root) });
+  print({ url: state.url, root: a.root, pid: state.pid, ...view?.lan ? { lan: lanUrls(view) } : {}, log: path13.join(a.root, LOG_FILE), stop: script("stop", a.root) });
 }
 async function startBackground(a, flags) {
   const port = Number(flags.get("port") ?? 0);
   if (!Number.isInteger(port) || port < 0 || port > 65535) throw new CliError("INVALID_PORT", "--port is a number from 0 to 65535.");
-  const logFile = path12.join(a.root, LOG_FILE);
-  const fd = fs10.openSync(logFile, "a");
+  const logFile = path13.join(a.root, LOG_FILE);
+  const fd = fs11.openSync(logFile, "a");
   const child = spawn(process.execPath, [SERVER_SCRIPT, a.root, ...serverArgs(flags)], { detached: true, stdio: ["ignore", "ignore", fd] });
   child.unref();
-  fs10.closeSync(fd);
+  fs11.closeSync(fd);
   let exited = false;
   child.once("exit", () => exited = true);
   const deadline = Date.now() + 15e3;
@@ -3064,14 +3245,14 @@ async function startBackground(a, flags) {
     if (state && state.pid === child.pid) return state;
     if (exited) break;
   }
-  const tail = fs10.existsSync(logFile) ? fs10.readFileSync(logFile, "utf8").split("\n").slice(-12).join("\n") : "";
+  const tail = fs11.existsSync(logFile) ? fs11.readFileSync(logFile, "utf8").split("\n").slice(-12).join("\n") : "";
   throw new CliError("SERVER_FAILED", `The editor server did not start. Run ${script("serve", a.root)} in the foreground to see why.${tail ? `
 ${tail}` : ""}`);
 }
 async function stop(a) {
   const state = readState(a.root);
   if (!state || !alive(state.pid)) {
-    fs10.rmSync(path12.join(a.root, STATE_FILE), { force: true });
+    fs11.rmSync(path13.join(a.root, STATE_FILE), { force: true });
     print({ stopped: false, message: "No editor server is running for this folder." });
     return;
   }
@@ -3082,7 +3263,7 @@ async function stop(a) {
     print({ stopped: false, pid: state.pid, message: `The server did not exit within 5 s; end it with: kill ${state.pid}` });
     return;
   }
-  fs10.rmSync(path12.join(a.root, STATE_FILE), { force: true });
+  fs11.rmSync(path13.join(a.root, STATE_FILE), { force: true });
   print({ stopped: true, pid: state.pid });
 }
 async function share(a, flags) {
@@ -3126,7 +3307,7 @@ async function listComments(a, all) {
 async function artifactTitle(a) {
   const info = await readInfo(a.project).catch(() => null);
   const title = typeof info?.title === "string" ? info.title.trim() : "";
-  return title && title !== "project" ? title : path12.basename(a.root);
+  return title && title !== "project" ? title : path13.basename(a.root);
 }
 async function waitComments(a, flags) {
   const timeout = flags.has("timeout") ? Number(flags.get("timeout")) : Infinity;
@@ -3226,6 +3407,8 @@ Usage:
   node scripts/artifact.mjs comments <root> --wait [--timeout s]  wait for a comment sent to the agent from the open editor
   node scripts/artifact.mjs comment-reply <root> <id> <text|->    reply as the agent (-: text on stdin) [--resolve]
   node scripts/artifact.mjs comment-resolve <root> <id> [--reopen]   mark a comment resolved (or open again)
+  node scripts/artifact.mjs archive <root> [--out file.zip|dir]   the whole folder as one zip (backup, another computer,
+                                                                  someone else); beside the folder unless --out says
 
 <root> is the artifact folder: its files live at <root>/project/<path> (project/${INDEX_FILE}, \u2026).`;
 async function main() {
@@ -3251,10 +3434,10 @@ async function main() {
     }
     case "upload": {
       const a = resolveArtifact(positional[0], false);
-      if (!fs10.statSync(a.root, { throwIfNoEntry: false })?.isDirectory()) {
+      if (!fs11.statSync(a.root, { throwIfNoEntry: false })?.isDirectory()) {
         throw new CliError("NOT_FOUND", `${a.root} does not exist. Make the artifact folder first.`);
       }
-      fs10.mkdirSync(a.project, { recursive: true });
+      fs11.mkdirSync(a.project, { recursive: true });
       print(await upload(a, positional[1], flags.get("group")));
       return 0;
     }
@@ -3272,6 +3455,12 @@ async function main() {
     case "comment-resolve":
       print(await resolveComment(resolveArtifact(positional[0]), positional[1], flags.has("reopen")));
       return 0;
+    case "archive": {
+      const a = resolveArtifact(positional[0]);
+      const made = await archiveCommand(a.root, flags.get("out"));
+      print({ ...made, open: `unzip it anywhere, then ${script("open", `<there>/${made.folder}`)}` });
+      return 0;
+    }
     case void 0:
     case "help":
     case "--help":

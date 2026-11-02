@@ -1,16 +1,189 @@
-// dsh-claude-slides 2.6.1: built from baoyu-design.
+// dsh-claude-slides 2.7.0: built from baoyu-design.
 var define_PLUGIN_default = { name: "claude-slides", provider: "dsh-claude-slides", skills: [{ name: "claude-slides", description: "Make and revise slide decks in the Slides artifact format (project/deck.json plus one HTML file per slide) as local files, then open them in a local slide editor where the user can present, retype, drag, and export PDF, HTML or PowerPoint. Use when the user asks for an editable slide deck or presentation in this format, names claude-slides or the Slides type, or wants to revise a folder that holds project/deck.json. A one-off single-file HTML deck or prototype is baoyu-design's.", comments: true }] };
-import { spawn } from "node:child_process";
+
+import { spawn as spawn2 } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { statSync } from "node:fs";
 import { readFile } from "node:fs/promises";
-import { delimiter, dirname, isAbsolute, join, sep } from "node:path";
+import { delimiter, dirname, isAbsolute, join as join2, sep } from "node:path";
 import { fileURLToPath } from "node:url";
-const PLUGIN = define_PLUGIN_default;
-const name = PLUGIN.name;
-const inject = ["skills"];
-const BUNDLED_SKILL_RANK = 600;
-const packageRoot = fileURLToPath(new URL("../", import.meta.url));
+
+import { spawn } from "node:child_process";
+import { createHash } from "node:crypto";
+import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { basename, join } from "node:path";
+
+var listPath = (skill) => `/api/baoyu-design.${skill}.artifacts`;
+var openPath = (skill) => `/api/baoyu-design.${skill}.artifacts.open`;
+
+var TITLES = {
+  "claude-slides": ["project/deck.json", "title"],
+  "claude-design": ["project/canvas.json", "title"],
+  "claude-design-system": ["project/design-system.json", "title"],
+  "claude-dashboard": ["db/dash/meta.json", "title"],
+  "claude-docs": ["doc.json", "name"],
+  "claude-motion": ["db/film/meta.json", "title"]
+};
+var OPEN_TIMEOUT_MS = 3e4;
+function dshHome() {
+  const set = process.env.DSH_HOME?.trim();
+  return set ? set : join(homedir(), ".dsh");
+}
+function artifactsDir() {
+  return join(dshHome(), "baoyu-design", "artifacts");
+}
+function recordFile(root) {
+  return join(artifactsDir(), `${createHash("sha256").update(root).digest("hex").slice(0, 24)}.json`);
+}
+function artifactTitle(skill, root) {
+  const at = TITLES[skill];
+  if (at === void 0) return null;
+  try {
+    const value = JSON.parse(readFileSync(join(root, at[0]), "utf8"))[at[1]];
+    const title = typeof value === "string" ? value.trim() : "";
+    if (title && title !== "project") return title;
+  } catch {
+  }
+  return basename(root);
+}
+function isRecord(value) {
+  const r = value;
+  return typeof r === "object" && r !== null && r.v === 1 && typeof r.root === "string" && typeof r.skill === "string" && typeof r.plugin === "string" && typeof r.sessionId === "string" && typeof r.title === "string" && typeof r.openedAt === "string";
+}
+function readRecord(file) {
+  try {
+    const value = JSON.parse(readFileSync(file, "utf8"));
+    return isRecord(value) ? value : null;
+  } catch {
+    return null;
+  }
+}
+function recordOpened(skill, plugin, sessionId, root, now = /* @__PURE__ */ new Date()) {
+  const file = recordFile(root);
+  const before = readRecord(file);
+  const record = {
+    v: 1,
+    root,
+    skill,
+    plugin,
+    sessionId,
+    title: artifactTitle(skill, root) ?? before?.title ?? basename(root),
+    openedAt: now.toISOString(),
+    firstOpenedAt: before?.root === root ? before.firstOpenedAt ?? before.openedAt : now.toISOString()
+  };
+  mkdirSync(artifactsDir(), { recursive: true });
+  const tmp = `${file}.${process.pid}.${Date.now()}.tmp`;
+  writeFileSync(tmp, `${JSON.stringify(record, null, 2)}
+`);
+  renameSync(tmp, file);
+  return record;
+}
+function listArtifacts() {
+  let names;
+  try {
+    names = readdirSync(artifactsDir());
+  } catch {
+    return [];
+  }
+  const views = [];
+  for (const name2 of names) {
+    if (!name2.endsWith(".json")) continue;
+    const record = readRecord(join(artifactsDir(), name2));
+    if (record === null || !existsSync(record.root)) continue;
+    views.push({
+      root: record.root,
+      skill: record.skill,
+      plugin: record.plugin,
+      sessionId: record.sessionId,
+      title: artifactTitle(record.skill, record.root) ?? record.title,
+      openedAt: record.openedAt
+    });
+  }
+  return views.sort((a, b) => a.openedAt < b.openedAt ? 1 : a.openedAt > b.openedAt ? -1 : 0);
+}
+function findArtifact(root) {
+  const record = readRecord(recordFile(root));
+  return record?.root === root ? record : null;
+}
+function scriptEnv(node) {
+  const env = { ...process.env };
+  if (node.env) {
+    const [name2, value] = node.env.split("=");
+    if (name2) env[name2] = value ?? "";
+  }
+  return env;
+}
+function runOpen(node, script, root) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(node.path, [script, "open", root], { env: scriptEnv(node), stdio: ["ignore", "pipe", "pipe"], windowsHide: true });
+    let stdout = "";
+    let stderr = "";
+    const timer = setTimeout(() => {
+      child.kill();
+      reject(new Error("the editor did not start in time"));
+    }, OPEN_TIMEOUT_MS);
+    child.stdout?.setEncoding("utf8").on("data", (chunk) => stdout += chunk);
+    child.stderr?.setEncoding("utf8").on("data", (chunk) => stderr += chunk);
+    child.on("error", (error) => {
+      clearTimeout(timer);
+      reject(error);
+    });
+    child.on("close", (code) => {
+      clearTimeout(timer);
+      const out = firstJson(stdout);
+      if (code === 0 && typeof out?.url === "string") return resolve({ url: out.url, reused: out.reused === true });
+      const failure = firstJson(stderr);
+      const message = typeof failure?.message === "string" ? failure.message : stderr.trim() || `open exited with ${code ?? "a signal"}`;
+      reject(new Error(message));
+    });
+  });
+}
+function firstJson(text) {
+  const start = text.indexOf("{");
+  const end = text.lastIndexOf("}");
+  if (start < 0 || end <= start) return null;
+  try {
+    const value = JSON.parse(text.slice(start, end + 1));
+    return value && typeof value === "object" && !Array.isArray(value) ? value : null;
+  } catch {
+    return null;
+  }
+}
+var json = (body, status = 200) => Response.json(body, { status, headers: { "cache-control": "no-store" } });
+function registerRoutes(routes, skill, opened) {
+  routes.register({
+    path: listPath(skill.name),
+    methods: ["GET"],
+    requestBody: "buffered",
+    fetch: () => Promise.resolve(json({ artifacts: listArtifacts() }))
+  });
+  routes.register({
+    path: openPath(skill.name),
+    methods: ["POST"],
+    requestBody: "buffered",
+    fetch: async (request) => {
+      const root = new URL(request.url).searchParams.get("root") ?? "";
+      const record = root ? findArtifact(root) : null;
+      if (record === null || record.skill !== skill.name) return json({ error: "not a recorded artifact of this skill" }, 404);
+      if (!existsSync(root)) return json({ error: "the folder is gone" }, 404);
+      try {
+        const { url, reused } = await runOpen(skill.node, skill.script, root);
+        const again = recordOpened(skill.name, skill.plugin, record.sessionId, root);
+        opened(again);
+        return json({ url, reused, sessionId: again.sessionId, title: again.title });
+      } catch (error) {
+        return json({ error: error.message }, 500);
+      }
+    }
+  });
+}
+
+var PLUGIN = define_PLUGIN_default;
+var name = PLUGIN.name;
+var inject = ["skills"];
+var BUNDLED_SKILL_RANK = 600;
+var packageRoot = fileURLToPath(new URL("../", import.meta.url));
 function isFile(path) {
   try {
     return statSync(path).isFile();
@@ -33,18 +206,18 @@ function resolveNode(config = {}) {
   if (typeof resourcesPath === "string") roots.push(resourcesPath);
   let dir = dirname(process.execPath);
   for (let i = 0; i < 6; i++) {
-    roots.push(join(dir, "Resources"), join(dir, "resources"));
+    roots.push(join2(dir, "Resources"), join2(dir, "resources"));
     const parent = dirname(dir);
     if (parent === dir) break;
     dir = parent;
   }
   for (const root of roots) {
-    const candidate = join(root, ...runtime);
+    const candidate = join2(root, ...runtime);
     if (isFile(candidate)) return { path: candidate, from: "desktop runtime" };
   }
   for (const entry of (process.env.PATH ?? "").split(delimiter)) {
     if (entry === "" || !isAbsolute(entry)) continue;
-    const candidate = join(entry, exe);
+    const candidate = join2(entry, exe);
     if (isFile(candidate)) return { path: candidate, from: "PATH" };
   }
   return { path: process.execPath, env: "ELECTRON_RUN_AS_NODE=1", from: "electron" };
@@ -53,7 +226,7 @@ function shellQuote(path) {
   return `"${path.replace(/(["\\$`])/g, "\\$1")}"`;
 }
 function runtimeSection(skill, skillDir, node) {
-  const script = join(skillDir, "scripts", "artifact.mjs");
+  const script = join2(skillDir, "scripts", "artifact.mjs");
   const run = (...args) => [node.env, shellQuote(node.path), shellQuote(script), ...args].filter(Boolean).join(" ");
   const written = skill.scriptAlias === void 0 ? "`node <this skill's folder>/scripts/artifact.mjs <command>`" : `\`node $${skill.scriptAlias} <command>\` (\`${skill.scriptAlias}\` being \`<this skill's folder>/scripts/artifact.mjs\`)`;
   const lines = [
@@ -97,14 +270,15 @@ function runtimeSection(skill, skillDir, node) {
   }
   return lines.join("\n");
 }
-const COMMENT_SOURCE = "baoyu-design-comment";
-const SUMMARY_MAX = 120;
-const SESSION_CHECK_MS = 6e4;
-const RETRY_MS = 5e3;
-const MAX_QUICK_FAILURES = 3;
-const IDLE_CHECK_MS = 500;
-const TURN_START_MS = 3e3;
-const TURN_MAX_MS = 30 * 6e4;
+var COMMENT_SOURCE = "baoyu-design-comment";
+var SUMMARY_MAX = 120;
+var SESSION_CHECK_MS = 6e4;
+var RETRY_MS = 5e3;
+var MAX_QUICK_FAILURES = 3;
+var IDLE_CHECK_MS = 500;
+var AGENT_GRACE_MS = 3e4;
+var TURN_START_MS = 3e3;
+var TURN_MAX_MS = 30 * 6e4;
 function jsonObject(text) {
   const trimmed = text.trim();
   const starts = [0];
@@ -122,6 +296,40 @@ function jsonObject(text) {
   }
   return null;
 }
+function jsonEnd(text, start) {
+  let depth = 0;
+  let inString = false;
+  for (let i = start; i < text.length; i++) {
+    const c = text[i];
+    if (inString) {
+      if (c === "\\") i++;
+      else if (c === '"') inString = false;
+    } else if (c === '"') inString = true;
+    else if (c === "{" || c === "[") depth++;
+    else if ((c === "}" || c === "]") && --depth === 0) return i;
+  }
+  return -1;
+}
+function jsonObjects(text) {
+  const found = [];
+  const starts = text.startsWith("{") ? [0] : [];
+  for (let i = text.indexOf("\n{"); i >= 0; i = text.indexOf("\n{", i + 1)) starts.push(i + 1);
+  let after = 0;
+  for (const start of starts) {
+    if (start < after) continue;
+    const end = jsonEnd(text, start);
+    if (end < 0) continue;
+    try {
+      const value = JSON.parse(text.slice(start, end + 1));
+      if (value && typeof value === "object" && !Array.isArray(value)) {
+        found.push(value);
+        after = end + 1;
+      }
+    } catch {
+    }
+  }
+  return found;
+}
 function bashStdout(result) {
   const value = result.value;
   if (typeof value === "string") return value;
@@ -132,7 +340,19 @@ function bashStdout(result) {
   const text = result.content.map((block) => block.type === "text" ? block.text ?? "" : "").join("\n");
   return text || null;
 }
-const bound = (text) => text.length <= SUMMARY_MAX ? text : `${text.slice(0, SUMMARY_MAX - 1)}…`;
+function openedEditor(script, exec, result) {
+  if (exec.name !== "bash" || exec.agent === void 0 || result.isError) return null;
+  const args = exec.arguments;
+  const command = args?.command;
+  if (typeof command !== "string" || args?.run_in_background === true) return null;
+  const at = command.indexOf(script);
+  if (at < 0 || !/(?:^|[\s"'])open(?:[\s"']|$)/.test(command.slice(at + script.length))) return null;
+  const stdout = bashStdout(result);
+  const opened = stdout === null ? void 0 : jsonObjects(stdout).findLast((o) => typeof o.root === "string" && typeof o.url === "string");
+  if (typeof opened?.root !== "string" || typeof opened.url !== "string") return null;
+  return { session: String(exec.agent.id), root: opened.root, url: opened.url };
+}
+var bound = (text) => text.length <= SUMMARY_MAX ? text : `${text.slice(0, SUMMARY_MAX - 1)}…`;
 function commentMessage(skill, plugin, out, root) {
   const title = typeof out.title === "string" && out.title ? out.title : root.split(/[\\/]/).pop() || root;
   const url = typeof out.url === "string" ? out.url : "";
@@ -183,7 +403,7 @@ function commentMessage(skill, plugin, out, root) {
   };
   return Object.freeze(message);
 }
-class CommentWatcher {
+var CommentWatcher = class {
   watches = /* @__PURE__ */ new Map();
   check;
   ctx;
@@ -204,23 +424,10 @@ class CommentWatcher {
   agent(session) {
     return this.ctx.get("agents")?.get(session);
   }
-  /** The agent ran this skill's `open`: see whether its output names an editor, and wait for its comments. */
-  observe(exec, result) {
-    if (exec.name !== "bash" || exec.agent === void 0 || result.isError) return;
-    const args = exec.arguments;
-    const command = args?.command;
-    if (typeof command !== "string" || args?.run_in_background === true) return;
-    const at = command.indexOf(this.script);
-    if (at < 0 || !/(?:^|[\s"'])open(?:[\s"']|$)/.test(command.slice(at + this.script.length))) return;
-    const stdout = bashStdout(result);
-    const opened = stdout === null ? null : jsonObject(stdout);
-    if (typeof opened?.root !== "string" || typeof opened.url !== "string") return;
-    this.watch(String(exec.agent.id), opened.root);
-  }
   watch(session, root) {
     const key = `${session}\0${root}`;
     if (this.watches.has(key)) return;
-    const watch = { child: null, stopped: false, quickFailures: 0 };
+    const watch = { child: null, stopped: false, quickFailures: 0, graceUntil: Date.now() + AGENT_GRACE_MS };
     this.watches.set(key, watch);
     this.log("info", `waiting for comments on ${root}`);
     this.run(key, session, root, watch);
@@ -235,15 +442,15 @@ class CommentWatcher {
     this.log("info", `stopped waiting for comments (${why})`);
   }
   run(key, session, root, watch) {
+    watch.retry = void 0;
     if (watch.stopped) return;
-    if (this.agent(session) === void 0) return this.stop(key, watch, "the session is gone");
-    const env = { ...process.env };
-    if (this.node.env) {
-      const [name2, value] = this.node.env.split("=");
-      if (name2) env[name2] = value ?? "";
+    if (this.agent(session) === void 0) {
+      if (Date.now() >= watch.graceUntil) return this.stop(key, watch, "the session is gone");
+      watch.retry = setTimeout(() => this.run(key, session, root, watch), IDLE_CHECK_MS);
+      return;
     }
     const started = Date.now();
-    const child = spawn(this.node.path, [this.script, "comments", root, "--wait"], { env, stdio: ["ignore", "pipe", "pipe"], windowsHide: true });
+    const child = spawn2(this.node.path, [this.script, "comments", root, "--wait"], { env: scriptEnv(this.node), stdio: ["ignore", "pipe", "pipe"], windowsHide: true });
     watch.child = child;
     let stdout = "";
     let stderr = "";
@@ -302,14 +509,14 @@ class CommentWatcher {
   dropGoneSessions() {
     for (const [key, watch] of [...this.watches]) {
       const session = key.slice(0, key.indexOf("\0"));
-      if (this.agent(session) === void 0) this.stop(key, watch, "the session is gone");
+      if (this.agent(session) === void 0 && Date.now() >= watch.graceUntil) this.stop(key, watch, "the session is gone");
     }
   }
   dispose() {
     clearInterval(this.check);
     for (const [key, watch] of [...this.watches]) this.stop(key, watch, "the plugin stopped");
   }
-}
+};
 function skillBody(raw, path) {
   const frontmatter = /^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/u.exec(raw);
   if (frontmatter === null) throw new Error(`${PLUGIN.name}: ${path} has no YAML frontmatter`);
@@ -319,8 +526,8 @@ function apply(ctx, config = {}) {
   const node = resolveNode(config ?? {});
   const skills = new Map(PLUGIN.skills.map((skill) => [skill.name, skill]));
   const candidates = PLUGIN.skills.map(({ name: skillName, description }) => {
-    const directory = join(packageRoot, "skills", skillName);
-    const path = join(directory, "SKILL.md");
+    const directory = join2(packageRoot, "skills", skillName);
+    const path = join2(directory, "SKILL.md");
     if (!isFile(path)) throw new Error(`${PLUGIN.name}: ${path} is missing`);
     return {
       name: skillName,
@@ -347,11 +554,24 @@ function apply(ctx, config = {}) {
   };
   ctx.skills.registerProvider(() => provider);
   for (const skill of PLUGIN.skills) {
-    if (!skill.comments) continue;
-    const script = join(packageRoot, "skills", skill.name, "scripts", "artifact.mjs");
-    const watcher = new CommentWatcher(ctx, skill, script, node);
-    ctx.on("tools/result", (exec, result) => watcher.observe(exec, result));
-    ctx.effect(() => () => watcher.dispose(), `${PLUGIN.name}: comment waits`);
+    const script = join2(packageRoot, "skills", skill.name, "scripts", "artifact.mjs");
+    const watcher = skill.comments ? new CommentWatcher(ctx, skill, script, node) : null;
+    if (watcher) ctx.effect(() => () => watcher.dispose(), `${PLUGIN.name}: comment waits`);
+    ctx.on("tools/result", (exec, result) => {
+      const opened = openedEditor(script, exec, result);
+      if (opened === null) return;
+      watcher?.watch(opened.session, opened.root);
+      try {
+        recordOpened(skill.name, PLUGIN.provider, opened.session, opened.root);
+      } catch (error) {
+        ctx.logger?.warn?.(`${PLUGIN.name}: could not note ${opened.root} for the Artifacts page: ${error.message}`);
+      }
+    });
+    ctx.inject?.(["connection"], (sub) => {
+      registerRoutes(sub.connection.fetch, { name: skill.name, plugin: PLUGIN.provider, script, node }, (record) => {
+        watcher?.watch(record.sessionId, record.root);
+      });
+    });
   }
 }
 export {
@@ -360,7 +580,9 @@ export {
   commentMessage,
   inject,
   jsonObject,
+  jsonObjects,
   name,
+  openedEditor,
   resolveNode,
   runtimeSection
 };

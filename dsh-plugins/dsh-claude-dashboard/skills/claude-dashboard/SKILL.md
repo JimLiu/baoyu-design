@@ -37,6 +37,7 @@ does every call; below, `A` is `<this skill's folder>/scripts/artifact.mjs`.
 | `node $A share <root>` | Opens it to the local network and prints a link per role; `--disable` / `--enable` / `--reset <role>`, `--role <guest>=<role>`, `--off`. See Sharing. |
 | `node $A comments <root> [--all]` / `--wait` | The comments people left on the page / waits for one they send you. See Comments. |
 | `node $A comment-reply <root> <id> <text\|->` / `comment-resolve <root> <id>` | Answers one (`--resolve` closes it too) / closes one (`--reopen`). |
+| `node $A archive <root> [--out file.zip\|dir]` | The whole folder, history and comments too, as one zip beside it (`--out`: another file or folder), to back it up, move it to another computer or send it to someone: `{file, files, bytes, open}`. Unzipped anywhere, `open` carries on. The owner's Download folder button in the page does the same; the server's own files and the share links stay out. |
 
 - **A batch** is a JSON array (or `{"writes": [...]}`) of
   `{"op": "set" | "update" | "delete", "path": "<collection>/<doc_id>", "data": {...}}`
@@ -420,7 +421,7 @@ comments without editing, `viewer` only looks. `open <root> --lan` (or
 - Only the owner's page sends to you (Send to Agent); what guests comment is
   saved for you to read with `comments <root>`.
 - The links and the people who joined are in `<root>/.sharing.json`: leave it.
-  It is plain http on the local network: anyone there with a link gets in.
+  It is plain http on the local network: anyone there can read what passes, and a link is the permission: whoever has one gets its role, so send each only to the people meant to have it, and `--reset` a role's link that went further (the Share panel says so too). When this computer has a Tailscale address (100.64.0.0/10), `share` also prints `tailscale`: the same links at that address, for people on the owner's tailnet from any network (the Share panel: Copy Tailscale link in a link's More menu). Nothing else reaches past the local network; there is no tunnel.
 
 ## History
 
@@ -469,3 +470,21 @@ who changed which document, and when.
   document as JSON. To put something back, point the person to History (it
   records who did it), or write the old content with `write-db`, which makes
   a version of yours.
+
+## Keeping it in git
+
+`open` writes `<root>/.gitignore` when the folder has none. It leaves out what only this computer's server needs:
+`.artifact-server.json`, `.artifact-server.log`, `.sharing.json` (the share links), `history/` (the versions; git
+keeps its own), save temp files and `.DS_Store`. Everything else, `project/` and `comments.json` included, is the
+dashboard and goes in git. A `.gitignore` already there is the person's: leave it. Moving or backing up the dashboard is
+copying or cloning the folder (`archive` puts it,
+history included, in one zip); `open` there starts it again.
+
+Commit, push or set up git only when asked. Asked to check the dashboard before each commit: write
+`.git/hooks/pre-commit` (and `chmod +x` it) in the repository that holds `<root>`, with this skill's folder as an
+absolute path and `<root>` relative to the repository's top (a hook already there: add the line to it):
+
+```sh
+#!/bin/sh
+node "<this skill's folder>/scripts/artifact.mjs" check "<root>" > /dev/null || { echo "The dashboard has problems: run artifact.mjs check <root> to see them." >&2; exit 1; }
+```

@@ -63,6 +63,8 @@ leave alone stays as it is, and removing an artboard's file is deleting it. The 
 - `check <root>` → `problems` (0: done); when any, `issues`, each a `file` under `project/` and its fix; `designSystemNotes` when an install looks incomplete; it exits 1 while problems remain. It reads the files only: whether scripts run and how the layout looks is not checked.
 - `open <root>` → `{url, pid, stop, …}`: starts the editor page on this machine in the background (once; later calls reuse it, `reused: true`) and prints its address, 127.0.0.1:4720 (the next free port up when 4720 is taken; `--port n` starts from n, `--port 0` takes any). `stop <root>` ends it (`serve <root>` runs it in the foreground instead). The page saves the user's edits into the same files, and shows yours as soon as you write them. `.artifact-server.json` and `.artifact-server.log` beside `project/` are its own: leave them; so is `comments.json` (the comments, see Comments), which only the comment commands below change.
 - `share <root>` (or `open <root> --lan`): opens the page to the local network and prints a link per role (Sharing, below).
+- `archive <root> [--out file.zip|dir]` → `{file, files, bytes, open}`: the whole folder, history and comments too, as one zip beside it (`--out`: another file or folder), to back it up, move it to another computer or send it to someone; unzipped anywhere, `open` carries on. The owner's Download folder button in the page (between History and Share) does the same. The server's own files and the share links stay out.
+- The Theme tab links to a read-only page of the system in use, `<editor>/__ds/<folder>/`: the copy under `project/ds/<folder>/` as this canvas carries it (its tokens, its components with their `README.md` and types, its `README.md`). Anyone who can open the canvas can open it, and it changes only when the copy does.
 
 ## One artboard: the skeleton
 
@@ -173,7 +175,7 @@ People comment in the open editor: Comment (or C), then a click on anything on a
 - `share <root> --disable <role>` / `--enable <role>` turns a link off or on (`<role>`: one, `editor,viewer`, or `all`); off, it holds everyone who came by it until it is on again. `--reset <role>` gives the role a new link: the old one stops working and the people who came by it are out. `--role <guest>=<role>` gives someone who joined another role (`<guest>`: an id from the `guests` it prints). `--off` stops sharing on the network.
 - Who is here: while someone else has the canvas open, their avatars sit before History; each one's card says which artboard they are working in and whether they are editing, and the canvas shows their cursors and selections. Someone editing an artboard you have in view gets you a short note; nothing is locked (two people on one artboard: see History). After you change a file you show there as Agent for about 20 s.
 - Only the owner's page sends to you (Send to Agent); what guests comment is saved for you to read with `comments <root>`.
-- The links and the people who joined are in `<root>/.sharing.json`: leave it. It is plain http on the local network: anyone there with a link gets in.
+- The links and the people who joined are in `<root>/.sharing.json`: leave it. It is plain http on the local network: anyone there can read what passes, and a link is the permission: whoever has one gets its role, so send each only to the people meant to have it, and `--reset` a role's link that went further (the Share panel says so too). When this computer has a Tailscale address (100.64.0.0/10), `share` also prints `tailscale`: the same links at that address, for people on the owner's tailnet from any network (the Share panel: Copy Tailscale link in a link's More menu). Nothing else reaches past the local network; there is no tunnel.
 
 ## History
 
@@ -184,6 +186,24 @@ The server keeps the canvas's versions in `<root>/history/` (leave it): who chan
 - Someone else's save reaches an open page without a reload: the artboards it changed update in place.
 - Two people on one artboard: when the page has unsaved edits on an artboard someone else just saved, the two are merged element by element: changes to different elements both stay, and where both changed the same thing the page's change wins ("Yours was kept") and the other person gets a notice. When the merge cannot work it out (an element added, removed or moved on one side while the other edited, both changed its script or head, or the artboard was deleted), a bar names who and which artboard, and nothing is saved until the person picks Use theirs (the page's edits on it go; for a deleted artboard, it is deleted here too), Keep mine (saved over theirs) or Keep both (the artboard takes theirs; the page's version becomes a new artboard beside it, `<name>-my-copy.dc.html`). A version saved over someone's change records whose change it replaced, and that person gets a notice on the page (Compare, Bring back, Dismiss). Compare shows only what that save replaced, and Bring back puts only that back: the other person's changes elsewhere on the artboard stay, and History says "Partly restored". It goes line by line in the file, so two changes on one line come back together. When that drops a change of theirs, the other person gets "Put my change back", which saves over it and counts as replacing a change again (their notice then brings back only what that replaced). Your changes on disk count too: they go through the same merge, and someone editing that artboard may get the bar with "Agent" and keep theirs, so check the file (or History) when it matters.
 - Asked who changed something, read `<root>/history/index.json`: `versions`, oldest first, each `{n, at, by, user: {name}, changes}` (`by`: `"human"`, `"agent"` for you, `"system"` for the first; `changes`: path → sha256, null for a delete; paths like `project/<name>.dc.html`, `project/canvas.json`), with `restoredFrom` or `overwrote` when it brought a version back or replaced someone's change; a content is `<root>/history/objects/<sha256>`, the file's bytes. To put something back, point the person to History (it records who did it), or write the old content yourself, which makes a version of yours.
+
+## Keeping it in git
+
+`open` writes `<root>/.gitignore` when the folder has none. It leaves out what only this computer's server needs:
+`.artifact-server.json`, `.artifact-server.log`, `.sharing.json` (the share links), `history/` (the versions; git
+keeps its own), save temp files and `.DS_Store`. Everything else, `project/` and `comments.json` included, is the
+canvas and goes in git. A `.gitignore` already there is the person's: leave it. Moving or backing up the canvas is
+copying or cloning the folder (`archive` puts it,
+history included, in one zip); `open` there starts it again.
+
+Commit, push or set up git only when asked. Asked to check the canvas before each commit: write
+`.git/hooks/pre-commit` (and `chmod +x` it) in the repository that holds `<root>`, with this skill's folder as an
+absolute path and `<root>` relative to the repository's top (a hook already there: add the line to it):
+
+```sh
+#!/bin/sh
+node "<this skill's folder>/scripts/artifact.mjs" check "<root>" > /dev/null || { echo "The canvas has problems: run artifact.mjs check <root> to see them." >&2; exit 1; }
+```
 
 ## The references
 

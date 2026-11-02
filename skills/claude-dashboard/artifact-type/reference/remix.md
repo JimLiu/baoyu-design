@@ -34,15 +34,18 @@ under a new id: remix the dashboard itself again, not the earlier draft.
    edit may cancel at any time, so read it again before each later round of
    writes.
 2. Write the new page under it, laid out as the dashboard is: collection
-   `drafts/<id>/files`, doc `index.html`, with any `.css` or `.js` it names
-   beside it. These files are the whole new page. None of the old page's files
+   `drafts/<id>/files`, doc `index.html` (written last of all: step 3), with
+   any `.css` or `.js` it names beside it. These files are the whole new page. None of the old page's files
    load with it, so what you reuse of them (a `dash.calc`, a `dash.loader`, a
    helper) is copied in.
 3. Sources stay where they are: the draft's page reads the dashboard's datasets
    by their ids. Only a source that is new, or whose call changes, goes in the
    draft, as a whole document at `drafts/<id>/datasets/<dataset id>`. Changed
    filter defaults go to `drafts/<id>/dash`, doc `params`, also whole. A draft
-   holds nothing else.
+   holds nothing else. Write `index.html` after every other document of the
+   draft (its `.css` and `.js`, datasets, `params`): as soon as the draft has
+   one it is shown and checked, and takes the place of the person's earlier
+   draft.
 4. Leave `files/`, `datasets/` and `dash/` themselves alone, deletes included:
    a write there shows at once to everyone. Save copies the draft over them and
    takes away the old page's files.

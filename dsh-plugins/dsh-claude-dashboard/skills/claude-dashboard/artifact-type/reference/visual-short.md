@@ -40,7 +40,9 @@ already do what has to hold, so the work is the piece itself.
   screen reader loses the words and Listen doesn't read them, and under
   `display: none` or `hidden` a figure in the caption goes unchecked. With
   `opacity` a screen reader and Listen get every caption, in order: to a screen
-  reader they are a transcript after the chapter showing.
+  reader they are a transcript after the chapter showing. Every chapter keeps an
+  empty `.vs-say` after its headline, the row its caption is laid over: without
+  one the caption lies over the drawing.
 - **Motion is drawn from time, in script.** Each chapter is a function of its
   own time `t` in seconds, whole at the end of `t`, so it can be held, replayed
   or jumped to and still look right. For this shape that replaces what
@@ -53,11 +55,11 @@ already do what has to hold, so the work is the piece itself.
   and leaves `t` alone.
 - **The reader starts it.** It opens on its title, whole and at rest, which is
   also what a thumbnail shows, and plays only when they press Play, pick a
-  chapter or, where there is a voice, press Listen: motion nobody asked for
-  distracts. Its controls are `<button>`s in the HTML, each with a name (its words
+  chapter or, where there is a voice, press the speaker: motion nobody asked
+  for distracts. Its controls are `<button>`s in the HTML, each with a name (its words
   or an `aria-label`), so a keyboard and a screen reader can work them.
-- **It fits the room it is given.** A stage that runs off the view hides its own
-  caption. The room changes with the window and with the dashboard's own bars,
+- **It fits the room it is given.** A stage that runs off the view loses its
+  foot. The room changes with the window and with the dashboard's own bars,
   above the page and under it, so measure it in the box the page scrolls in, and
   set the stage's width from the height there is room for, so it keeps its shape
   (`fit` in the script).
@@ -80,27 +82,22 @@ already do what has to hold, so the work is the piece itself.
 - **While a reading is open, the dashboard keeps time.** `#dash-root` then has
   `data-dash-read-phase`, and the caption being read, or read last, has
   `data-dash-read-now`. When that stamp lands on another caption, or the phase
-  turns to `starting` (Previous can read the same caption again), show its
+  turns to `starting` (a press can have the same caption read again), show its
   chapter from `t` = 0. `t` runs only while the phase is `playing`: test for that,
   since nothing is heard during `starting` or `paused` or after `ended`. The page
   moves to no chapter by itself: one that finishes early waits, whole, for the
-  next stamp. At `ended`, which can come in mid-chapter, and when the player
-  closes (no phase), show the chapter that is up whole, and stay on it.
-- **A Listen button in the pill, and one clock at a time.** The page's pill has
-  a Listen button of its own, `<button data-read-play>Listen</button>`. The
-  dashboard wires it and, with it on the page, draws no button of its own;
-  without it the dashboard's button would lie at rest over the page's pill.
-  While a reading is open (`data-dash-read-phase` is there) the pill goes, by
-  CSS, all but CC (on a narrow touch stage CC too), and the page's own clock
-  stops if it is running: the two would run against each other. Give
-  `data-read-play` no value, and put it on nothing else: the dashboard hides
-  every element that has it where there is no voice, and a button that names a
-  chapter keeps the keyboard's focus, which is lost when the pill goes.
-- **The holder says where the player stands.** Listen's player opens 16px under
-  the `data-read` element's own box, as wide as it, not under the words inside.
-  So the holder is a box of no height, 16px above the pill and as wide as the
-  pill less CC, as in the skeleton; and it stays unpositioned, or it would carry
-  the captions off the top of the stage.
+  next stamp. At `ended`, once the last caption is read, show the chapter whole
+  and stay on it. When the phase goes the voice is off, by a press or because it
+  failed: carry on without it from the same place, playing if it was playing.
+- **One set of controls, with the voice or without, and one clock at a time.**
+  The page keeps its own controls through a reading, and the dashboard draws
+  none; `read-aloud.md` has the rules. The speaker is `data-read-sound`, stored
+  `aria-pressed="false"`: a press brings the voice in at the top of the chapter
+  that is up, a second press takes it away, and the dashboard keeps
+  `aria-pressed`, by which CSS shows a speaker or a struck-out one. Play and Pause
+  is `data-read-pause`; Back, Next and each chapter mark are `data-read-move`.
+  While a reading is open their `onclick`s still show the chapter, but start and
+  stop no clock of the page's: the two would run against each other.
 - **Every number in a caption is marked and filled from the data,** as a
   Letter's are, whatever the source. Words you type are stored for everyone and
   never change, while each reader's page runs a live query on their own
@@ -127,28 +124,24 @@ square uses the room better, and under 560px `4 / 5`, sized as in the skeleton.
 
 **A chapter's frame**, the same each time so only the content changes: a small
 uppercase label for the part of the story; a one-sentence headline that states
-the finding, not the topic; one drawing; a small muted source line (measure,
-who, dates). The chapter has the whole stage, as on a short video. The caption
-takes no room of its own and lies over the stage's foot; the controls are a
-small pill at the top right, on the label's line. So keep the label short, and
-keep it on every chapter, the title too; and keep the source line short and to
-the left, since a caption may cover it.
+the finding, not the topic; the caption's row; one drawing; a small muted source
+line (measure, who, dates). The chapter marks run across the top of the stage,
+and the controls stand at the top right, on the label's line. So keep the label
+short, and keep it on every chapter, the title too.
 
-**Type** is set as on a slide, in `cqi` of the stage: headline about 3.4, labels
-and values on marks 1.8 (1em inside a drawing), captions 2, source line 1.3, a
-big number 12.
+**Type** is set as on a slide, in `cqi` of the stage: headline about 3.4 and 18px
+at least, to stay larger than the caption under it, labels and values on marks
+1.8 (1em inside a drawing), captions 2, source line 1.3, a big number 12.
 
-**The drawing fills its box,** the room between headline and source line, which
-is most of the stage. The skeleton makes that box a container of both its sizes:
+**The drawing fills its box,** the room between the caption's row and the source
+line, which is most of the stage. The skeleton makes that box a container of both its sizes:
 inside it `cqh` is 1% of its height, `cqi` 1% of its width, a little under the
 stage's, and `em` the labels' size, set on the box. Size what is drawn from the
 box, not from a fixed number of pixels. Bars share its height: each row is
 100cqh over their number, up to about 18cqh, and the bar some 60% of its row.
 Columns stand its full height, less their labels. A dot grid is the largest
 square the box holds, `min(100cqh, 100cqi)` a side. What can't fill the box sits
-in its middle, as the skeleton has it, not at its top. Hold no room back for the
-caption, by a margin or a shorter box: it lies over the drawing's foot, moves
-aside where it can, and can be switched off.
+in its middle, as the skeleton has it, not at its top.
 
 **The drawing** is the one that shows the sentence. A share of people: a 10 by 10
 grid of dots that fills, then recolors. A total: one big number that counts, with
@@ -168,8 +161,8 @@ gridlines, axis numbers and legends can go, and so can the tooltip `SKILL.md`
 asks of a chart: every value is labeled.
 
 **Captions.** One paragraph a chapter, 150 to 250 characters in two to four
-short sentences, each in its own `.vs-s` span as in the skeleton, its words in
-an inner span, which is the box and what the script measures. They read best
+short sentences, each in its own `.vs-s` span as in the skeleton and under some
+100 characters, so that it fits its row. They read best
 written as if said aloud, with no brackets or symbols, and are in the HTML. A
 voice reads only the captions, so each says what its chapter shows without
 leaning on the headline.
@@ -186,50 +179,46 @@ since filling moves where the words fall. A Visual short usually tells of a
 period that has ended, so pin the dates in its queries: the gist is yours, and
 should stay true.
 
-**How captions show.** As on a short video: the sentence being said stands alone
-over the foot of the drawing, in a box of the opposing color that hugs each line
-(`--color-fg` behind `--color-panel`, which flip with the theme). On the title
-before Play that is the first sentence; once a chapter is whole, the last. The
-script keeps each chapter's caption in that one band and slides it to where it
-covers nothing drawn: center, else right, else left; if all three cover
-something, center. So a drawing that leaves the middle, the right or the left of
-its foot free, as sorted bars leave the lower right, keeps its caption off it. A
-CC button in the pill, `aria-pressed` and on at first, switches captions off and
-on; a page may use no storage, so the choice lasts until it is loaded again.
+**How captions show.** The sentence being said stands alone under the headline,
+as plain words, so it covers nothing drawn. Each chapter keeps a row for it
+(`.vs-say`, empty in the HTML), and the script lays the caption over that row.
+The row is as tall whatever is being said, and with captions off, so the drawing
+never moves. On the title before Play the sentence is the first; once a chapter
+is whole, the last. A CC button among the controls, `aria-pressed` and on at
+first, switches captions off and on; a page may use no storage, so the choice
+lasts until it is loaded again.
 
 **Pace.** People read the caption and watch the drawing at once, so a second for
 every 15 characters is comfortable: a chapter lasts its caption's length divided
 by 15, in seconds, plus 1. A mark's cue is the place where its word starts in
 the caption (`indexOf`), divided by 15, so no seconds are typed. A voice keeps
-its own pace, and Listen can play it at 0.8 to 1.5 times; the page is told
-neither. So while a reading is open the script times the voice: each caption it
+its own pace, which the page isn't told. So while a reading is open the script times the voice: each caption it
 reads through sets the pace for the next, and every cue, the sentences' too, is
 scaled by it. A mark that hasn't moved when the voice goes on is drawn whole as
-it leaves. With no reading open, at a chapter's end the next starts from `t` =
+it leaves. When the voice goes off, `t` is divided by the pace, so the piece goes
+on from the same place. With no reading open, at a chapter's end the next starts from `t` =
 0; at the last it stops, and Play starts over.
 
 **Controls.** Play or Pause, Back, Next and one mark per chapter let a reader
 hold it and find their place; a chapter is the smallest part that makes sense
-alone, so a slider adds little. Keep them slight: one pill, 400px wide at most
-and 32px tall (52px for touch), made like the dashboard's own read-aloud player,
-at the stage's top right on the label's line, away from claude.ai's own bars
-under the page; on a stage under 800px it takes a row of its own above the
-label. In it: Play or Pause (both in the HTML, one shown), Back and Next, each
-the inline SVG in the skeleton (the dashboard's own icons; a page has no icon
-font, so no text, emoji or other drawing in their place) and named by an
-`aria-label`, the toggle's set by the script to Play or Pause; then Listen,
-where there is a voice (here, clear of the open player's Close); the chapter
-marks, each a button as tall as the pill's inside that draws a 3px bar, named
-for its chapter's label, playing from that chapter's start, the current one with
-`aria-current="true"` and filling as it plays; and CC. While the piece plays,
-the pill fades as a video's controls do: as the pointer leaves the stage, or
-after a mouse has lain still on the stage for 3 seconds. It comes back when the
-pointer moves on the stage or presses there, or when the keyboard moves focus
-into the stage. At rest, paused and at the end it stays up, so Play can always
-be found; where the main pointer can't hover, as on a phone, it never fades. It
-fades by `opacity`, so a keyboard and a screen reader still reach it. A reading
-stops the page's own clock, so CC, where it shows, doesn't fade through it;
-Listen's player belongs to the dashboard, so leave it as it is.
+alone, so a slider adds little. The marks are a band of bars across the top of
+the stage, each a button named for its chapter's label that plays from that
+chapter's start, the current one with `aria-current="true"` and filling as it
+plays. They stay up: they show how far the piece has got. The rest are slight:
+bare, with no box around them, at the stage's top right on the label's line,
+away from claude.ai's own bars under the page; on a narrow stage they take a row
+of their own above the label. In order: Play or Pause (both in the HTML, one
+shown), Back, Next and the speaker, which the dashboard hides where there is no
+voice, each the inline SVG in the skeleton (the dashboard's own icons; a page has no icon font, so no text,
+emoji or other drawing in their place) and named by an `aria-label`, the
+toggle's set by the script to Play or Pause; and CC. While the piece plays they
+fade as a video's controls do: as the pointer leaves the stage, or after a mouse
+has lain still on it for 3 seconds. They come back when the pointer moves or
+presses on the stage, or the keyboard moves focus into it. At rest, paused and
+at the end they stay up, so Play can always be found; where the main pointer
+can't hover, as on a phone, they never fade. They fade by `opacity`, so a
+keyboard and a screen reader still reach them. With the voice on they fade and
+come back the same way.
 
 ## Handing over
 

@@ -14,7 +14,7 @@
     return out;
   }
   var EXPECT_MS = 3e4;
-  function writeBases(store2) {
+  function writeBases(store2, known = () => false) {
     const wrote = /* @__PURE__ */ new Map();
     const writing = /* @__PURE__ */ new Map();
     const expected = /* @__PURE__ */ new Map();
@@ -25,10 +25,10 @@
         expected.delete(path);
         const fresh = told !== void 0 && Date.now() - told.at < EXPECT_MS;
         const from = fresh ? told.base : wrote.get(path);
-        const base = from ?? (seen === void 0 ? void 0 : JSON.parse(seen));
+        const base = from ?? (seen !== void 0 ? JSON.parse(seen) : known() ? null : void 0);
         const body = JSON.stringify({ op, path, data, base, ...fresh && told.chosen ? { chosen: true } : {} });
         const sent = JSON.parse(body);
-        const after = !isObject(sent.data) ? void 0 : op === "set" ? sent.data : isObject(sent.base) ? patched(sent.base, sent.data) : void 0;
+        const after = !isObject(sent.data) ? void 0 : op === "set" ? sent.data : isObject(sent.base) ? patched(sent.base, sent.data) : sent.base === null ? patched({}, sent.data) : void 0;
         const before = wrote.get(path);
         if (after) wrote.set(path, after);
         else wrote.delete(path);
@@ -297,7 +297,7 @@
     return body;
   }
   var store = /* @__PURE__ */ new Map();
-  var bases = writeBases(store);
+  var bases = writeBases(store, () => live);
   window.__baoyuWriteBase = (path, base, chosen) => bases.expect(path, base, chosen);
   var live = false;
   var subs = /* @__PURE__ */ new Set();
@@ -439,6 +439,11 @@
   var downloads = {
     async save({ filename, data }) {
       const blob = data instanceof Blob ? data : new Blob([data]);
+      const toFolder = globalThis.__baoyuSave;
+      if (toFolder) {
+        await toFolder(blob, filename || "download");
+        return;
+      }
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;

@@ -31,7 +31,9 @@ such as `dsh-claude-design@2.4.0`.
   the editor, the plugin also waits for comments, so a comment's **Send to Agent** box is there: send one and the agent
   wakes up, changes the artboard, and replies in the comment.
 - `lib/client.js`: the part that runs in the app's window. It shows a comment sent to the agent as a card in the chat;
-  **View thread** on the card opens it in the editor.
+  **View thread** on the card opens it in the editor. It also adds **Artifacts** to the left
+  sidebar, one entry for all the baoyu-design plugins: the designs and everything else the agent has opened, each a
+  click away from its conversation and editor.
 - `cordis.patch.yml`: the bundle layer that mounts the plugin row.
 
 The editor server listens on 127.0.0.1 only and reads and writes only the canvas's folder.

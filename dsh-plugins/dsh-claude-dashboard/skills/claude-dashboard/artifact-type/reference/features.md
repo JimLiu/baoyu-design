@@ -95,9 +95,8 @@ spaced and stops after three minutes.
 The page makes the dataset's call, then runs `fn({answer, call, args, read})`
 on every load: `answer` is the tool's answer as you saw it in your session
 (JSON, or the text it is), `args` the call's arguments with filters filled
-in, `await call(tool, args)` runs another tool of the same connector (how a
-query left running is gone back for; shared:
-`artifact-type/reference/shared-loader-calls.md`), and `read` has the parsers below. It
+in, `await call(tool, args)` runs another tool of the same connector (for a
+query left running; for another query's input, see `artifact-type/reference/dependent-calls.md`), and `read` has the parsers below. It
 reaches the connector only through `call`, and works from only its
 parameters and constants inside it. Return row objects, or `{columns, rows, cut}` (they are
 the dataset's `data`), or `{data, columns, meta}`. To fail the source,
