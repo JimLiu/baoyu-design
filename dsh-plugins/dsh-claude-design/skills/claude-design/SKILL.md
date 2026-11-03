@@ -5,8 +5,8 @@ description: >-
   .dc.html Design Component file per artboard) as local files, then open them in a local canvas
   editor where the user can view the artboards side by side, retype copy and adjust tweaks. Use when
   the user asks for an editable canvas of artboards in this format, names claude-design or the Design
-  (canvas) type, or wants to revise a folder that holds project/canvas.json. A one-off HTML prototype
-  or design exploration outside this format is baoyu-design's.
+  (canvas) type, or wants to revise a folder that holds project/canvas.json. Not for a one-off HTML
+  prototype or a design exploration outside this format.
 license: "Mixed. The skill text, references and editors adapted from Anthropic's claude.ai Artifact types stay Anthropic's and are not MIT-licensed; the local tooling is MIT. Complete terms in NOTICE.md: https://github.com/JimLiu/baoyu-design/blob/main/NOTICE.md"
 ---
 

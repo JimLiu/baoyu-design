@@ -1,5 +1,5 @@
-// dsh-claude-slides 2.8.0: built from baoyu-design.
-var define_PLUGIN_default = { name: "claude-slides", provider: "dsh-claude-slides", skills: [{ name: "claude-slides", description: "Make and revise slide decks in the Slides artifact format (project/deck.json plus one HTML file per slide) as local files, then open them in a local slide editor where the user can present, retype, drag, and export PDF, HTML or PowerPoint. Use when the user asks for an editable slide deck or presentation in this format, names claude-slides or the Slides type, or wants to revise a folder that holds project/deck.json. A one-off single-file HTML deck or prototype is baoyu-design's.", comments: true }] };
+// dsh-claude-slides 2.8.1: built from baoyu-design.
+var define_PLUGIN_default = { name: "claude-slides", provider: "dsh-claude-slides", skills: [{ name: "claude-slides", description: "Make and revise slide decks in the Slides artifact format (project/deck.json plus one HTML file per slide) as local files, then open them in a local slide editor where the user can present, retype, drag, and export PDF, HTML or PowerPoint. Use when the user asks for an editable slide deck or presentation in this format, names claude-slides or the Slides type, or wants to revise a folder that holds project/deck.json. Not for a one-off single-file HTML deck or prototype.", comments: true }] };
 
 import { spawn as spawn2 } from "node:child_process";
 import { randomUUID } from "node:crypto";
