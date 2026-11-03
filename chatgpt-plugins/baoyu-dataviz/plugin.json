@@ -1,0 +1,43 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "baoyu-dataviz",
+  "version": "2.8.2",
+  "description": "A method for charts and data visualizations in any medium, from HTML and SVG to matplotlib, plotly, d3 and Recharts: which form fits the question, a color formula with a validator, mark specs and interaction rules, so charts read as one system in light and dark themes.",
+  "author": {
+    "name": "Jim Liu 宝玉",
+    "url": "https://github.com/JimLiu"
+  },
+  "homepage": "https://github.com/JimLiu/baoyu-design",
+  "repository": "https://github.com/JimLiu/baoyu-design",
+  "license": "SEE LICENSE IN LICENSE",
+  "keywords": [
+    "charts",
+    "data-visualization",
+    "palette",
+    "plot"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Baoyu Dataviz",
+        "shortDescription": "Chart method and palettes",
+        "longDescription": "A method for charts and data visualizations in any medium, from HTML and SVG to matplotlib, plotly, d3 and Recharts: which form fits the question, a color formula with a validator, mark specs and interaction rules, so charts read as one system in light and dark themes.",
+        "developerName": "Jim Liu 宝玉",
+        "category": "Productivity",
+        "capabilities": [
+          "Read"
+        ],
+        "websiteURL": "https://github.com/JimLiu/baoyu-design",
+        "supportURL": "https://github.com/JimLiu/baoyu-design/issues",
+        "defaultPrompt": [
+          "Chart this data so the trend is obvious",
+          "Pick accessible colors for these six series",
+          "Review this chart and fix what makes it hard to read"
+        ],
+        "brandColor": "#D97757",
+        "composerIcon": "./assets/icon.svg",
+        "logo": "./assets/icon.svg"
+      }
+    }
+  }
+}

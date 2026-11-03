@@ -135,6 +135,22 @@ https://jimliu.github.io/baoyu-design/dsh-plugins/index.json
 
 ---
 
+## ChatGPT 插件
+
+这些技能也做成了 ChatGPT 桌面版和 Codex 的插件：[Baoyu Slides](chatgpt-plugins/baoyu-slides/)、[Baoyu Canvas](chatgpt-plugins/baoyu-canvas/)、[Baoyu Design System](chatgpt-plugins/baoyu-design-system/)、[Baoyu Dashboard](chatgpt-plugins/baoyu-dashboard/)、[Baoyu Motion](chatgpt-plugins/baoyu-motion/)（带 `motion-director` 和 `dataviz`）和 [Baoyu Dataviz](chatgpt-plugins/baoyu-dataviz/)。把本仓库添加为 marketplace，再装你要的插件：
+
+```bash
+codex plugin marketplace add JimLiu/baoyu-design --sparse .agents/plugins --sparse chatgpt-plugins
+```
+
+```bash
+codex plugin add baoyu-slides@baoyu-design
+```
+
+编辑器跑在你的电脑上，打开时要访问本机网络，而默认沙箱不允许：应用来问就批准，或者换一个允许本机网络的权限模式。一步一步的说明（包括在应用的 Plugins Directory 里安装、更新）见 [chatgpt-plugins/README.zh-CN.md](chatgpt-plugins/README.zh-CN.md)。
+
+---
+
 ## 为什么在本地跑
 
 - **摆脱对网站的依赖。** 不必离开编辑器，就能用上 `claude.ai/design` 绝大部分的功能 —— 同一套方法论、同样的工艺标准、同样的产出格式。

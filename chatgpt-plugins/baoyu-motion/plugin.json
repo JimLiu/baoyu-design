@@ -1,0 +1,46 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "baoyu-motion",
+  "version": "2.8.2",
+  "description": "Writes short animated films, explainers, product demos, data stories and title sequences, as code, scene by scene, and plays them in a player that runs on your computer, where you comment on a moment and export MP4 or GIF. Includes a director skill for films with something to say, and a chart skill for the charts in them. Runs locally on Node.js 22 or later; export needs Chrome.",
+  "author": {
+    "name": "Jim Liu 宝玉",
+    "url": "https://github.com/JimLiu"
+  },
+  "homepage": "https://github.com/JimLiu/baoyu-design",
+  "repository": "https://github.com/JimLiu/baoyu-design",
+  "license": "SEE LICENSE IN LICENSE",
+  "keywords": [
+    "motion",
+    "animation",
+    "video",
+    "explainer"
+  ],
+  "extensions": {
+    "com.openai": {
+      "requires_local_executor": true,
+      "interface": {
+        "displayName": "Baoyu Motion",
+        "shortDescription": "Short animated films",
+        "longDescription": "Writes short animated films, explainers, product demos, data stories and title sequences, as code, scene by scene, and plays them in a player that runs on your computer, where you comment on a moment and export MP4 or GIF. Includes a director skill for films with something to say, and a chart skill for the charts in them. Runs locally on Node.js 22 or later; export needs Chrome.",
+        "developerName": "Jim Liu 宝玉",
+        "category": "Creativity",
+        "capabilities": [
+          "Interactive",
+          "Read",
+          "Write"
+        ],
+        "websiteURL": "https://github.com/JimLiu/baoyu-design",
+        "supportURL": "https://github.com/JimLiu/baoyu-design/issues",
+        "defaultPrompt": [
+          "Make a 30-second explainer from this article",
+          "Make a product demo film of this feature",
+          "Animate a logo sting from this SVG"
+        ],
+        "brandColor": "#D97757",
+        "composerIcon": "./assets/icon.svg",
+        "logo": "./assets/icon.svg"
+      }
+    }
+  }
+}

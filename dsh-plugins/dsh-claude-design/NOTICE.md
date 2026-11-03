@@ -1,6 +1,6 @@
 # Notices
 
-baoyu-design holds material under three different sets of terms. The MIT License in [LICENSE](LICENSE) covers only the first. The same applies to the DeepSeek Harness plugins on npm, which ship this file next to their `LICENSE`.
+baoyu-design holds material under three different sets of terms. The MIT License in [LICENSE](LICENSE) covers only the first. The same applies to the ChatGPT plugins in `chatgpt-plugins/`, each of which carries this file, and to the DeepSeek Harness plugins on npm, which ship this file next to their `LICENSE`.
 
 [中文说明](#中文说明)
 
@@ -10,6 +10,7 @@ Copyright (c) 2026 Jim Liu 宝玉, under the MIT License in [LICENSE](LICENSE):
 
 - The local tooling: each skill's `scripts/artifact.mjs` and, where there is one, `scripts/server.mjs` (the command line and the local editor server), the local comments, and what lets the editors run on a local machine instead of claude.ai.
 - The DeepSeek Harness plugins' own code and files: `dsh-plugins/*/lib/`, `cordis.patch.yml`, `locale/`, `docs/` and `icon.svg`.
+- The ChatGPT plugins' own files: `chatgpt-plugins/*/plugin.json`, `README.md` and `assets/`, and `.agents/plugins/marketplace.json`. The skills inside them keep the terms of `skills/`.
 - The parts of the skills' text written for local agents: how to open and run the editors, local paths and files, comments.
 - A skill whose `license:` line says plain MIT is wholly the maintainer's work: all of its files are MIT.
 - The READMEs, the changelogs, the images in `assets/` and the files in `.github/`.
@@ -42,7 +43,7 @@ If you hold rights in anything here and want it credited differently, changed or
 
 ## 中文说明
 
-本仓库（以及 npm 上的 DeepSeek Harness 插件）里的内容分三类，许可各不相同。[LICENSE](LICENSE) 里的 MIT 许可只管第一类。
+本仓库（以及 `chatgpt-plugins/` 里的 ChatGPT 插件、npm 上的 DeepSeek Harness 插件）里的内容分三类，许可各不相同。[LICENSE](LICENSE) 里的 MIT 许可只管第一类。
 
 1. **维护者自己写的部分，MIT。** 本地命令行和编辑器服务器（各技能的 `scripts/artifact.mjs`，以及有的技能带的 `scripts/server.mjs`）、本地评论、让编辑器离开 claude.ai 在本机运行的那部分代码；DeepSeek Harness 插件自己的代码和文件（`dsh-plugins/*/lib/`、`cordis.patch.yml`、`locale/`、`docs/`、`icon.svg`）；技能说明里为本地 Agent 写的部分；`license:` 一行只写 MIT 的技能，整个是维护者写的，它的全部文件都是；README、更新日志、`assets/` 里的图片、`.github/`；`archive/baoyu-design/agents/` 里维护者写的工具。
 2. **取自 Anthropic 的部分，不适用 MIT。** 权利归 Anthropic。除 frontend-design 外，Anthropic 没有为这些内容公开许可，本项目也不授予任何许可。包括：

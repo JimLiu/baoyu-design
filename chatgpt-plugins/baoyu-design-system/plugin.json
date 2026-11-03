@@ -1,0 +1,45 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "baoyu-design-system",
+  "version": "2.8.2",
+  "description": "Builds a design system from a code repository, a design tool or scratch: tokens, type, components, assets and a brand book, as files in your workspace, in a page that runs on your computer where you can browse and edit them. Baoyu Slides and Baoyu Canvas can install what it makes. Runs locally on Node.js 20 or later.",
+  "author": {
+    "name": "Jim Liu 宝玉",
+    "url": "https://github.com/JimLiu"
+  },
+  "homepage": "https://github.com/JimLiu/baoyu-design",
+  "repository": "https://github.com/JimLiu/baoyu-design",
+  "license": "SEE LICENSE IN LICENSE",
+  "keywords": [
+    "design-system",
+    "design-tokens",
+    "brand"
+  ],
+  "extensions": {
+    "com.openai": {
+      "requires_local_executor": true,
+      "interface": {
+        "displayName": "Baoyu Design System",
+        "shortDescription": "Tokens, type and components",
+        "longDescription": "Builds a design system from a code repository, a design tool or scratch: tokens, type, components, assets and a brand book, as files in your workspace, in a page that runs on your computer where you can browse and edit them. Baoyu Slides and Baoyu Canvas can install what it makes. Runs locally on Node.js 20 or later.",
+        "developerName": "Jim Liu 宝玉",
+        "category": "Creativity",
+        "capabilities": [
+          "Interactive",
+          "Read",
+          "Write"
+        ],
+        "websiteURL": "https://github.com/JimLiu/baoyu-design",
+        "supportURL": "https://github.com/JimLiu/baoyu-design/issues",
+        "defaultPrompt": [
+          "Build a design system from this repository",
+          "Make a brand kit for this product from scratch",
+          "Add dark mode tokens to this design system"
+        ],
+        "brandColor": "#D97757",
+        "composerIcon": "./assets/icon.svg",
+        "logo": "./assets/icon.svg"
+      }
+    }
+  }
+}

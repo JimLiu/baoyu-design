@@ -1,0 +1,80 @@
+{
+  "name": "baoyu-design",
+  "interface": {
+    "displayName": "Baoyu Design"
+  },
+  "plugins": [
+    {
+      "name": "baoyu-slides",
+      "source": {
+        "source": "local",
+        "path": "./chatgpt-plugins/baoyu-slides"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Creativity"
+    },
+    {
+      "name": "baoyu-canvas",
+      "source": {
+        "source": "local",
+        "path": "./chatgpt-plugins/baoyu-canvas"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Creativity"
+    },
+    {
+      "name": "baoyu-design-system",
+      "source": {
+        "source": "local",
+        "path": "./chatgpt-plugins/baoyu-design-system"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Creativity"
+    },
+    {
+      "name": "baoyu-dashboard",
+      "source": {
+        "source": "local",
+        "path": "./chatgpt-plugins/baoyu-dashboard"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    },
+    {
+      "name": "baoyu-motion",
+      "source": {
+        "source": "local",
+        "path": "./chatgpt-plugins/baoyu-motion"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Creativity"
+    },
+    {
+      "name": "baoyu-dataviz",
+      "source": {
+        "source": "local",
+        "path": "./chatgpt-plugins/baoyu-dataviz"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

@@ -135,6 +135,22 @@ A workspace that has its own copy of a skill (in `.agents/skills/` or `.dsh/skil
 
 ---
 
+## ChatGPT plugins
+
+The same skills also come as plugins for the ChatGPT desktop app and Codex: [Baoyu Slides](chatgpt-plugins/baoyu-slides/), [Baoyu Canvas](chatgpt-plugins/baoyu-canvas/), [Baoyu Design System](chatgpt-plugins/baoyu-design-system/), [Baoyu Dashboard](chatgpt-plugins/baoyu-dashboard/), [Baoyu Motion](chatgpt-plugins/baoyu-motion/) (with `motion-director` and `dataviz`) and [Baoyu Dataviz](chatgpt-plugins/baoyu-dataviz/). Add this repository as a marketplace, then install the ones you want:
+
+```bash
+codex plugin marketplace add JimLiu/baoyu-design --sparse .agents/plugins --sparse chatgpt-plugins
+```
+
+```bash
+codex plugin add baoyu-slides@baoyu-design
+```
+
+The editors run on your computer, so opening one needs local network, which the default sandbox blocks: approve it if the app asks, or use a permission mode that allows it. Step by step, with installing from the app's Plugins Directory and updating: [chatgpt-plugins/README.md](chatgpt-plugins/README.md).
+
+---
+
 ## Why run it locally
 
 - **Free yourself from the website.** You get the vast majority of `claude.ai/design`'s capabilities without ever leaving your editor — same methodology, same craft standards, same output format.

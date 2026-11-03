@@ -1,0 +1,46 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "baoyu-slides",
+  "version": "2.8.2",
+  "description": "Writes editable slide decks as files in your workspace and opens them in a slide editor that runs on your computer. Present, retype, drag, comment for the agent, and export PDF, HTML or PowerPoint. Runs locally on Node.js 20 or later; nothing leaves your computer unless you share it.",
+  "author": {
+    "name": "Jim Liu 宝玉",
+    "url": "https://github.com/JimLiu"
+  },
+  "homepage": "https://github.com/JimLiu/baoyu-design",
+  "repository": "https://github.com/JimLiu/baoyu-design",
+  "license": "SEE LICENSE IN LICENSE",
+  "keywords": [
+    "slides",
+    "presentation",
+    "deck",
+    "pptx"
+  ],
+  "extensions": {
+    "com.openai": {
+      "requires_local_executor": true,
+      "interface": {
+        "displayName": "Baoyu Slides",
+        "shortDescription": "Editable slide decks",
+        "longDescription": "Writes editable slide decks as files in your workspace and opens them in a slide editor that runs on your computer. Present, retype, drag, comment for the agent, and export PDF, HTML or PowerPoint. Runs locally on Node.js 20 or later; nothing leaves your computer unless you share it.",
+        "developerName": "Jim Liu 宝玉",
+        "category": "Creativity",
+        "capabilities": [
+          "Interactive",
+          "Read",
+          "Write"
+        ],
+        "websiteURL": "https://github.com/JimLiu/baoyu-design",
+        "supportURL": "https://github.com/JimLiu/baoyu-design/issues",
+        "defaultPrompt": [
+          "Make a 10-slide deck from this document",
+          "Turn these notes into a presentation I can edit",
+          "Revise this deck: tighter copy, stronger charts"
+        ],
+        "brandColor": "#D97757",
+        "composerIcon": "./assets/icon.svg",
+        "logo": "./assets/icon.svg"
+      }
+    }
+  }
+}
