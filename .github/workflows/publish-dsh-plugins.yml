@@ -27,10 +27,10 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 24
           registry-url: https://registry.npmjs.org
@@ -70,7 +70,7 @@ jobs:
           for dir in dsh-plugins/*/; do
             [ -f "$dir/package.json" ] || continue
             name=$(node -p "require('./${dir}package.json').name")
-            # Asked without npm: setup-node gives npm a placeholder token, and the registry refuses even reads with it.
+            # Asked with plain curl, not npm: no npm login or token is involved in a read of a public package.
             if curl -fsS -o /dev/null "https://registry.npmjs.org/$name/$version" 2>/dev/null; then
               echo "$name@$version is already on npm."
               continue
