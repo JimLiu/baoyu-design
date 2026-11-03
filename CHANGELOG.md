@@ -4,6 +4,11 @@ English | [中文](./CHANGELOG.zh.md)
 
 All notable changes to `baoyu-design` are tracked in this file.
 
+## 2.8.1 - 2026-11-02
+
+### Fixes
+- `claude-slides`, `claude-design`, `claude-design-system`, `claude-dashboard`: their descriptions no longer send one-off HTML work to the `baoyu-design` skill, which is archived and no longer installed. They now only say what each skill is not for. The DeepSeek Harness plugins carry the same descriptions.
+
 ## 2.8.0 - 2026-11-02
 
 ### Features

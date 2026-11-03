@@ -4,6 +4,11 @@
 
 本文档记录 `baoyu-design` 的重要变更。
 
+## 2.8.1 - 2026-11-02
+
+### 修复
+- `claude-slides`、`claude-design`、`claude-design-system`、`claude-dashboard`：说明里不再把一次性的 HTML 产出交给 `baoyu-design` 技能。这个技能已经归档，不再随仓库安装。现在只写各技能不适用于什么。DeepSeek Harness 插件里的说明也一样。
+
 ## 2.8.0 - 2026-11-02
 
 ### 新功能
