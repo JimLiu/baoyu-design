@@ -28302,6 +28302,7 @@ var require_pptxgen_cjs = __commonJS({
                   "color",
                   "fill",
                   "fontFace",
+                  "eaFontFace",
                   "fontPitchFamily",
                   "fontSize",
                   "margin",
@@ -28700,7 +28701,7 @@ var require_pptxgen_cjs = __commonJS({
           runProps += `<a:effectLst>${createGlowElement(opts.glow, DEF_TEXT_GLOW)}</a:effectLst>`;
         if (opts.fontFace) {
           let Y = opts.fontPitchFamily ?? 34;
-          runProps += `<a:latin typeface="${opts.fontFace}" pitchFamily="${Y}" charset="0"/><a:ea typeface="${opts.fontFace}" pitchFamily="${Y}" charset="-122"/><a:cs typeface="${opts.fontFace}" pitchFamily="${Y}" charset="-120"/>`;
+          runProps += `<a:latin typeface="${opts.fontFace}" pitchFamily="${Y}" charset="0"/>${opts.eaFontFace ? `<a:ea typeface="${opts.eaFontFace}"/>` : `<a:ea typeface="${opts.fontFace}" pitchFamily="${Y}" charset="-122"/>`}<a:cs typeface="${opts.fontFace}" pitchFamily="${Y}" charset="-120"/>`;
         }
       }
       if (opts.hyperlink) {
@@ -28821,7 +28822,7 @@ var require_pptxgen_cjs = __commonJS({
             reqsClosingFontSize = true, opts.fontSize = opts.fontSize || textObj.options.fontSize;
         }), opts.fontFace || slideObj._type === "tablecell" && opts.fontSize) {
           if (opts.fontFace)
-            strSlideXml += `<a:endParaRPr lang="${opts.lang || "en-US"}"` + (opts.fontSize ? ` sz="${Math.round(opts.fontSize * 100)}"` : "") + ' dirty="0">', strSlideXml += `<a:latin typeface="${opts.fontFace}" charset="0"/>`, strSlideXml += `<a:ea typeface="${opts.fontFace}" charset="0"/>`, strSlideXml += `<a:cs typeface="${opts.fontFace}" charset="0"/>`, strSlideXml += "</a:endParaRPr>";
+            strSlideXml += `<a:endParaRPr lang="${opts.lang || "en-US"}"` + (opts.fontSize ? ` sz="${Math.round(opts.fontSize * 100)}"` : "") + ' dirty="0">', strSlideXml += `<a:latin typeface="${opts.fontFace}" charset="0"/>`, strSlideXml += opts.eaFontFace ? `<a:ea typeface="${opts.eaFontFace}"/>` : `<a:ea typeface="${opts.fontFace}" charset="0"/>`, strSlideXml += `<a:cs typeface="${opts.fontFace}" charset="0"/>`, strSlideXml += "</a:endParaRPr>";
           else
             strSlideXml += `<a:endParaRPr lang="${opts.lang || "en-US"}"` + (opts.fontSize ? ` sz="${Math.round(opts.fontSize * 100)}"` : "") + ' dirty="0"/>';
         } else if (reqsClosingFontSize)
@@ -155024,6 +155025,48 @@ function installExportFontTables(runtime2) {
     });
     return out;
   }
+  function fontCodePoints(bytes) {
+    let codePoints = /* @__PURE__ */ new Set();
+    try {
+      let view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength), cmap;
+      for (let index4 = 0; index4 < view.getUint16(4); index4++) {
+        if (view.getUint32(12 + index4 * 16) === 1668112752) {
+          cmap = view.getUint32(12 + index4 * 16 + 8);
+        }
+      }
+      if (cmap === void 0) {
+        return codePoints;
+      }
+      for (let index4 = 0; index4 < view.getUint16(cmap + 2); index4++) {
+        let at = cmap + view.getUint32(cmap + 8 + index4 * 8), format = view.getUint16(at);
+        if (format === 12) {
+          for (let group = 0; group < view.getUint32(at + 12); group++) {
+            let last = view.getUint32(at + 20 + group * 12);
+            for (let code = view.getUint32(at + 16 + group * 12); code <= last; code++) {
+              codePoints.add(code);
+            }
+          }
+        } else if (format === 4) {
+          let segments = view.getUint16(at + 6) / 2, starts = at + 16 + segments * 2, deltas = starts + segments * 2, offsets = deltas + segments * 2;
+          for (let segment = 0; segment < segments; segment++) {
+            let last = view.getUint16(at + 14 + segment * 2), first = view.getUint16(starts + segment * 2), delta = view.getUint16(deltas + segment * 2), offset4 = view.getUint16(offsets + segment * 2);
+            for (let code = first; code <= last && code !== 65535; code++) {
+              let glyph = offset4 === 0 ? code : view.getUint16(offsets + segment * 2 + offset4 + (code - first) * 2);
+              if (offset4 !== 0 && glyph === 0) {
+                continue;
+              }
+              if ((glyph + delta & 65535) !== 0) {
+                codePoints.add(code);
+              }
+            }
+          }
+        }
+      }
+    } catch {
+      return /* @__PURE__ */ new Set();
+    }
+    return codePoints;
+  }
   function renameFontFace(bytes, family, subfamily, style) {
     if (bytes.byteLength < 12) {
       return bytes;
@@ -155312,6 +155355,7 @@ function installExportFontTables(runtime2) {
     return references;
   }
   bindRuntimeValue(runtime2, "readFontTables", () => readFontTables);
+  bindRuntimeValue(runtime2, "fontCodePoints", () => fontCodePoints);
   bindRuntimeValue(runtime2, "renameFontFace", () => renameFontFace);
   bindRuntimeValue(
     runtime2,
@@ -156085,6 +156129,21 @@ function installExportPptx(runtime2) {
       };
     }
   }
+  let embeddedCodePoints;
+  function pptxEastAsianFace(face, text) {
+    if (embeddedCodePoints === void 0 || !/[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/u.test(text)) {
+      return {};
+    }
+    let cuts = embeddedCodePoints.get(face.toLowerCase());
+    if (cuts !== void 0 && [...text.replace(/\s/g, "")].every(
+      (character) => cuts.every((cut) => cut.has(character.codePointAt(0)))
+    )) {
+      return {};
+    }
+    return {
+      eaFontFace: /\bJP\b/.test(face) || /[\p{Script=Hiragana}\p{Script=Katakana}]/u.test(text) ? "Yu Gothic" : /\bKR\b/.test(face) || /\p{Script=Hangul}/u.test(text) ? "Malgun Gothic" : /\b(TC|HK)\b/.test(face) ? "Microsoft JhengHei" : "Microsoft YaHei"
+    };
+  }
   function pptxFontFace(role, font) {
     if (font !== void 0 && typeof font !== "string") {
       return font.family;
@@ -156494,7 +156553,13 @@ function installExportPptx(runtime2) {
     });
     presentation.layout = "APPIFACT";
     presentation.description = options.description ?? "";
+    embeddedCodePoints = options.forGoogleSlides === true ? void 0 : /* @__PURE__ */ new Map();
     for (let font of options.embeddedFonts ?? []) {
+      let family = font.typeface.toLowerCase();
+      embeddedCodePoints?.set(family, [
+        ...embeddedCodePoints.get(family) ?? [],
+        (0, runtime2.fontCodePoints)(font.data)
+      ]);
       presentation.addEmbeddedFont({
         typeface: font.typeface,
         style: font.style,
@@ -157013,6 +157078,7 @@ function installExportPptx(runtime2) {
           points: value18
         } : {},
         fontFace: pptxFontFace(leaf.role, leaf.fontFamily),
+        ...pptxEastAsianFace(pptxFontFace(leaf.role, leaf.fontFamily), leaf.text),
         fontPitchFamily: pptxFontFamilyPitch(leaf.role, leaf.fontFamily),
         fontSize: pxToPoints(value3),
         bold: value4 >= 600,
@@ -158073,6 +158139,7 @@ function installExportPptx(runtime2) {
         )
       } : {},
       fontFace: pptxFontFace(value, leaf.fontFamily),
+      ...pptxEastAsianFace(pptxFontFace(value, leaf.fontFamily), leaf.rows.flat().join("")),
       fontPitchFamily: pptxFontFamilyPitch(value, leaf.fontFamily),
       fontSize: pxToPoints(state.fontSize),
       color: hexToPptxColor(value5).color,
