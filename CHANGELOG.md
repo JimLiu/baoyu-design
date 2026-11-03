@@ -4,6 +4,19 @@ English | [中文](./CHANGELOG.zh.md)
 
 All notable changes to `baoyu-design` are tracked in this file.
 
+## 2.8.0 - 2026-11-02
+
+### Features
+- **Motion is released.** `claude-motion` makes animated films: the agent writes each scene as code into the film's folder while you watch it fill in the local player, then you retype lines, drag scene lengths, change the style in **Tweaks**, comment on a moment and send it to the agent, share it on the network and go back through its History. Export MP4 or GIF from the player, or `export` from the command line with Chrome, no page open.
+- Long narrated films: up to 900 s and 40 scenes, with a voice track of one take a scene. `voice` makes the takes with a speech provider of yours (`voice --providers` says which are ready), `--take` / `--takes` adopts ones made elsewhere, and `align`, `sync` and `beats` time scenes and motion to the words. Captions follow the voice, with CJK-aware line breaks, and `captions` or `export --captions` writes them as a subtitle file. A **Script** tab in the Tweaks panel edits the lines, and the voice lane draws each take's wave.
+- Sound and footage: `score` reports what the film plays and how loud it is, `S.bed` plays a recorded music bed under the film, `music` measures a track and `arrange` cuts one to the film, and `export --audio-only` renders the mix in seconds. `record` films a page of your own product as a clip (needs ffmpeg), `stills` gives the frames at chosen moments, and `import-explainer` brings an explainer project in as a film.
+- **`motion-director`** is a new skill that directs a film with something to say: it finds the point and the picture that carries it, writes the narration for the ear, has it voiced, times every scene to the words, reviews the frames as a viewer would, and hands the film over in its player. It needs `claude-motion` beside it.
+- DeepSeek Harness: the new `dsh-claude-motion` plugin. Comments and the player's **Continue**, **Finalize**, **Make the animation** and **Ask Agent** buttons reach the agent, and films are listed on the **Artifacts** page.
+- All the open artifacts of a kind now share one server and one port, instead of a port each: every page has its own address, such as `http://127.0.0.1:4710/slides/<id>/`, which stays the same from one start to the next. The server's root lists what is open, and the server ends with the last one. Sharing stays per artifact, and share links gain the same path, so links from an earlier version stop working.
+
+### Fixes
+- `share <root> --disable`, `--enable`, `--reset` and `--role` no longer open the page to the network. They used to turn sharing on whenever it was off, so disabling a link right after `--off` put the page back on the network. Only `share <root>` with no options opens it now; with no server running, the link options change the links without starting one.
+
 ## 2.7.2 - 2026-11-02
 
 ### Features

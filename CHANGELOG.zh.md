@@ -4,6 +4,19 @@
 
 本文档记录 `baoyu-design` 的重要变更。
 
+## 2.8.0 - 2026-11-02
+
+### 新功能
+- **Motion 正式发布。** `claude-motion` 用来做动画影片：Agent 把每一场写成代码，存进影片的文件夹，你在本地播放器里看着它写出来。然后可以改台词、拖动场景长度、在 **Tweaks** 里换样式、在某个时刻留评论发给 Agent、分享到局域网、在 History 里回看。从播放器导出 MP4 或 GIF，也可以在命令行用 `export`（要有 Chrome，不用开页面）。
+- 带旁白的长片：最长 900 秒、40 场，有一条每场一段配音的配音轨。`voice` 用你自己的语音服务生成配音（`voice --providers` 列出哪些可用），`--take` / `--takes` 用别处做好的配音，`align`、`sync`、`beats` 让场景和动作对上台词。字幕跟着配音走，中日韩文字会正确断行，`captions` 或 `export --captions` 写出字幕文件。Tweaks 面板的 **Script** 标签可以改台词，配音轨上画出每段配音的波形。
+- 声音和素材：`score` 报告影片放了什么、响度多少，`S.bed` 在影片底下铺一段录好的配乐，`music` 测量一段音乐，`arrange` 把它剪成影片的长度，`export --audio-only` 几秒钟就渲染出混音。`record` 把你自己产品的页面拍成素材（要 ffmpeg），`stills` 取指定时刻的画面，`import-explainer` 把讲解视频项目转成影片。
+- **`motion-director`** 是新技能，给有话要说的影片当导演：找到要说的那一点和撑得起它的画面，写适合听的旁白，配音，让每一场对上台词，像观众那样检查画面，最后在播放器里交片。要和 `claude-motion` 装在一起。
+- DeepSeek Harness：新插件 `dsh-claude-motion`。评论和播放器的 **Continue**、**Finalize**、**Make the animation**、**Ask Agent** 按钮都能送到 Agent，影片也列在 **Artifacts** 页上。
+- 同一类型打开的 artifact 现在共用一个服务器和端口，不再各占一个端口。每个页面有自己的地址，比如 `http://127.0.0.1:4710/slides/<id>/`，重新启动后地址不变。服务器根路径列出正在打开的内容，最后一个关掉后服务器退出。分享仍然按 artifact 算，分享链接也加上了同样的路径，所以旧版本的链接会失效。
+
+### 修复
+- `share <root> --disable`、`--enable`、`--reset`、`--role` 不再把页面开放到局域网。以前分享关着时它们会把它打开，所以刚 `--off` 又停用链接，页面就又回到了网络上。现在只有不带选项的 `share <root>` 才会开放；服务器没在运行时，这些选项只改链接，不启动服务器。
+
 ## 2.7.2 - 2026-11-02
 
 ### 新功能
