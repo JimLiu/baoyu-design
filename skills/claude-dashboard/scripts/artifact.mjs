@@ -1,11 +1,9 @@
 #!/usr/bin/env node
 // claude-dashboard: local Artifact tool (prebuilt; do not edit).
 
-import { spawn as spawn2 } from "node:child_process";
-import { createHash as createHash4 } from "node:crypto";
-import fs9 from "node:fs";
-import http from "node:http";
-import path8 from "node:path";
+import { createHash as createHash5 } from "node:crypto";
+import fs10 from "node:fs";
+import path9 from "node:path";
 import { fileURLToPath } from "node:url";
 import vm from "node:vm";
 
@@ -42,17 +40,15 @@ async function runningServer(root, kind, probe) {
     return null;
   }
 }
-function recordServer(state, close, signals = ["SIGINT", "SIGTERM"]) {
-  const file = path.join(state.root, STATE_FILE);
-  fs.writeFileSync(file, `${JSON.stringify(state, null, 2)}
+function writeState(state) {
+  fs.writeFileSync(path.join(state.root, STATE_FILE), `${JSON.stringify(state, null, 2)}
 `);
   writeGitignore(state.root, state.kind);
-  const shutdown = () => {
-    if (readState(state.root)?.pid === process.pid) fs.rmSync(file, { force: true });
-    close();
-    process.exit(0);
-  };
-  for (const signal of signals) process.on(signal, shutdown);
+}
+function removeState(root) {
+  const state = readState(root);
+  if (state && state.pid !== process.pid && alive(state.pid)) return;
+  fs.rmSync(path.join(root, STATE_FILE), { force: true });
 }
 var GITIGNORE_FILE = ".gitignore";
 var gitignoreLines = (kind) => [STATE_FILE, LOG_FILE, ".sharing.json", ...kind === "docs" ? [] : ["history/"], ".*.tmp", ".DS_Store"];
@@ -152,10 +148,6 @@ function serverOrigin(host, port) {
   return `http://${shown2}:${port}`;
 }
 var pagePathOf = (kind, root) => `/${kind}/${createHash("sha256").update(path.resolve(root)).digest("base64url").slice(0, 22)}/`;
-function pageRoute(pathname, page) {
-  if (pathname === "/" || pathname === "/index.html" || pathname === page.slice(0, -1)) return { redirect: page };
-  return { path: pathname.startsWith(page) ? `/${pathname.slice(page.length)}` : pathname };
-}
 function sendJson(response, status, body, headers = {}) {
   const text = JSON.stringify(body);
   response.writeHead(status, {
@@ -214,17 +206,14 @@ function sendFile(request, response, file, headers) {
   response.on("close", () => stream.destroy());
   stream.pipe(response);
 }
+var errorText = (error) => error instanceof Error ? error.message : String(error);
 
-import { createHash as createHash2 } from "node:crypto";
-import fs5 from "node:fs";
-import os3 from "node:os";
-import path5 from "node:path";
-
+import { spawn } from "node:child_process";
+import { EventEmitter } from "node:events";
 import fs3 from "node:fs";
-import fsp from "node:fs/promises";
+import http from "node:http";
+import os2 from "node:os";
 import path3 from "node:path";
-import { promisify } from "node:util";
-import zlib from "node:zlib";
 
 import crypto from "node:crypto";
 import fs2 from "node:fs";
@@ -366,6 +355,645 @@ var Sharing = class _Sharing {
   }
 };
 
+import { createHash as createHash2 } from "node:crypto";
+var GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
+var MAX_MESSAGE = 64 * 1024 * 1024;
+var WebSocketConnection = class {
+  socket;
+  buffer = Buffer.alloc(0);
+  parts = [];
+  partOpcode = 0;
+  closed = false;
+  handlers = {};
+  constructor(socket, head) {
+    this.socket = socket;
+    socket.on("data", (chunk) => this.receive(chunk));
+    socket.on("close", () => this.finish());
+    socket.on("error", () => this.finish());
+    if (head.length) this.receive(head);
+  }
+  get open() {
+    return !this.closed;
+  }
+  sendText(text) {
+    this.send(1, Buffer.from(text, "utf8"));
+  }
+  sendBinary(data) {
+    this.send(2, data);
+  }
+  close(code = 1e3, reason = "") {
+    if (this.closed) return;
+    const body = Buffer.alloc(2 + Buffer.byteLength(reason));
+    body.writeUInt16BE(code, 0);
+    body.write(reason, 2);
+    this.send(8, body);
+    this.socket.end();
+    this.finish();
+  }
+  finish() {
+    if (this.closed) return;
+    this.closed = true;
+    this.socket.destroy();
+    this.handlers.close?.();
+  }
+  send(opcode, payload) {
+    if (this.closed) return;
+    const length = payload.length;
+    let header;
+    if (length < 126) {
+      header = Buffer.from([128 | opcode, length]);
+    } else if (length < 65536) {
+      header = Buffer.alloc(4);
+      header[0] = 128 | opcode;
+      header[1] = 126;
+      header.writeUInt16BE(length, 2);
+    } else {
+      header = Buffer.alloc(10);
+      header[0] = 128 | opcode;
+      header[1] = 127;
+      header.writeBigUInt64BE(BigInt(length), 2);
+    }
+    this.socket.write(Buffer.concat([header, payload]));
+  }
+  receive(chunk) {
+    this.buffer = this.buffer.length ? Buffer.concat([this.buffer, chunk]) : chunk;
+    for (; ; ) {
+      if (this.buffer.length < 2) return;
+      const first = this.buffer[0];
+      const second = this.buffer[1];
+      const fin = (first & 128) !== 0;
+      const opcode = first & 15;
+      const masked = (second & 128) !== 0;
+      let length = second & 127;
+      let offset = 2;
+      if (length === 126) {
+        if (this.buffer.length < 4) return;
+        length = this.buffer.readUInt16BE(2);
+        offset = 4;
+      } else if (length === 127) {
+        if (this.buffer.length < 10) return;
+        const big = this.buffer.readBigUInt64BE(2);
+        if (big > BigInt(MAX_MESSAGE)) return this.close(1009, "message too big");
+        length = Number(big);
+        offset = 10;
+      }
+      const maskLength = masked ? 4 : 0;
+      if (this.buffer.length < offset + maskLength + length) return;
+      const mask = masked ? this.buffer.subarray(offset, offset + 4) : null;
+      const payload = Buffer.from(this.buffer.subarray(offset + maskLength, offset + maskLength + length));
+      if (mask) for (let index = 0; index < payload.length; index++) payload[index] = payload[index] ^ mask[index & 3];
+      this.buffer = this.buffer.subarray(offset + maskLength + length);
+      this.frame(fin, opcode, payload);
+      if (this.closed) return;
+    }
+  }
+  frame(fin, opcode, payload) {
+    switch (opcode) {
+      case 8:
+        this.close(payload.length >= 2 ? payload.readUInt16BE(0) : 1e3);
+        return;
+      case 9:
+        this.send(10, payload);
+        return;
+      case 10:
+        return;
+      case 0:
+      case 1:
+      case 2: {
+        if (opcode !== 0) {
+          this.parts = [];
+          this.partOpcode = opcode;
+        }
+        this.parts.push(payload);
+        if (this.parts.reduce((total, part) => total + part.length, 0) > MAX_MESSAGE) return this.close(1009, "message too big");
+        if (!fin) return;
+        const message = Buffer.concat(this.parts);
+        this.parts = [];
+        if (this.partOpcode === 1) this.handlers.text?.(message.toString("utf8"));
+        else this.handlers.binary?.(message);
+        return;
+      }
+      default:
+        this.close(1002, "unknown opcode");
+    }
+  }
+};
+function acceptWebSocket(request, socket, head, protocol) {
+  const key = request.headers["sec-websocket-key"];
+  if (typeof key !== "string" || String(request.headers.upgrade).toLowerCase() !== "websocket") {
+    socket.end("HTTP/1.1 400 Bad Request\r\n\r\n");
+    return null;
+  }
+  const accept = createHash2("sha1").update(key + GUID).digest("base64");
+  socket.write(["HTTP/1.1 101 Switching Protocols", "Upgrade: websocket", "Connection: Upgrade", `Sec-WebSocket-Accept: ${accept}`, ...protocol ? [`Sec-WebSocket-Protocol: ${protocol}`] : [], "", ""].join("\r\n"));
+  return new WebSocketConnection(socket, head);
+}
+
+var HUB_ROUTE = "/__hub";
+var STREAM_PROTOCOL = "baoyu-sse";
+var STREAM_REFUSED = 4e3;
+function buildOf(script2) {
+  const real = fs3.realpathSync(script2);
+  const { mtimeMs, size } = fs3.statSync(real);
+  return `${real}:${mtimeMs}:${size}`;
+}
+var SiteClash = class extends Error {
+};
+var StreamResponse = class extends EventEmitter {
+  status = 200;
+  headersSent = false;
+  writableEnded = false;
+  destroyed = false;
+  ws;
+  constructor(ws) {
+    super();
+    this.ws = ws;
+  }
+  writeHead(status) {
+    this.status = status;
+    this.headersSent = true;
+    return this;
+  }
+  setHeader() {
+    return this;
+  }
+  flushHeaders() {
+  }
+  write(chunk) {
+    if (this.status === 200 && !this.writableEnded) this.ws.sendText(String(chunk));
+    return true;
+  }
+  end(chunk) {
+    if (this.writableEnded) return this;
+    if (chunk !== void 0) this.write(chunk);
+    this.writableEnded = true;
+    this.ws.close(this.status === 200 ? 1e3 : STREAM_REFUSED + Math.min(this.status, 999));
+    return this;
+  }
+  destroy() {
+    this.destroyed = true;
+    return this.end();
+  }
+  closed() {
+    this.writableEnded = true;
+    this.emit("close");
+  }
+};
+var Hub = class {
+  port = 0;
+  kind;
+  host;
+  build;
+  factory;
+  /** Sites' logs go to its stderr too: it runs in someone's terminal, not in the background. */
+  echo;
+  server;
+  /** page → site. */
+  sites = /* @__PURE__ */ new Map();
+  adding = /* @__PURE__ */ new Map();
+  startedAt = /* @__PURE__ */ new Map();
+  hosts = /* @__PURE__ */ new Set();
+  /** One listener per LAN address while any site is open to the network. */
+  lanServers = /* @__PURE__ */ new Map();
+  network;
+  constructor(options) {
+    this.echo = options.echo;
+    this.kind = options.kind;
+    this.build = options.build;
+    this.host = options.host;
+    this.factory = options.site;
+    this.server = this.createServer();
+    const hub = this;
+    this.network = {
+      get port() {
+        return hub.port;
+      },
+      addresses: () => [...this.lanServers.keys()],
+      open: () => this.openLan(),
+      release: () => this.releaseLan()
+    };
+  }
+  createServer() {
+    const server = http.createServer((request, response) => {
+      this.onRequest(request, response).catch((error) => {
+        process.stderr.write(`[${(/* @__PURE__ */ new Date()).toISOString()}] request failed: ${error instanceof Error ? error.stack ?? error.message : String(error)}
+`);
+        if (!response.headersSent) sendJson(response, 500, { code: "internal", message: "internal error" });
+        else response.destroy();
+      });
+    });
+    server.on("upgrade", (request, socket, head) => this.onUpgrade(request, socket, head));
+    return server;
+  }
+  /** Listens at the first free port from `port`; `first` is tried before them. */
+  async listen(port, first) {
+    this.port = await listenFree(this.server, port, this.host, first);
+    const named = this.host === "0.0.0.0" || this.host === "::" ? [] : [this.host.includes(":") ? `[${this.host}]:${this.port}` : `${this.host}:${this.port}`];
+    this.hosts = /* @__PURE__ */ new Set([`127.0.0.1:${this.port}`, `localhost:${this.port}`, `[::1]:${this.port}`, ...named]);
+    return this.port;
+  }
+  /** Ends every site and the listeners; what the folders' state files say goes with them. */
+  close() {
+    for (const site of [...this.sites.values()]) this.drop(site);
+    this.closeLan();
+    this.server.close();
+    this.server.closeAllConnections?.();
+  }
+  /** On a signal (or a stray error, logged): every site's record goes and the process exits. */
+  ownProcess() {
+    const shutdown = () => {
+      this.close();
+      process.exit(0);
+    };
+    for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"]) process.on(signal, shutdown);
+    const stray = (error) => process.stderr.write(`[${(/* @__PURE__ */ new Date()).toISOString()}] uncaught: ${error instanceof Error ? error.stack ?? error.message : String(error)}
+`);
+    process.on("uncaughtException", stray);
+    process.on("unhandledRejection", stray);
+  }
+  // ---- the sites -------------------------------------------------------------------------------------------------
+  urlOf(site) {
+    return `${serverOrigin(this.host, this.port)}${site.page}`;
+  }
+  stateOf(site) {
+    const lan = site.share.lanUrls();
+    return { pid: process.pid, url: this.urlOf(site), port: this.port, root: site.root, kind: this.kind, startedAt: this.startedAt.get(site.page) ?? (/* @__PURE__ */ new Date()).toISOString(), ...lan.length ? { lan } : {} };
+  }
+  /** Mounts a folder (already mounted: the same site), writing its <root>/.artifact-server.json. */
+  add(root, options) {
+    const mounted = [...this.sites.values()].find((site) => site.root === root);
+    if (mounted) return (options.lan && !mounted.share.shared ? mounted.share.setLan(true) : Promise.resolve()).then(() => this.stateOf(mounted));
+    const adding = this.adding.get(root);
+    if (adding) return adding;
+    const work = this.mount(root, options).finally(() => this.adding.delete(root));
+    this.adding.set(root, work);
+    return work;
+  }
+  async mount(root, { agentHook, lan = false }) {
+    const file = path3.join(root, LOG_FILE);
+    const log = (line) => {
+      const text = `[${(/* @__PURE__ */ new Date()).toISOString()}] ${line}
+`;
+      try {
+        fs3.appendFileSync(file, text);
+      } catch {
+      }
+      if (this.echo) process.stderr.write(text);
+    };
+    const site = await this.factory(root, { log, network: this.network, ...agentHook ? { agentHook } : {} });
+    const other = this.sites.get(site.page);
+    if (other) {
+      site.close();
+      throw new SiteClash(`${other.root} is already open at ${site.page}.`);
+    }
+    this.sites.set(site.page, site);
+    this.startedAt.set(site.page, (/* @__PURE__ */ new Date()).toISOString());
+    try {
+      await site.share.start(lan);
+    } catch (error) {
+      this.drop(site);
+      throw error;
+    }
+    const state = this.stateOf(site);
+    const { lan: _lan, ...record } = state;
+    writeState(record);
+    log(`serving ${root} at ${state.url}${agentHook ? `; each comment sent to the agent runs: ${agentHook}` : ""}`);
+    return state;
+  }
+  drop(site) {
+    this.sites.delete(site.page);
+    this.startedAt.delete(site.page);
+    removeState(site.root);
+    site.close();
+  }
+  /** Ends one site; true when one was mounted there. The process ends with its last site. */
+  remove(root) {
+    const site = [...this.sites.values()].find((candidate) => candidate.root === root);
+    if (site) this.drop(site);
+    return site !== void 0;
+  }
+  // ---- the network side ------------------------------------------------------------------------------------------
+  async openLan() {
+    for (const address of lanAddresses()) {
+      if (this.lanServers.has(address)) continue;
+      const server = this.createServer();
+      try {
+        await listen(server, this.port, address);
+        this.lanServers.set(address, server);
+      } catch (error) {
+        server.close();
+        process.stderr.write(`[${(/* @__PURE__ */ new Date()).toISOString()}] not listening on ${address}:${this.port}: ${errorText(error)}
+`);
+      }
+    }
+    return [...this.lanServers.keys()];
+  }
+  /** A site stopped sharing: the listeners stay while another is shared. */
+  releaseLan() {
+    if (![...this.sites.values()].some((site) => site.share.shared)) this.closeLan();
+  }
+  closeLan() {
+    for (const server of this.lanServers.values()) {
+      server.close();
+      server.closeAllConnections?.();
+    }
+    this.lanServers.clear();
+  }
+  /** A Host header this hub answers: its own names, and while something is shared, its LAN addresses and machine name. */
+  hostAllowed(request) {
+    const host = request.headers.host ?? "";
+    if (this.hosts.has(host)) return true;
+    if (!this.lanServers.size) return false;
+    const suffix = `:${this.port}`;
+    if (!host.endsWith(suffix)) return false;
+    const name = host.slice(0, -suffix.length).toLowerCase();
+    const machine = os2.hostname().toLowerCase();
+    return this.lanServers.has(name) || name === machine || name === `${machine.replace(/\.local$/, "")}.local`;
+  }
+  // ---- requests --------------------------------------------------------------------------------------------------
+  /** The site whose address `pathname` is under, with the path below it. */
+  under(pathname) {
+    const [, first, second] = pathname.split("/");
+    const site = first && second ? this.sites.get(`/${first}/${second}/`) : void 0;
+    if (site) return { site, rest: pathname.slice(site.page.length - 1) };
+    for (const candidate of this.sites.values()) if (candidate.claims?.(pathname)) return { site: candidate, rest: pathname };
+    return null;
+  }
+  /** The site a page at this request's Referer belongs to. */
+  referred(request) {
+    const referer = request.headers.referer;
+    if (typeof referer !== "string") return null;
+    try {
+      const at = new URL(referer);
+      return at.host === request.headers.host ? this.under(at.pathname)?.site ?? null : null;
+    } catch {
+      return null;
+    }
+  }
+  /** The sites this request's person may see. */
+  seenBy(request) {
+    return [...this.sites.values()].filter((site) => site.share.viewerOf(request));
+  }
+  async onRequest(request, response) {
+    if (!this.hostAllowed(request)) {
+      request.resume();
+      response.writeHead(421, { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" }).end("Misdirected request");
+      return;
+    }
+    const url = new URL(request.url ?? "/", "http://local");
+    const pathname = url.pathname;
+    if (pathname === HUB_ROUTE) return this.control(request, response);
+    if (pathname === "/favicon.ico") {
+      response.writeHead(204).end();
+      return;
+    }
+    if (pathname === "/" || pathname === "/index.html") return this.landing(request, response, url.search);
+    const at = this.under(pathname);
+    if (at) {
+      if (at.rest === "") {
+        request.resume();
+        response.writeHead(308, { Location: `${pathname}/${url.search}`, "Cache-Control": "no-store" }).end();
+        return;
+      }
+      request.url = `${at.rest}${url.search}`;
+      return at.site.handle(request, response);
+    }
+    const site = await this.answering(request, pathname);
+    if (site) return site.handle(request, response);
+    request.resume();
+    response.writeHead(404, { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" }).end("Not found");
+  }
+  /** The site that answers a path outside every site's address. */
+  async answering(request, pathname) {
+    const link = /^\/s\/([A-Za-z0-9_-]{16,64})$/.exec(pathname);
+    if (link) return [...this.sites.values()].find((site) => site.share.sharing.linkRole(link[1])) ?? null;
+    const blob = /^\/_blob\/([0-9a-f]{32})$/.exec(pathname);
+    if (blob) {
+      const referred = this.referred(request);
+      const seen = this.seenBy(request);
+      for (const site of referred && seen.includes(referred) ? [referred, ...seen] : seen) if (await site.hasBlob?.(blob[1])) return site;
+      return null;
+    }
+    for (const site of this.sites.values()) if (site.common?.(pathname)) return site;
+    return this.referred(request);
+  }
+  /** `/`: where this person goes. */
+  landing(request, response, search) {
+    const seen = this.seenBy(request);
+    const only = seen[0];
+    if (seen.length === 1 && only) {
+      request.resume();
+      response.writeHead(302, { Location: `${only.page}${search}`, "Cache-Control": "no-store" }).end();
+      return;
+    }
+    const any = only ?? [...this.sites.values()][0];
+    if (!any) {
+      request.resume();
+      response.writeHead(404, { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" }).end("Nothing is open here.");
+      return;
+    }
+    if (!only) return any.share.denied(request, response);
+    any.share.sendList(response, seen.map((site) => ({ page: site.page, title: site.share.title() })));
+  }
+  /** The CLIs' route: over loopback, from a process (a browser's POST carries an Origin). */
+  async control(request, response) {
+    const info = { hub: 1, kind: this.kind, build: this.build, host: this.host, pid: process.pid };
+    if (!isLoopback(request.socket.remoteAddress) || request.headers.origin !== void 0) {
+      request.resume();
+      return sendJson(response, 403, { code: "not_granted", message: "Only a local process can do this." });
+    }
+    if (request.method === "GET") return sendJson(response, 200, info);
+    if (request.method !== "POST") {
+      request.resume();
+      return sendJson(response, 405, { code: "method_not_allowed", message: "GET or POST." });
+    }
+    let body;
+    try {
+      body = JSON.parse((await readBody(request, 64 << 10)).toString("utf8"));
+    } catch {
+      return sendJson(response, 400, { code: "invalid_argument", message: "The call is not JSON." });
+    }
+    if (typeof body.root !== "string" || !path3.isAbsolute(body.root)) return sendJson(response, 400, { code: "invalid_argument", message: "root: an absolute path." });
+    if (body.action === "mount") {
+      try {
+        const state = await this.add(body.root, { ...typeof body.agentHook === "string" && body.agentHook ? { agentHook: body.agentHook } : {}, lan: body.lan === true });
+        return sendJson(response, 200, { ...info, state });
+      } catch (error) {
+        sendJson(response, error instanceof SiteClash ? 409 : 400, { ...info, code: error.code ?? "SERVER_FAILED", message: errorText(error) });
+        return this.endIfEmpty();
+      }
+    }
+    if (body.action === "unmount") {
+      const removed = this.remove(body.root);
+      const remaining = this.sites.size;
+      sendJson(response, 200, { ...info, removed, remaining });
+      return this.endIfEmpty();
+    }
+    return sendJson(response, 400, { code: "invalid_argument", message: "action: mount or unmount." });
+  }
+  /** The process ends with its last site. */
+  endIfEmpty() {
+    if (this.sites.size > 0 || this.adding.size > 0) return;
+    this.close();
+    setImmediate(() => process.exit(0));
+  }
+  onUpgrade(request, socket, head) {
+    socket.on("error", () => {
+    });
+    const url = new URL(request.url ?? "/", "http://local");
+    const at = this.hostAllowed(request) && this.originOk(request) ? this.under(url.pathname) : null;
+    if (!at) {
+      socket.end("HTTP/1.1 403 Forbidden\r\n\r\n");
+      return;
+    }
+    request.url = `${at.rest}${url.search}`;
+    const asked = String(request.headers["sec-websocket-protocol"] ?? "").split(",").map((p) => p.trim());
+    if (asked.includes(STREAM_PROTOCOL)) return this.stream(at.site, request, socket, head, url);
+    if (at.site.upgrade) return at.site.upgrade(request, socket, head);
+    socket.end("HTTP/1.1 404 Not Found\r\n\r\n");
+  }
+  originOk(request) {
+    const origin = request.headers.origin;
+    if (origin === void 0) return true;
+    try {
+      return new URL(origin).host === request.headers.host;
+    } catch {
+      return false;
+    }
+  }
+  /** An event stream over a WebSocket: the site's handler answers it as a GET. */
+  stream(site, request, socket, head, url) {
+    const ws = acceptWebSocket(request, socket, head, STREAM_PROTOCOL);
+    if (!ws) return;
+    const last = url.searchParams.get("__lastEventId");
+    if (last !== null) {
+      request.headers["last-event-id"] = last;
+      url.searchParams.delete("__lastEventId");
+      request.url = `${request.url?.split("?")[0]}${url.search}`;
+    }
+    request.method = "GET";
+    const response = new StreamResponse(ws);
+    ws.handlers = {
+      close: () => {
+        response.closed();
+        request.emit("close");
+      }
+    };
+    Promise.resolve(site.handle(request, response)).catch(() => ws.close(STREAM_REFUSED + 500));
+  }
+};
+async function hubAt(origin) {
+  try {
+    const response = await fetch(`${origin}${HUB_ROUTE}`, { signal: AbortSignal.timeout(1e3) });
+    if (!response.ok) return null;
+    const info = await response.json();
+    return info.hub === 1 ? info : null;
+  } catch {
+    return null;
+  }
+}
+async function joinHub(call, below = Infinity) {
+  if (call.port === 0) return null;
+  const ports = call.portGiven ? [call.port] : Array.from({ length: PORT_TRIES }, (_, i) => call.port + i).filter((port) => port <= 65535 && port < below);
+  const build = buildOf(call.script);
+  const origins = ports.map((port) => serverOrigin(call.host, port));
+  const infos = await Promise.all(origins.map(hubAt));
+  for (const [i, info] of infos.entries()) {
+    if (!info || info.kind !== call.kind || info.build !== build || info.host !== call.host) continue;
+    const response = await fetch(`${origins[i]}${HUB_ROUTE}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "mount", root: call.root, ...call.agentHook ? { agentHook: call.agentHook } : {}, lan: call.lan === true }),
+      signal: AbortSignal.timeout(2e4)
+    }).catch(() => null);
+    if (!response) continue;
+    const body = await response.json().catch(() => ({}));
+    if (response.ok && body.state) return body.state;
+    if (response.status === 409) continue;
+    throw Object.assign(new Error(body.message ?? `the server answered ${response.status}`), { code: body.code ?? "SERVER_FAILED" });
+  }
+  return null;
+}
+async function leaveHub(state) {
+  let remaining = 0;
+  const response = await fetch(`${new URL(state.url).origin}${HUB_ROUTE}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "unmount", root: state.root }),
+    signal: AbortSignal.timeout(5e3)
+  }).catch(() => null);
+  const body = response ? await response.json().catch(() => null) : null;
+  if (body?.hub === 1) remaining = Number(body.remaining ?? 0);
+  else if (alive(state.pid)) process.kill(state.pid, "SIGTERM");
+  const deadline = Date.now() + 5e3;
+  while (remaining === 0 && alive(state.pid) && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 100));
+  if (remaining === 0 && alive(state.pid)) return false;
+  fs3.rmSync(path3.join(state.root, STATE_FILE), { force: true });
+  return true;
+}
+function holdSite(state) {
+  const leave = () => {
+    void leaveHub(state).finally(() => process.exit(0));
+  };
+  for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"]) process.on(signal, leave);
+  setInterval(() => {
+    if (!alive(state.pid) || readState(state.root)?.pid !== state.pid) process.exit(0);
+  }, 2e3);
+}
+async function serveHub(call) {
+  const joined = await joinHub(call);
+  const stayed = (state) => {
+    if (!call.background) holdSite(state);
+    return { ...state, joined: true };
+  };
+  if (joined) return stayed(joined);
+  const hub = new Hub({ kind: call.kind, build: buildOf(call.script), host: call.host, site: call.site, echo: !call.background });
+  const { state: sharing } = new Sharing(call.root);
+  const linksPort = !call.portGiven && (call.lan || sharing.lan) ? sharing.port : void 0;
+  const port = await hub.listen(call.port, linksPort);
+  const lower = call.portGiven ? null : await joinHub(call, port);
+  if (lower) {
+    hub.close();
+    return stayed(lower);
+  }
+  hub.ownProcess();
+  try {
+    return { ...await hub.add(call.root, { ...call.agentHook ? { agentHook: call.agentHook } : {}, lan: call.lan === true }), joined: false };
+  } catch (error) {
+    hub.close();
+    throw error;
+  }
+}
+async function openOnHub(call) {
+  const joined = await joinHub(call);
+  if (joined) return { state: joined };
+  const logFile = path3.join(call.root, LOG_FILE);
+  const fd = fs3.openSync(logFile, "a");
+  const child = spawn(process.execPath, [...call.command, "--background"], { detached: true, stdio: ["ignore", "ignore", fd] });
+  child.unref();
+  fs3.closeSync(fd);
+  let exited = false;
+  child.once("exit", () => exited = true);
+  const deadline = Date.now() + 15e3;
+  while (Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, 120));
+    const state = await call.running();
+    if (state) return { state };
+    if (exited && !readState(call.root)) break;
+  }
+  return { tail: fs3.existsSync(logFile) ? fs3.readFileSync(logFile, "utf8").split("\n").slice(-12).join("\n") : "" };
+}
+
+import { createHash as createHash3 } from "node:crypto";
+import fs6 from "node:fs";
+import os4 from "node:os";
+import path6 from "node:path";
+
+import fs4 from "node:fs";
+import fsp from "node:fs/promises";
+import path4 from "node:path";
+import { promisify } from "node:util";
+import zlib from "node:zlib";
 var LOCAL_FILES = /* @__PURE__ */ new Set([STATE_FILE, LOG_FILE, SHARING_FILE]);
 var LOCAL_DIRS = /* @__PURE__ */ new Set([EXPORTS_DIR]);
 var JUNK_FILES = /* @__PURE__ */ new Set([".DS_Store", "Thumbs.db", "desktop.ini"]);
@@ -377,8 +1005,8 @@ var ArchiveTooLarge = class extends Error {
   code = "TOO_LARGE";
 };
 async function archiveEntries(root, skip = []) {
-  const folder = path3.basename(path3.resolve(root)) || "artifact";
-  const skipped = new Set(skip.map((file) => path3.resolve(file)));
+  const folder = path4.basename(path4.resolve(root)) || "artifact";
+  const skipped = new Set(skip.map((file) => path4.resolve(file)));
   const entries = [];
   const walk = async (dir, rel) => {
     let names;
@@ -391,7 +1019,7 @@ async function archiveEntries(root, skip = []) {
     for (const dirent of names.sort((a, b) => a.name < b.name ? -1 : a.name > b.name ? 1 : 0)) {
       const name = dirent.name;
       if (JUNK_FILES.has(name) || isTemp(name) || !rel && (LOCAL_FILES.has(name) || LOCAL_DIRS.has(name) && dirent.isDirectory())) continue;
-      const file = path3.join(dir, name);
+      const file = path4.join(dir, name);
       if (skipped.has(file)) continue;
       const inner = rel ? `${rel}/${name}` : name;
       if (dirent.isDirectory()) await walk(file, inner);
@@ -401,7 +1029,7 @@ async function archiveEntries(root, skip = []) {
       }
     }
   };
-  await walk(path3.resolve(root), "");
+  await walk(path4.resolve(root), "");
   if (entries.length > MAX_ENTRIES) throw new ArchiveTooLarge(`The folder holds ${entries.length} files, more than a zip holds (${MAX_ENTRIES}); copy the folder itself instead.`);
   const bound = entries.reduce((sum, entry) => sum + entry.size + 2 * (46 + Buffer.byteLength(entry.name)), 22);
   if (bound > MAX_BYTES) throw new ArchiveTooLarge(`The folder holds ${(bound / 2 ** 30).toFixed(1)} GiB, more than a zip holds (4 GiB); copy the folder itself instead.`);
@@ -450,7 +1078,7 @@ async function writeZip(entries, write) {
     const crc = crc32(data);
     let method = 0;
     let body = data;
-    if (data.length > 0 && !STORED.has(path3.extname(entry.name).toLowerCase())) {
+    if (data.length > 0 && !STORED.has(path4.extname(entry.name).toLowerCase())) {
       const deflated = await deflateRaw(data);
       if (deflated.length < data.length) {
         method = 8;
@@ -504,12 +1132,12 @@ async function writeZip(entries, write) {
 }
 function archiveFileName(root, now = /* @__PURE__ */ new Date()) {
   const day = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-  return `${path3.basename(path3.resolve(root)) || "artifact"}-${day}.zip`;
+  return `${path4.basename(path4.resolve(root)) || "artifact"}-${day}.zip`;
 }
 async function writeArchive(root, out) {
-  const file = path3.resolve(out);
+  const file = path4.resolve(out);
   const entries = await archiveEntries(root, [file]);
-  const tmp = path3.join(path3.dirname(file), `.${path3.basename(file)}.${process.pid}.tmp`);
+  const tmp = path4.join(path4.dirname(file), `.${path4.basename(file)}.${process.pid}.tmp`);
   const handle = await fsp.open(tmp, "w");
   let bytes;
   try {
@@ -527,10 +1155,10 @@ async function writeArchive(root, out) {
   return { file, files: entries.length, bytes };
 }
 async function archiveCommand(root, out) {
-  const where = out ? path3.resolve(out) : path3.dirname(path3.resolve(root));
-  const target = fs3.statSync(where, { throwIfNoEntry: false })?.isDirectory() ? path3.join(where, archiveFileName(root)) : where;
+  const where = out ? path4.resolve(out) : path4.dirname(path4.resolve(root));
+  const target = fs4.statSync(where, { throwIfNoEntry: false })?.isDirectory() ? path4.join(where, archiveFileName(root)) : where;
   const { file, files, bytes } = await writeArchive(root, target);
-  return { file, folder: path3.basename(path3.resolve(root)), files, bytes, leftOut: [...LOCAL_FILES] };
+  return { file, folder: path4.basename(path4.resolve(root)), files, bytes, leftOut: [...LOCAL_FILES] };
 }
 function attachment(name) {
   const ascii = name.replace(/[^\x20-\x7e]|["\\]/g, "_");
@@ -578,31 +1206,31 @@ async function sendArchive(request, response, root) {
   }
 }
 
-import fs4 from "node:fs";
+import fs5 from "node:fs";
 import fsp2 from "node:fs/promises";
-import os2 from "node:os";
-import path4 from "node:path";
+import os3 from "node:os";
+import path5 from "node:path";
 var MAX_BYTES2 = 4294967295;
 function shown(file) {
-  const home = os2.homedir();
-  return home && (file === home || file.startsWith(home + path4.sep)) ? `~${file.slice(home.length)}` : file;
+  const home = os3.homedir();
+  return home && (file === home || file.startsWith(home + path5.sep)) ? `~${file.slice(home.length)}` : file;
 }
 function saved(file, bytes) {
-  return { path: file, name: path4.basename(file), folder: path4.dirname(file), shown: shown(file), bytes };
+  return { path: file, name: path5.basename(file), folder: path5.dirname(file), shown: shown(file), bytes };
 }
 function safeFileName(raw) {
   let name = (raw.replace(/\\/g, "/").split("/").pop() ?? "").replace(/[\u0000-\u001f\u007f<>:"|?*]/g, "_").replace(/^[.\s]+|[.\s]+$/g, "");
   if (name.length > 200) {
-    const ext = path4.extname(name).slice(0, 16);
+    const ext = path5.extname(name).slice(0, 16);
     name = name.slice(0, 200 - ext.length) + ext;
   }
   return name || "download";
 }
 async function openFree(dir, name) {
-  const ext = path4.extname(name);
+  const ext = path5.extname(name);
   const stem = name.slice(0, name.length - ext.length);
   for (let n = 0; ; n++) {
-    const file = path4.join(dir, n === 0 ? name : `${stem} (${n})${ext}`);
+    const file = path5.join(dir, n === 0 ? name : `${stem} (${n})${ext}`);
     try {
       return { file, handle: await fsp2.open(file, "wx") };
     } catch (error) {
@@ -621,7 +1249,7 @@ async function saveDownload(request, response, root) {
   let handle = null;
   let bytes = 0;
   try {
-    const dir = path4.join(root, EXPORTS_DIR);
+    const dir = path5.join(root, EXPORTS_DIR);
     await fsp2.mkdir(dir, { recursive: true });
     ({ file, handle } = await openFree(dir, name));
     for await (const chunk of request) {
@@ -646,7 +1274,7 @@ async function saveArchive(request, response, root) {
   request.resume();
   try {
     const { file } = await archiveCommand(root, void 0);
-    sendJson(response, 200, saved(file, fs4.statSync(file).size));
+    sendJson(response, 200, saved(file, fs5.statSync(file).size));
   } catch (error) {
     const tooLarge = error instanceof ArchiveTooLarge;
     sendJson(response, tooLarge ? 413 : 500, { code: tooLarge ? "too_large" : "upstream_error", message: error instanceof Error ? error.message : String(error) });
@@ -675,19 +1303,15 @@ function commentsViewer(viewer) {
 var isRecord2 = (value) => typeof value === "object" && value !== null && !Array.isArray(value);
 var esc = (text) => text.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 var script = (value) => JSON.stringify(value).replace(/</g, "\\u003c");
-function ownHosts(host, port) {
-  const named = host === "0.0.0.0" || host === "::" ? [] : [host.includes(":") ? `[${host}]:${port}` : `${host}:${port}`];
-  return [.../* @__PURE__ */ new Set([`127.0.0.1:${port}`, `localhost:${port}`, `[::1]:${port}`, ...named])];
-}
 function localOwner() {
   let name = "You";
   try {
-    name = os3.userInfo().username.trim() || name;
+    name = os4.userInfo().username.trim() || name;
   } catch {
   }
   return { id: "local", name, email: `${name}@localhost` };
 }
-var guestCookieName = (kind, root) => `${kind.replace(/-/g, "_")}_guest_${createHash2("sha256").update(path5.resolve(root)).digest("hex").slice(0, 12)}`;
+var guestCookieName = (kind, root) => `${kind.replace(/-/g, "_")}_guest_${createHash3("sha256").update(path6.resolve(root)).digest("hex").slice(0, 12)}`;
 function dbAccess(viewer, segs, adminRead = /* @__PURE__ */ new Set()) {
   const admin = canEditAs(viewer.role);
   const read = segs[0] === "data" && segs[1] === "users" && segs.length > 2 ? segs[2] === viewer.user.id : admin || !adminRead.has(segs[0] ?? "");
@@ -696,92 +1320,61 @@ function dbAccess(viewer, segs, adminRead = /* @__PURE__ */ new Set()) {
 var ShareHost = class {
   sharing;
   options;
-  /** The port the server listens on (set by `listening`); the LAN listeners take the same one. */
-  port = 0;
-  hosts = /* @__PURE__ */ new Set();
-  /** One listener per LAN address while the artifact is open to the network. */
-  lanServers = /* @__PURE__ */ new Map();
+  network;
+  page;
+  /** Open to the local network now (the hub's listeners are up, for this artifact too). */
+  on = false;
   live = /* @__PURE__ */ new Set();
   constructor(options) {
     this.options = options;
+    this.network = options.network;
+    this.page = options.page;
     this.sharing = new Sharing(options.root);
   }
-  /**
-   * Starts `server` on the first free port from `port` (a shared artifact tries the port its links were given out with
-   * first, so they keep working, unless the port was given), shares it on the network with `lan` (or as it was left)
-   * and answers the port taken. If this throws, the caller closes what it started.
-   */
-  async listen(server, { port, host, lan = false, portGiven = false }) {
+  get port() {
+    return this.network.port;
+  }
+  /** The hub took the artifact: open to the network now with `lan`, or if it was left shared. */
+  async start(lan = false) {
     const { state } = this.sharing;
-    const linksPort = !portGiven && (lan || state.lan) && state.port ? state.port : void 0;
-    const taken = await listenFree(server, port, host, linksPort);
-    if (linksPort && taken !== linksPort) this.options.log(`port ${linksPort} (the shared links') is in use; took ${taken}: give the new links out again`);
-    else if (!linksPort && port && taken !== port) this.options.log(`port ${port} is in use; took ${taken}`);
-    if (lan && !this.sharing.state.lan) this.sharing.setLan(true, taken);
-    await this.listening(taken, ownHosts(host, taken));
-    return taken;
+    if (!lan && !state.lan) return;
+    if (state.port && state.port !== this.port) this.options.log(`port ${state.port} (the shared links') is not this server's; it is on ${this.port}: give the new links out again`);
+    await this.setLan(true);
   }
   /** The artifact at each LAN address it is shared on ([] while it is not). */
   lanUrls() {
-    return [...this.lanServers.keys()].map((a) => `http://${a}:${this.port}/`);
-  }
-  /** The main listener is up on `port` (answering `hosts`): open to the network now if the artifact was left shared. */
-  async listening(port, hosts) {
-    this.port = port;
-    this.hosts = new Set(hosts);
-    if (this.sharing.state.lan) await this.setLan(true);
+    return this.on ? this.network.addresses().map((a) => `http://${a}:${this.port}${this.page}`) : [];
   }
   /** Open to the local network now. */
   get shared() {
-    return this.lanServers.size > 0;
+    return this.on;
   }
-  /** A Host header this server answers: its own names, and while shared, its LAN addresses and machine name. */
-  hostAllowed(request) {
-    const host = request.headers.host ?? "";
-    if (this.hosts.has(host)) return true;
-    if (!this.lanServers.size) return false;
-    const suffix = `:${this.port}`;
-    if (!host.endsWith(suffix)) return false;
-    const name = host.slice(0, -suffix.length).toLowerCase();
-    const machine = os3.hostname().toLowerCase();
-    return this.lanServers.has(name) || name === machine || name === `${machine.replace(/\.local$/, "")}.local`;
+  /** The artifact's name, for the join page and the list of what is open at the server's root. */
+  title() {
+    return this.options.title();
   }
   /**
-   * Opens the artifact to the local network (a listener on each LAN address, on the server's port) or closes it.
-   * Returns the addresses it listens on. Guests already in keep their place for when it opens again.
+   * Opens the artifact to the local network or closes it, and returns the addresses it is on. Guests already in keep
+   * their place for when it opens again.
    */
   async setLan(on) {
     if (!on) {
-      this.closeLan();
+      this.on = false;
+      this.network.release();
       for (const live of [...this.live]) if (live.viewer.guest) live.close("unshared");
       if (this.sharing.state.lan) this.sharing.setLan(false);
       return [];
     }
-    for (const address of lanAddresses()) {
-      if (this.lanServers.has(address)) continue;
-      const server = this.options.createServer();
-      try {
-        await listen(server, this.port, address);
-        this.lanServers.set(address, server);
-      } catch (error) {
-        server.close();
-        this.options.log(`not listening on ${address}:${this.port}: ${error.message}`);
-      }
-    }
+    const addresses = await this.network.open();
+    this.on = addresses.length > 0;
     if (!this.sharing.state.lan || this.sharing.state.port !== this.port) this.sharing.setLan(true, this.port);
-    this.options.log(`shared on the local network: ${[...this.lanServers.keys()].map((a) => `http://${a}:${this.port}/`).join(", ") || "(no LAN address)"}`);
-    return [...this.lanServers.keys()];
+    this.options.log(`shared on the local network: ${addresses.map((a) => `http://${a}:${this.port}${this.page}`).join(", ") || "(no LAN address)"}`);
+    return addresses;
   }
-  closeLan() {
-    for (const server of this.lanServers.values()) {
-      server.close();
-      server.closeAllConnections?.();
-    }
-    this.lanServers.clear();
-  }
-  /** Stops the LAN listeners (the server closes its own). */
+  /** The artifact left the hub: it stays shared in .sharing.json, for the next time it opens. */
   close() {
-    this.closeLan();
+    this.on = false;
+    this.network.release();
   }
   // ---- who is asking ---------------------------------------------------------------------------------------------
   cookie(request) {
@@ -799,7 +1392,7 @@ var ShareHost = class {
    */
   viewerOf(request) {
     if (isLoopback(request.socket.remoteAddress)) return { role: "owner", user: this.options.owner };
-    const guest = this.lanServers.size ? this.sharing.guest(this.cookie(request)) : null;
+    const guest = this.on ? this.sharing.guest(this.cookie(request)) : null;
     if (!guest) return null;
     this.sharing.seen(guest);
     return { role: guest.role, user: guestUser(guest), guest };
@@ -817,7 +1410,7 @@ var ShareHost = class {
   }
   /** Still allowed in: the owner, or a guest whose link is on and who was not removed. */
   stillIn(viewer) {
-    return !viewer.guest || this.shared && this.sharing.valid(viewer.guest);
+    return !viewer.guest || this.on && this.sharing.valid(viewer.guest);
   }
   /** Ends the streams of guests who lost access (a link turned off or reset, a guest removed). */
   dropRevoked() {
@@ -857,7 +1450,7 @@ var ShareHost = class {
     }
     if (method === "GET" && p === "/__share/invite") return sendJson(response, 200, this.invites(viewer, request.headers.host ?? "")), true;
     if (method === "GET" && p === "/__share/ui.js") {
-      fs5.stat(this.options.uiFile, (error, stat) => {
+      fs6.stat(this.options.uiFile, (error, stat) => {
         if (error || !stat.isFile()) return sendJson(response, 404, { code: "not_found", message: "The Share panel is missing." });
         sendFile(request, response, this.options.uiFile, { "Content-Type": "text/javascript; charset=utf-8", "Content-Length": stat.size, "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" });
       });
@@ -876,8 +1469,8 @@ var ShareHost = class {
    * ("?…") goes to the boot script, for `globals`.
    */
   headTags(_viewer, query = "") {
-    let tags = `<script src="/__share/boot.js${query.replace(/[<>"']/g, "").replace(/&/g, "&amp;")}"></script>`;
-    if (fs5.existsSync(this.options.uiFile)) tags += '<script type="module" src="/__share/ui.js"></script>';
+    let tags = `<script src="${this.page}__share/boot.js${query.replace(/[<>"']/g, "").replace(/&/g, "&amp;")}"></script>`;
+    if (fs6.existsSync(this.options.uiFile)) tags += `<script type="module" src="${this.page}__share/ui.js"></script>`;
     return tags;
   }
   /** `html` with the head tags first in its <head>; null when it has none. */
@@ -887,10 +1480,10 @@ var ShareHost = class {
     const end = html.indexOf(">", at) + 1;
     return html.slice(0, end) + this.headTags(viewer, query) + html.slice(end);
   }
-  /** What the page runs before anything else (see SECURE_CONTEXT_SHIM and GUEST_WATCH). */
+  /** What the page runs before anything else (see ROOT_SHIM, SECURE_CONTEXT_SHIM and GUEST_WATCH). */
   bootScript(viewer, query = new URLSearchParams()) {
     const share2 = { ...this.me(viewer), noun: this.options.noun, title: this.options.title(), ...this.options.reactions ? { reactions: true } : {} };
-    let js = `${SECURE_CONTEXT_SHIM}window.__baoyuShare=${script(share2)};`;
+    let js = `(function(BASE){${ROOT_SHIM}})(${script(this.page)});${SECURE_CONTEXT_SHIM}window.__baoyuShare=${script(share2)};`;
     for (const [name, value] of Object.entries(this.options.globals?.(viewer, query) ?? {})) js += `window[${script(name)}]=${script(value)};`;
     if (viewer.guest) js += GUEST_WATCH;
     return js;
@@ -902,6 +1495,11 @@ var ShareHost = class {
     if (!navigation) return sendJson(response, 403, { code: "not_granted", message: `This ${this.options.noun.en} is not shared with you.` });
     const t = this.words(request);
     this.sendPage(response, 403, t.noAccessTitle, `<h1>${esc(t.noAccessTitle)}</h1><p>${esc(t.noAccess)}</p>${this.ownerHint(request, t)}`);
+  }
+  /** `/` on the server for someone who may see more than one artifact: a page of links. */
+  sendList(response, sites) {
+    const noun = this.options.noun.en;
+    this.sendPage(response, 200, `Open ${noun}s`, `<h1>Open ${esc(noun)}s</h1><ul>${sites.map((site) => `<li><a href="${esc(site.page)}">${esc(site.title)}</a></li>`).join("")}</ul>`);
   }
   /** A small page of our own (the join form, the refusal), in the reader's language. */
   sendPage(response, status, title, body, headers = {}) {
@@ -917,8 +1515,8 @@ var ShareHost = class {
   /** On the computer that shares the artifact, over its LAN address: the way back to the owner's page. */
   ownerHint(request, t) {
     const from = (request.socket.remoteAddress ?? "").replace(/^::ffff:/, "");
-    if (!this.lanServers.has(from)) return "";
-    const url = `http://127.0.0.1:${this.port}/`;
+    if (!this.network.addresses().includes(from)) return "";
+    const url = `http://127.0.0.1:${this.port}${this.page}`;
     return `<p class="note">${esc(t.ownerHere)} <a href="${esc(url)}">${esc(url)}</a></p>`;
   }
   /** GET /s/<token>: the name form (or straight in, for a guest already in through this link); POST: join. */
@@ -928,16 +1526,16 @@ var ShareHost = class {
     const local = isLoopback(request.socket.remoteAddress);
     const form = method === "POST" ? await readBody(request, 8 << 10).then((body) => body.toString("utf8"), () => "") : "";
     const title = this.options.title();
-    if (!role || !local && !this.lanServers.size) return this.sendPage(response, 404, t.linkGoneTitle, `<h1>${esc(t.linkGoneTitle)}</h1><p>${esc(t.linkGone)}</p>`);
+    if (!role || !local && !this.on) return this.sendPage(response, 404, t.linkGoneTitle, `<h1>${esc(t.linkGoneTitle)}</h1><p>${esc(t.linkGone)}</p>`);
     if (local) {
-      const lan = [...this.lanServers.keys()][0];
-      const there = lan ? `http://${lan}:${this.port}/s/${token2}` : "";
+      const lan = this.on ? this.network.addresses()[0] : void 0;
+      const there = lan ? `http://${lan}:${this.port}${this.page}s/${token2}` : "";
       const tryIt = there ? `<p>${esc(t.tryRole(t.roles[role]))} <a href="${esc(there)}">${esc(there)}</a></p>` : "";
-      return this.sendPage(response, 200, title, `<h1>${esc(title)}</h1><p>${esc(t.youOwn)} <a href="/">${esc(t.openAsOwner)}</a></p>${tryIt}`);
+      return this.sendPage(response, 200, title, `<h1>${esc(title)}</h1><p>${esc(t.youOwn)} <a href="${esc(this.page)}">${esc(t.openAsOwner)}</a></p>${tryIt}`);
     }
     const current = this.sharing.guest(this.cookie(request));
     if (method === "GET" && current && current.link === this.sharing.state.links[role].token) {
-      response.writeHead(303, { Location: "/", "Cache-Control": "no-store" }).end();
+      response.writeHead(303, { Location: this.page, "Cache-Control": "no-store" }).end();
       return;
     }
     if (method === "GET") {
@@ -952,21 +1550,21 @@ var ShareHost = class {
     const guest = this.sharing.join(role, name);
     this.options.log(`share: ${guest.name} joined as ${role} (${request.socket.remoteAddress})`);
     const cookie = `${this.options.cookieName}=${guest.secret}; Path=/; HttpOnly; SameSite=Lax; Max-Age=31536000`;
-    response.writeHead(303, { Location: "/", "Set-Cookie": cookie, "Cache-Control": "no-store" }).end();
+    response.writeHead(303, { Location: this.page, "Set-Cookie": cookie, "Cache-Control": "no-store" }).end();
   }
   /**
    * The links this person may pass on: their own role's and the ones below it that are on (the owner: every one on), at
-   * the address they came by (`host`, a Host header hostAllowed let in). A guest could forward the link they joined
+   * the address they came by (`host`, a Host header the hub let in). A guest could forward the link they joined
    * with anyway; a lower one gives no more than that. Who joins through one shows in the owner's panel like anyone else.
    */
   invites(viewer, host) {
     const { links } = this.sharing.state;
     const from = viewer.role === "owner" ? 0 : GUEST_ROLES.indexOf(viewer.role);
-    return { links: GUEST_ROLES.slice(from).filter((role) => links[role].on).map((role) => ({ role, url: `http://${host}/s/${links[role].token}` })) };
+    return { links: GUEST_ROLES.slice(from).filter((role) => links[role].on).map((role) => ({ role, url: `http://${host}${this.page}s/${links[role].token}` })) };
   }
   /** Links, addresses and people, for the share panel and `artifact.mjs share`. */
   shareView() {
-    const addresses = [...this.lanServers.keys()].sort((a, b) => Number(isTailnet(a)) - Number(isTailnet(b)));
+    const addresses = (this.on ? this.network.addresses() : []).sort((a, b) => Number(isTailnet(a)) - Number(isTailnet(b)));
     const local = addresses.filter((a) => !isTailnet(a));
     const base = local.length ? `http://${local[0]}:${this.port}` : addresses.length ? `http://${addresses[0]}:${this.port}` : `http://127.0.0.1:${this.port}`;
     const tailnet = addresses.find(isTailnet);
@@ -977,12 +1575,13 @@ var ShareHost = class {
     const network = lan.length ? `http://${lan[0]}:${this.port}` : base;
     return {
       title: this.options.title(),
-      lan: this.lanServers.size > 0,
+      lan: this.on,
       port: this.port,
+      page: this.page,
       addresses,
-      local: `http://127.0.0.1:${this.port}/`,
-      links: Object.fromEntries(GUEST_ROLES.map((role) => [role, { on: links[role].on, url: `${base}/s/${links[role].token}`, networkUrl: `${network}/s/${links[role].token}` }])),
-      ...tailnet ? { tailnet: { address: tailnet, links: Object.fromEntries(GUEST_ROLES.map((role) => [role, { on: links[role].on, url: `http://${tailnet}:${this.port}/s/${links[role].token}` }])) } } : {},
+      local: `http://127.0.0.1:${this.port}${this.page}`,
+      links: Object.fromEntries(GUEST_ROLES.map((role) => [role, { on: links[role].on, url: `${base}${this.page}s/${links[role].token}`, networkUrl: `${network}${this.page}s/${links[role].token}` }])),
+      ...tailnet ? { tailnet: { address: tailnet, links: Object.fromEntries(GUEST_ROLES.map((role) => [role, { on: links[role].on, url: `http://${tailnet}:${this.port}${this.page}s/${links[role].token}` }])) } } : {},
       guests: guests.filter((g) => this.sharing.valid(g) || links[g.role].token === g.link).map((g) => ({ id: g.id, name: g.name, role: g.role, joined: g.joined, ...g.seen ? { seen: g.seen } : {}, online: online.has(g.id), active: this.sharing.valid(g) }))
     };
   }
@@ -1046,6 +1645,31 @@ var ShareHost = class {
     return (zh ? ZH : EN)(this.options.noun);
   }
 };
+var ROOT_SHIM = `
+var P=location.protocol==='https:'?'wss:':'ws:';
+function under(u){try{var a=new URL(String(u),location.href);if(a.host===location.host&&/^(https?|wss?):$/.test(a.protocol)&&a.pathname.indexOf(BASE)!==0)a.pathname=BASE+a.pathname.slice(1);return a.href}catch(e){return u}}
+var F=window.fetch;
+window.fetch=function(i,o){if(typeof Request==='function'&&i instanceof Request){var r=under(i.url);return F.call(this,r===i.url?i:new Request(r,i),o)}return F.call(this,under(i&&i.href||i),o)};
+var X=XMLHttpRequest.prototype.open;
+XMLHttpRequest.prototype.open=function(m,u){var a=[].slice.call(arguments);a[1]=under(u);return X.apply(this,a)};
+var W=window.WebSocket;
+function WS(u,p){return p===undefined?new W(under(u)):new W(under(u),p)}
+WS.prototype=W.prototype;WS.CONNECTING=0;WS.OPEN=1;WS.CLOSING=2;WS.CLOSED=3;
+window.WebSocket=WS;
+if(navigator.sendBeacon){var B=navigator.sendBeacon;navigator.sendBeacon=function(u,d){return B.call(navigator,under(u),d)}}
+class S extends EventTarget{
+constructor(u){super();this.url=under(u);this.withCredentials=false;this.readyState=0;this.onopen=this.onmessage=this.onerror=null;this.l='';this.c()}
+c(){var t=this,a=new URL(t.url);a.protocol=P;if(t.l)a.searchParams.set('__lastEventId',t.l);var w=t.w=new W(a.href,'baoyu-sse'),b='';
+w.onopen=function(){t.readyState=1;t.f(new Event('open'))};
+w.onmessage=function(e){b+=e.data;var i;while((i=b.indexOf('\\n\\n'))>=0){t.b(b.slice(0,i));b=b.slice(i+2)}};
+w.onclose=function(e){if(t.readyState===2)return;if(e.code>=4000){t.readyState=2;t.f(new Event('error'));return}t.readyState=0;t.f(new Event('error'));t.r=setTimeout(function(){t.c()},1000)}}
+b(s){var n='message',d=[],h=false;s.split('\\n').forEach(function(x){if(!x||x[0]===':')return;var i=x.indexOf(':'),k=i<0?x:x.slice(0,i),v=i<0?'':x.slice(i+1).replace(/^ /,'');if(k==='event')n=v;else if(k==='data'){d.push(v);h=true}else if(k==='id')this.l=v}.bind(this));if(h)this.f(new MessageEvent(n,{data:d.join('\\n'),origin:location.origin,lastEventId:this.l}))}
+f(e){this.dispatchEvent(e);var h=this['on'+e.type];if(typeof h==='function')h.call(this,e)}
+close(){this.readyState=2;clearTimeout(this.r);if(this.w)this.w.close()}
+}
+S.CONNECTING=0;S.OPEN=1;S.CLOSED=2;
+window.EventSource=S;
+`;
 var SECURE_CONTEXT_SHIM = "if(window.crypto&&!crypto.randomUUID)crypto.randomUUID=function(){var b=crypto.getRandomValues(new Uint8Array(16)),h='',i;b[6]=b[6]&15|64;b[8]=b[8]&63|128;for(i=0;i<16;i++){h+=(b[i]+256).toString(16).slice(1);if(i==3||i==5||i==7||i==9)h+='-'}return h};";
 var GUEST_WATCH = "setInterval(function(){fetch('/__share/me',{cache:'no-store'}).then(function(r){if(r.status===403)return location.reload();return r.json().then(function(m){if(m&&m.role&&m.role!==window.__baoyuShare.role)location.reload()})},function(){})},5000);";
 var PAGE_CSS = `
@@ -1310,9 +1934,9 @@ function mergeList(base, mine, current, mineList, currentList, at, conflicts) {
 }
 var utf8 = new TextDecoder("utf-8", { fatal: true });
 
-import { createHash as createHash3, randomBytes } from "node:crypto";
-import fs6 from "node:fs";
-import path6 from "node:path";
+import { createHash as createHash4, randomBytes } from "node:crypto";
+import fs7 from "node:fs";
+import path7 from "node:path";
 var HISTORY_DIR = "history";
 var INDEX = "index.json";
 var OBJECTS = "objects";
@@ -1323,17 +1947,17 @@ var MAX_NOTICES = 50;
 var NOTICE_DAYS = 7;
 var AGENT = { by: "agent", user: { id: "agent", name: "Agent" } };
 var SYSTEM = { by: "system", user: { id: "system", name: "" } };
-var sha256 = (bytes) => createHash3("sha256").update(bytes).digest("hex");
+var sha256 = (bytes) => createHash4("sha256").update(bytes).digest("hex");
 var SHA = /^[0-9a-f]{64}$/;
 var isRecord3 = (value) => typeof value === "object" && value !== null && !Array.isArray(value);
 function writeAtomic(file, data) {
-  fs6.mkdirSync(path6.dirname(file), { recursive: true });
-  const tmp = path6.join(path6.dirname(file), `.${path6.basename(file)}.${process.pid}.${randomBytes(4).toString("hex")}.tmp`);
+  fs7.mkdirSync(path7.dirname(file), { recursive: true });
+  const tmp = path7.join(path7.dirname(file), `.${path7.basename(file)}.${process.pid}.${randomBytes(4).toString("hex")}.tmp`);
   try {
-    fs6.writeFileSync(tmp, data);
-    fs6.renameSync(tmp, file);
+    fs7.writeFileSync(tmp, data);
+    fs7.renameSync(tmp, file);
   } catch (error) {
-    fs6.rmSync(tmp, { force: true });
+    fs7.rmSync(tmp, { force: true });
     throw error;
   }
 }
@@ -1414,10 +2038,10 @@ var History = class {
   /** path → sha: what the files hold after the newest version. */
   headState;
   constructor(root) {
-    this.dir = path6.join(root, HISTORY_DIR);
+    this.dir = path7.join(root, HISTORY_DIR);
     let raw = null;
     try {
-      raw = JSON.parse(fs6.readFileSync(path6.join(this.dir, INDEX), "utf8"));
+      raw = JSON.parse(fs7.readFileSync(path7.join(this.dir, INDEX), "utf8"));
     } catch {
     }
     this.index = parseIndex(raw);
@@ -1461,7 +2085,7 @@ var History = class {
   read(sha) {
     if (!SHA.test(sha)) return null;
     try {
-      return fs6.readFileSync(path6.join(this.dir, OBJECTS, sha));
+      return fs7.readFileSync(path7.join(this.dir, OBJECTS, sha));
     } catch {
       return null;
     }
@@ -1475,7 +2099,7 @@ var History = class {
   size(sha) {
     if (!SHA.test(sha)) return null;
     try {
-      return fs6.statSync(path6.join(this.dir, OBJECTS, sha)).size;
+      return fs7.statSync(path7.join(this.dir, OBJECTS, sha)).size;
     } catch {
       return null;
     }
@@ -1609,8 +2233,8 @@ var History = class {
     return out;
   }
   putObject(sha, bytes) {
-    const file = path6.join(this.dir, OBJECTS, sha);
-    if (fs6.existsSync(file)) return;
+    const file = path7.join(this.dir, OBJECTS, sha);
+    if (fs7.existsSync(file)) return;
     writeAtomic(file, bytes);
   }
   /** Past MAX_VERSIONS the oldest fold into the base; old notices go; contents no one holds are removed. */
@@ -1647,14 +2271,14 @@ var History = class {
     }
     let names;
     try {
-      names = fs6.readdirSync(path6.join(this.dir, OBJECTS));
+      names = fs7.readdirSync(path7.join(this.dir, OBJECTS));
     } catch {
       return;
     }
-    for (const name of names) if (SHA.test(name) && !keep.has(name)) fs6.rmSync(path6.join(this.dir, OBJECTS, name), { force: true });
+    for (const name of names) if (SHA.test(name) && !keep.has(name)) fs7.rmSync(path7.join(this.dir, OBJECTS, name), { force: true });
   }
   save() {
-    writeAtomic(path6.join(this.dir, INDEX), `${JSON.stringify(this.index)}
+    writeAtomic(path7.join(this.dir, INDEX), `${JSON.stringify(this.index)}
 `);
   }
 };
@@ -1955,12 +2579,12 @@ var DbHistory = class {
    * A page's write of `path` by `who`, until `settle`: the rescan in between records it as theirs. `merge`: the write was
    * merged (mergeDoc) from this base, and these are the values in it that replaced someone else's (empty: nothing lost).
    */
-  attribute(path9, who, merge) {
-    this.pending.set(path9, { who, ...merge ? { merge } : {} });
+  attribute(path10, who, merge) {
+    this.pending.set(path10, { who, ...merge ? { merge } : {} });
   }
   /** After the page's write and its rescan (the write may have changed nothing, or failed). */
-  settle(path9) {
-    this.pending.delete(path9);
+  settle(path10) {
+    this.pending.delete(path10);
   }
   /** Records the rescan's changes; `present` says which documents are on disk now (for the first rescan). */
   record(changes, present) {
@@ -2246,7 +2870,7 @@ data: ${JSON.stringify({ peers: this.list() })}
 };
 
 async function shareCall(url, action, fail2) {
-  const response = await fetch(new URL("/__share", url), action ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(action) } : {});
+  const response = await fetch(new URL("__share", url), action ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(action) } : {});
   const body = await response.json().catch(() => ({}));
   if (!response.ok) fail2("SHARE_REFUSED", String(body.message ?? `the server answered ${response.status}`));
   return body;
@@ -2275,6 +2899,7 @@ async function shareCommand(o) {
     ...rolesOf(o.flags, "disable", o.fail).map((role) => ({ action: "link", role, on: false })),
     ...guestRoles(o.flags, o.fail)
   ];
+  const open2 = !off && changes.length === 0;
   let server = await o.running();
   if (!server) {
     const sharing = new Sharing(o.root);
@@ -2288,12 +2913,19 @@ async function shareCommand(o) {
       sharing.setLan(false);
       return { lan: false, message: "Not shared on the local network. Guests already in get their place back when it is shared again (unless their link was reset)." };
     }
+    if (!open2 && !sharing.state.lan) {
+      return {
+        lan: false,
+        links: Object.fromEntries(GUEST_ROLES.map((role) => [role, sharing.state.links[role].on ? "on" : "off"])),
+        message: `Links changed. Not shared on the local network: ${NOT_SHARED_HINT}`
+      };
+    }
     server = await o.startShared();
     if (!server) o.fail("SERVER_FAILED", `The server did not start. Run ${o.serveCommand} in the foreground to see why.`);
   }
   let view = await shareCall(server.url, null, o.fail);
   for (const change of changes) view = await shareCall(server.url, change, o.fail);
-  if (off || !view.lan) view = await shareCall(server.url, { action: "lan", on: !off }, o.fail);
+  if (off || open2 && !view.lan) view = await shareCall(server.url, { action: "lan", on: !off }, o.fail);
   const links = view.links;
   const shown2 = (list) => Object.fromEntries(Object.entries(list).map(([role, link]) => [role, link.on ? link.url : "off"]));
   const tailnet = view.lan ? view.tailnet : void 0;
@@ -2310,10 +2942,11 @@ async function shareCommand(o) {
       note: "Send the link for the role you want to give: editor edits, commenter comments, viewer reads. Anyone on this network with a link joins under a name they type. The owner (this computer) shares from the Share button too.",
       security: "It is plain http: others on the network can read what passes. A link is the permission: whoever has it gets its role, so send it only to the people meant to have it, and reset a role's link if it went further.",
       stop: o.offCommand
-    } : { note: "Not shared on the network: the links work on this computer only." }
+    } : { note: `Not shared on the network: the links work on this computer only. ${NOT_SHARED_HINT}` }
   };
 }
-var lanUrls = (view) => (Array.isArray(view.addresses) ? view.addresses : []).map((a) => `http://${String(a)}:${String(view.port)}/`);
+var NOT_SHARED_HINT = "share <root> with no options shares it.";
+var lanUrls = (view) => (Array.isArray(view.addresses) ? view.addresses : []).map((a) => `http://${String(a)}:${String(view.port)}${String(view.page ?? "/")}`);
 async function lanOn(url, flags, fail2) {
   if (!flags.has("lan")) return {};
   return { lan: lanUrls(await shareCall(url, { action: "lan", on: true }, fail2)) };
@@ -2506,17 +3139,17 @@ function agentViews(doc, threads) {
   });
 }
 
-import { spawn } from "node:child_process";
-import fs8 from "node:fs";
-import os4 from "node:os";
+import { spawn as spawn2 } from "node:child_process";
+import fs9 from "node:fs";
+import os5 from "node:os";
 
-import fs7 from "node:fs";
+import fs8 from "node:fs";
 import fsp3 from "node:fs/promises";
-import path7 from "node:path";
+import path8 from "node:path";
 var LOCK_STALE_MS = 1e4;
 var LOCK_WAIT_MS = 5e3;
 var LOCK_RETRY_MS = 20;
-var commentsPath = (root) => path7.join(root, COMMENTS_FILE);
+var commentsPath = (root) => path8.join(root, COMMENTS_FILE);
 async function readComments(root) {
   let text;
   try {
@@ -2556,7 +3189,7 @@ async function lock(root) {
   }
 }
 async function writeAtomic2(file, text) {
-  const temp = path7.join(path7.dirname(file), `.${path7.basename(file)}.${process.pid}.${Date.now().toString(36)}.tmp`);
+  const temp = path8.join(path8.dirname(file), `.${path8.basename(file)}.${process.pid}.${Date.now().toString(36)}.tmp`);
   await fsp3.writeFile(temp, text);
   try {
     await fsp3.rename(temp, file);
@@ -2572,7 +3205,7 @@ async function updateComments(root, change) {
     const before = formatDoc(doc);
     const result = await change(doc);
     const after = formatDoc(doc);
-    const exists = fs7.existsSync(commentsPath(root));
+    const exists = fs8.existsSync(commentsPath(root));
     if (after !== before && (exists || doc.threads.length > 0)) await writeAtomic2(commentsPath(root), after);
     return result;
   } finally {
@@ -2633,7 +3266,7 @@ function readJson(request) {
 }
 function defaultUserName() {
   try {
-    return os4.userInfo().username.trim() || "you";
+    return os5.userInfo().username.trim() || "you";
   } catch {
     return "you";
   }
@@ -2759,7 +3392,7 @@ data: ${JSON.stringify(snap)}
       if (hookRunning.has(thread.id)) continue;
       hookRunning.add(thread.id);
       const view = agentViews(doc, [thread])[0];
-      const child = spawn(command, {
+      const child = spawn2(command, {
         shell: true,
         cwd: root,
         stdio: ["pipe", "ignore", "pipe"],
@@ -2795,7 +3428,7 @@ data: ${JSON.stringify(snap)}
     for (const request of requests.splice(0)) {
       hookRunning.add(request.id);
       setRequestState(request.id, "working");
-      const child = spawn(command, {
+      const child = spawn2(command, {
         shell: true,
         cwd: root,
         stdio: ["pipe", "ignore", "pipe"],
@@ -2834,7 +3467,7 @@ data: ${JSON.stringify(snap)}
   };
   let watcher = null;
   try {
-    watcher = fs8.watch(root, (_event, name) => {
+    watcher = fs9.watch(root, (_event, name) => {
       if (name === null || name === COMMENTS_FILE) changed();
     });
     watcher.on("error", () => {
@@ -2846,7 +3479,7 @@ data: ${JSON.stringify(snap)}
   }
   let lastStat = "";
   const poll = setInterval(() => {
-    fs8.stat(commentsPath(root), (error, info) => {
+    fs9.stat(commentsPath(root), (error, info) => {
       const stat = error ? "none" : `${info.mtimeMs}:${info.size}`;
       if (stat !== lastStat) {
         const first = lastStat === "";
@@ -3071,8 +3704,8 @@ data: ${JSON.stringify(snap)}
 }
 
 var SCRIPT = fileURLToPath(import.meta.url);
-var SKILL_DIR = path8.dirname(path8.dirname(SCRIPT));
-var EDITOR_DIR = path8.join(path8.dirname(SCRIPT), "editor");
+var SKILL_DIR = path9.dirname(path9.dirname(SCRIPT));
+var EDITOR_DIR = path9.join(path9.dirname(SCRIPT), "editor");
 var LOCAL_USER_ID = "local";
 var MAX_DOC_BYTES = 256 * 1024;
 var MAX_FILE_CHARS = 262144;
@@ -3113,7 +3746,7 @@ var CliError = class extends Error {
 var isObject2 = (v) => typeof v === "object" && v !== null && !Array.isArray(v);
 var bytesOf = (value) => Buffer.byteLength(JSON.stringify(value), "utf8");
 var kb = (n) => n >= 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)} MB` : `${Math.ceil(n / 1024)} KB`;
-var extOf = (name) => path8.extname(name).slice(1).toLowerCase();
+var extOf = (name) => path9.extname(name).slice(1).toLowerCase();
 var contentTypeOf = (name) => CONTENT_TYPES[extOf(name)] ?? "application/octet-stream";
 var quote = (s) => /^[A-Za-z0-9_./:@%+=-]+$/.test(s) ? s : `'${s.replace(/'/g, `'\\''`)}'`;
 var cmd = (name, ...args) => ["node", quote(SCRIPT), name, ...args.map(quote)].join(" ");
@@ -3121,7 +3754,7 @@ function print(value, compact = false) {
   process.stdout.write(`${compact ? JSON.stringify(value) : JSON.stringify(value, null, 2)}
 `);
 }
-var SWITCHES = /* @__PURE__ */ new Set(["text", "json", "wait", "all", "resolve", "reopen", "lan", "off"]);
+var SWITCHES = /* @__PURE__ */ new Set(["text", "json", "wait", "all", "resolve", "reopen", "lan", "off", "background"]);
 function parseArgs(argv) {
   const positional = [];
   const flags = /* @__PURE__ */ new Map();
@@ -3137,19 +3770,19 @@ function parseArgs(argv) {
   return { positional, flags };
 }
 function writeFileAtomic(file, data) {
-  fs9.mkdirSync(path8.dirname(file), { recursive: true });
-  const tmp = path8.join(path8.dirname(file), `.tmp-${process.pid}-${Date.now()}-${path8.basename(file)}`);
-  fs9.writeFileSync(tmp, data);
-  fs9.renameSync(tmp, file);
+  fs10.mkdirSync(path9.dirname(file), { recursive: true });
+  const tmp = path9.join(path9.dirname(file), `.tmp-${process.pid}-${Date.now()}-${path9.basename(file)}`);
+  fs10.writeFileSync(tmp, data);
+  fs10.renameSync(tmp, file);
 }
 function resolveRoot(given, { create = false } = {}) {
   if (!given) throw new CliError("MISSING_ROOT", "Give the dashboard folder (for example designs/<slug>).");
-  const root = path8.resolve(given);
-  const stat = fs9.statSync(root, { throwIfNoEntry: false });
+  const root = path9.resolve(given);
+  const stat = fs10.statSync(root, { throwIfNoEntry: false });
   if (stat && !stat.isDirectory()) throw new CliError("NOT_A_FOLDER", `${given} is a file; the dashboard is a folder.`);
   if (!stat) {
     if (!create) throw new CliError("NOT_FOUND", `${root} does not exist. Write the dashboard first: ${cmd("write-db", given, "batch.json")}.`);
-    fs9.mkdirSync(root, { recursive: true });
+    fs10.mkdirSync(root, { recursive: true });
   }
   return root;
 }
@@ -3167,20 +3800,20 @@ function docSegments(p) {
   if (segs.length % 2 !== 0) throw new CliError("INVALID_PATH", `${p} names a collection; a document path is collection/doc_id (for example datasets/sales).`);
   return segs;
 }
-var docFile = (root, segs) => path8.join(root, "db", ...segs.slice(0, -1), `${segs.at(-1)}.json`);
+var docFile = (root, segs) => path9.join(root, "db", ...segs.slice(0, -1), `${segs.at(-1)}.json`);
 function listDocFiles(root) {
   const out = /* @__PURE__ */ new Map();
-  const base = path8.join(root, "db");
+  const base = path9.join(root, "db");
   const walk = (dir, rel) => {
     let entries;
     try {
-      entries = fs9.readdirSync(dir, { withFileTypes: true });
+      entries = fs10.readdirSync(dir, { withFileTypes: true });
     } catch {
       return;
     }
     for (const e of entries) {
       if (e.name.startsWith(".")) continue;
-      const full = path8.join(dir, e.name);
+      const full = path9.join(dir, e.name);
       if (e.isDirectory()) walk(full, [...rel, e.name]);
       else if (e.isFile() && e.name.endsWith(".json")) {
         const segs = [...rel, e.name.slice(0, -5)];
@@ -3197,7 +3830,7 @@ function readDoc(root, p) {
   const file = docFile(root, segs);
   let text;
   try {
-    text = fs9.readFileSync(file, "utf8");
+    text = fs10.readFileSync(file, "utf8");
   } catch {
     return { path: segs.join("/"), exists: false, file };
   }
@@ -3214,7 +3847,7 @@ function readAllDocs(root) {
   const damaged = [];
   for (const [p, { file }] of listDocFiles(root)) {
     try {
-      const data = JSON.parse(fs9.readFileSync(file, "utf8"));
+      const data = JSON.parse(fs10.readFileSync(file, "utf8"));
       if (isObject2(data)) docs.set(p, data);
       else damaged.push(p);
     } catch {
@@ -3260,9 +3893,9 @@ function resolveFileRefs(value, where) {
   if (!isObject2(value)) return value;
   const keys = Object.keys(value);
   if (keys.length === 1 && keys[0] === "$file") {
-    const file = path8.resolve(String(value.$file));
+    const file = path9.resolve(String(value.$file));
     try {
-      return fs9.readFileSync(file, "utf8");
+      return fs10.readFileSync(file, "utf8");
     } catch {
       throw new CliError("FILE_NOT_FOUND", `${where}: {"$file": ${JSON.stringify(value.$file)}} \u2014 no such file (paths are relative to ${process.cwd()}).`);
     }
@@ -3297,7 +3930,7 @@ function applyWrites(root, writes, { agent = true } = {}) {
       if (w.data === void 0 === (w.file_path === void 0)) throw new CliError("INVALID_WRITE", `${where} (${op}) needs exactly one of "data" or "file_path".`);
       if (w.file_path !== void 0) {
         try {
-          data = JSON.parse(fs9.readFileSync(path8.resolve(String(w.file_path)), "utf8"));
+          data = JSON.parse(fs10.readFileSync(path9.resolve(String(w.file_path)), "utf8"));
         } catch (error) {
           throw new CliError("INVALID_WRITE", `${where}.file_path ${JSON.stringify(w.file_path)}: ${error.code === "ENOENT" ? "no such file" : `not JSON (${error.message})`}.`);
         }
@@ -3307,7 +3940,7 @@ function applyWrites(root, writes, { agent = true } = {}) {
       if (op === "set" && hasDeleteMarker(data)) throw new CliError("INVALID_WRITE", `${where}: {"__delete__": true} works only in an update; set writes the whole document.`);
     }
     const file = docFile(root, segs);
-    const existing = fs9.existsSync(file) ? readDoc(root, p) : { exists: false };
+    const existing = fs10.existsSync(file) ? readDoc(root, p) : { exists: false };
     let next = null;
     if (op === "set") next = data;
     else if (op === "update") next = mergePatch(existing.exists ? existing.data : {}, data);
@@ -3320,7 +3953,7 @@ function applyWrites(root, writes, { agent = true } = {}) {
   });
   if (total > MAX_BATCH_BYTES) throw new CliError("BATCH_TOO_LARGE", `The batch writes ${kb(total)}; a batch is at most 1 MB. Split it.`);
   for (const w of planned) {
-    if (w.op === "delete") fs9.rmSync(w.file, { force: true });
+    if (w.op === "delete") fs10.rmSync(w.file, { force: true });
     else writeFileAtomic(w.file, `${JSON.stringify(w.next, null, 2)}
 `);
   }
@@ -3332,18 +3965,18 @@ function applyWrites(root, writes, { agent = true } = {}) {
     ...w.op === "delete" && !w.existed ? { note: "there was no such document" } : {}
   }));
 }
-var blobFile = (root, id) => path8.join(root, "_blobs", id);
+var blobFile = (root, id) => path9.join(root, "_blobs", id);
 function readBlobMeta(root, id) {
   try {
-    return JSON.parse(fs9.readFileSync(`${blobFile(root, id)}.json`, "utf8"));
+    return JSON.parse(fs10.readFileSync(`${blobFile(root, id)}.json`, "utf8"));
   } catch {
     return null;
   }
 }
 function putBlob(root, bytes, name, contentType) {
-  const id = createHash4("sha256").update(bytes).digest("hex").slice(0, 32);
+  const id = createHash5("sha256").update(bytes).digest("hex").slice(0, 32);
   const file = blobFile(root, id);
-  if (!fs9.existsSync(file)) writeFileAtomic(file, bytes);
+  if (!fs10.existsSync(file)) writeFileAtomic(file, bytes);
   const meta = { name, contentType, bytes: bytes.length, uploadedAt: (/* @__PURE__ */ new Date()).toISOString() };
   writeFileAtomic(`${file}.json`, `${JSON.stringify(meta, null, 2)}
 `);
@@ -3351,16 +3984,16 @@ function putBlob(root, bytes, name, contentType) {
 }
 function upload(root, given, flags) {
   if (!given) throw new CliError("MISSING_FILE", "Give the file to attach (CSV, TSV or JSON).");
-  const file = path8.resolve(given);
-  const stat = fs9.statSync(file, { throwIfNoEntry: false });
+  const file = path9.resolve(given);
+  const stat = fs10.statSync(file, { throwIfNoEntry: false });
   if (!stat) throw new CliError("FILE_NOT_FOUND", `No such file: ${given}`);
   if (!stat.isFile()) throw new CliError("NOT_A_FILE", `${given} is not a regular file.`);
   if (stat.size > MAX_DATA_BYTES) {
     throw new CliError("FILE_TOO_LARGE", `${given} is ${kb(stat.size)}; a file dataset over 8 MB is refused. Keep only the columns and rows the dashboard shows, or aggregate first.`);
   }
-  const name = flags.get("name") ?? path8.basename(file);
+  const name = flags.get("name") ?? path9.basename(file);
   const type = flags.get("type") ?? contentTypeOf(name);
-  const result = putBlob(root, fs9.readFileSync(file), name, type);
+  const result = putBlob(root, fs10.readFileSync(file), name, type);
   const ext = extOf(name);
   return {
     ...result,
@@ -3379,11 +4012,11 @@ function referencesTo(root, id) {
 function deleteAsset(root, given) {
   const id = BLOB_URL.exec(String(given ?? ""))?.[1] ?? (BLOB_ID.test(String(given ?? "")) ? given : null);
   if (!id) throw new CliError("INVALID_ASSET", "Give the attached file as its url (/_blob/<id>) or id (32 hex).");
-  if (!fs9.existsSync(blobFile(root, id))) throw new CliError("NOT_FOUND", `No attached file ${id} in ${root}/_blobs.`);
+  if (!fs10.existsSync(blobFile(root, id))) throw new CliError("NOT_FOUND", `No attached file ${id} in ${root}/_blobs.`);
   const users = referencesTo(root, id);
   if (users.length > 0) throw new CliError("IN_USE", `${id} is still named by ${users.join(", ")}; change or delete those first.`);
-  fs9.rmSync(blobFile(root, id), { force: true });
-  fs9.rmSync(`${blobFile(root, id)}.json`, { force: true });
+  fs10.rmSync(blobFile(root, id), { force: true });
+  fs10.rmSync(`${blobFile(root, id)}.json`, { force: true });
   return { deleted: `/_blob/${id}` };
 }
 function readDb(root, given, flags) {
@@ -3391,7 +4024,7 @@ function readDb(root, given, flags) {
     const files = listDocFiles(root);
     return {
       root,
-      documents: [...files.keys()].sort().map((p) => ({ path: p, bytes: fs9.statSync(files.get(p).file).size }))
+      documents: [...files.keys()].sort().map((p) => ({ path: p, bytes: fs10.statSync(files.get(p).file).size }))
     };
   }
   const segs = splitPath(given, "collection or document");
@@ -3575,9 +4208,9 @@ function definedRuntimeTokens() {
   if (runtimeTokens) return runtimeTokens;
   runtimeTokens = /* @__PURE__ */ new Set();
   try {
-    for (const name of fs9.readdirSync(path8.join(EDITOR_DIR, "assets"))) {
+    for (const name of fs10.readdirSync(path9.join(EDITOR_DIR, "assets"))) {
       if (!name.endsWith(".css")) continue;
-      const css = fs9.readFileSync(path8.join(EDITOR_DIR, "assets", name), "utf8");
+      const css = fs10.readFileSync(path9.join(EDITOR_DIR, "assets", name), "utf8");
       for (const m of css.matchAll(/(--[A-Za-z0-9_-]+)\s*:/g)) runtimeTokens.add(m[1]);
     }
   } catch {
@@ -3909,7 +4542,7 @@ function check(root) {
       continue;
     }
     const file = blobFile(root, blob);
-    const stat = fs9.statSync(file, { throwIfNoEntry: false });
+    const stat = fs10.statSync(file, { throwIfNoEntry: false });
     if (!stat) {
       issue(p, `source.url ${source.url}: no such attached file in _blobs/. Upload the file again and use the url it prints.`);
       continue;
@@ -3921,7 +4554,7 @@ function check(root) {
     if (typeof source.name !== "string" || !source.name.trim()) issue(p, "source.name: the file\u2019s own name (it sets the format when format is left out).");
     if (source.format !== void 0 && !["csv", "tsv", "json"].includes(source.format)) issue(p, 'source.format is "csv", "tsv" or "json" (only when the name\u2019s extension doesn\u2019t say).');
     const format = ["csv", "tsv", "json"].includes(source.format) ? source.format : inferFormat(source.name);
-    const text = fs9.readFileSync(file, "utf8");
+    const text = fs10.readFileSync(file, "utf8");
     const table = format === "json" ? parseJsonTable(text) : parseDelimited(text, format === "tsv" ? "	" : ",");
     if (!table || table.columns.length === 0) {
       issue(p, `the file has no rows the page can read as ${format}${format === "json" ? " (an array of row objects, or one under rows/data/results)" : ""}.`);
@@ -4162,8 +4795,8 @@ function check(root) {
   const runs = docs.get(`data/users/${LOCAL_USER_ID}/runs`);
   if (runs) {
     const runsFile = docFile(root, ["data", "users", LOCAL_USER_ID, "runs"]);
-    const writtenAt = fs9.statSync(runsFile).mtime;
-    const pageChanged = [...docs.keys()].some((p) => /^(files|datasets)\//.test(p) && fs9.statSync(docFile(root, p.split("/"))).mtime > writtenAt);
+    const writtenAt = fs10.statSync(runsFile).mtime;
+    const pageChanged = [...docs.keys()].some((p) => /^(files|datasets)\//.test(p) && fs10.statSync(docFile(root, p.split("/"))).mtime > writtenAt);
     const failedSources = Object.entries(isObject2(runs.datasets) ? runs.datasets : {}).filter(([, d]) => isObject2(d) && d.status !== "ok");
     pageReport = {
       writtenAt: writtenAt.toISOString(),
@@ -4188,8 +4821,8 @@ function check(root) {
   let pageCheck;
   const checkDoc = docs.get(`data/users/${LOCAL_USER_ID}/check`);
   if (checkDoc) {
-    const writtenAt = fs9.statSync(docFile(root, ["data", "users", LOCAL_USER_ID, "check"])).mtime;
-    const changedSince = (re) => [...docs.keys()].some((p) => re.test(p) && fs9.statSync(docFile(root, p.split("/"))).mtime > writtenAt);
+    const writtenAt = fs10.statSync(docFile(root, ["data", "users", LOCAL_USER_ID, "check"])).mtime;
+    const changedSince = (re) => [...docs.keys()].some((p) => re.test(p) && fs10.statSync(docFile(root, p.split("/"))).mtime > writtenAt);
     const stale = changedSince(/^files\//) ? "a page file changed after the page wrote this; the open page checks again when it picks the change up, then rewrites or removes it" : changedSince(/^(datasets|dash)\//) ? "a dataset or dash document changed after the page wrote this; only a page-file write (or opening the page again) checks again" : checkDoc.status === "checking" && Date.now() - writtenAt.getTime() > CHECK_ABANDONED_MS ? "it has said checking for over 30 seconds: the page was closed while it checked; it checks again when it is opened" : void 0;
     pageCheck = {
       status: checkDoc.status,
@@ -4242,7 +4875,7 @@ function check(root) {
     }
   };
 }
-var runningServer2 = (root) => runningServer(root, "dashboard", "/_api/session");
+var runningServer2 = (root) => runningServer(root, "dashboard", "_api/session");
 function serverFlags(flags) {
   const out = [];
   if (flags.has("port")) out.push("--port", flags.get("port"));
@@ -4278,7 +4911,7 @@ function historyLabel(p, docs) {
   return null;
 }
 async function serve(root, flags) {
-  if (!["index.html", "local-host.js", "comments.js"].every((name) => fs9.existsSync(path8.join(EDITOR_DIR, name)))) {
+  if (!["index.html", "local-host.js", "comments.js"].every((name) => fs10.existsSync(path9.join(EDITOR_DIR, name)))) {
     throw new CliError("EDITOR_MISSING", `The editor page is missing (${EDITOR_DIR}); reinstall the skill.`);
   }
   const existing = await runningServer2(root);
@@ -4291,10 +4924,14 @@ async function serve(root, flags) {
   const agentHook = flags.get("agent-hook");
   if (agentHook === "true") throw new CliError("INVALID_AGENT_HOOK", '--agent-hook takes a command: --agent-hook "<command>".');
   if (!Number.isInteger(port) || port < 0 || port > 65535) throw new CliError("INVALID_PORT", "--port is a number from 0 to 65535.");
-  const log = (line) => process.stderr.write(`[${(/* @__PURE__ */ new Date()).toISOString()}] ${line}
-`);
-  const dbDir = path8.join(root, "db");
-  fs9.mkdirSync(dbDir, { recursive: true });
+  const background = flags.has("background");
+  const state = await serveHub({ kind: "dashboard", script: SCRIPT, root, port, portGiven: flags.has("port"), host, ...agentHook ? { agentHook } : {}, lan: flags.has("lan"), background, site: mountSite });
+  print({ url: state.url, root, pid: state.pid, ...state.lan?.length ? { lan: state.lan } : {} }, true);
+  return !(state.joined && background);
+}
+function mountSite(root, { log, network, agentHook }) {
+  const dbDir = path9.join(root, "db");
+  fs10.mkdirSync(dbDir, { recursive: true });
   const known = /* @__PURE__ */ new Map();
   const clients = /* @__PURE__ */ new Map();
   const presence = new PresenceHub();
@@ -4320,7 +4957,7 @@ data: ${JSON.stringify(data)}
     for (const [p, { file }] of files) {
       let stat;
       try {
-        stat = fs9.statSync(file);
+        stat = fs10.statSync(file);
       } catch {
         continue;
       }
@@ -4328,7 +4965,7 @@ data: ${JSON.stringify(data)}
       if (prev && prev.mtimeMs === stat.mtimeMs && prev.size === stat.size) continue;
       let data;
       try {
-        data = JSON.parse(fs9.readFileSync(file, "utf8"));
+        data = JSON.parse(fs10.readFileSync(file, "utf8"));
         if (!isObject2(data)) throw new Error("not an object");
       } catch {
         continue;
@@ -4362,7 +4999,7 @@ data: ${JSON.stringify(data)}
   };
   let watcher = null;
   try {
-    watcher = fs9.watch(dbDir, { recursive: true }, soon);
+    watcher = fs10.watch(dbDir, { recursive: true }, soon);
     watcher.on("error", () => {
     });
   } catch (error) {
@@ -4372,13 +5009,14 @@ data: ${JSON.stringify(data)}
   const owner = localOwner();
   const share2 = new ShareHost({
     root,
+    page,
+    network,
     cookieName: guestCookieName("dashboard", root),
     owner,
     noun: NOUNS.dashboard,
     title: () => dashboardTitle(root),
     log,
-    createServer: () => http.createServer(handle),
-    uiFile: path8.join(EDITOR_DIR, "share-ui.js"),
+    uiFile: path9.join(EDITOR_DIR, "share-ui.js"),
     globals: (viewer, query) => ({ __baoyuHistory: history.bootGlobal(viewer, query) })
   });
   const comments = createCommentsService({
@@ -4395,7 +5033,7 @@ data: ${JSON.stringify(data)}
   });
   const json = (res, status, body) => sendJson(res, status, body);
   const serveFile = (req, res, file, type, cache) => {
-    fs9.stat(file, (error, stat) => {
+    fs10.stat(file, (error, stat) => {
       if (error || !stat.isFile()) return json(res, 404, { code: "not_found", message: "Not found" });
       sendFile(req, res, file, { "Content-Type": type, "Content-Length": stat.size, "Cache-Control": cache, "X-Content-Type-Options": "nosniff" });
     });
@@ -4403,7 +5041,7 @@ data: ${JSON.stringify(data)}
   const servePage = (res, viewer, at) => {
     let html;
     try {
-      html = fs9.readFileSync(path8.join(EDITOR_DIR, "index.html"), "utf8");
+      html = fs10.readFileSync(path9.join(EDITOR_DIR, "index.html"), "utf8");
     } catch {
       return json(res, 404, { code: "not_found", message: "The editor page is missing." });
     }
@@ -4412,24 +5050,13 @@ data: ${JSON.stringify(data)}
   };
   async function handle(req, res) {
     try {
-      if (!share2.hostAllowed(req)) return json(res, 421, { code: "invalid_argument", message: "Unexpected Host header." });
-      const url2 = new URL(req.url ?? "/", "http://local");
-      if (url2.pathname === "/favicon.ico") {
-        res.writeHead(204).end();
-        return;
-      }
+      const url = new URL(req.url ?? "/", "http://local");
       if (await share2.route(req, res)) return;
       const viewer = share2.viewerOf(req);
       if (!viewer) return share2.denied(req, res);
-      const at = pageRoute(url2.pathname, page);
-      if ("redirect" in at) {
-        req.resume();
-        res.writeHead(302, { Location: `${at.redirect}${url2.search}`, "Cache-Control": "no-store" }).end();
-        return;
-      }
-      const p = at.path;
+      const p = url.pathname;
       if (req.method === "POST" && !sameOrigin(req)) return json(res, 403, { code: "not_granted", message: "Cross-origin write refused." });
-      const preview = previewOf(url2.searchParams);
+      const preview = previewOf(url.searchParams);
       const editing = canEditAs(viewer.role) && preview === void 0;
       if (req.method === "GET" && (p === "/" || p === "/index.html")) return servePage(res, viewer, preview);
       if (p === "/__presence" && preview === void 0) return presence.handle(req, res, viewer);
@@ -4452,7 +5079,7 @@ data: ${JSON.stringify(data)}
         if (req.method === "GET" && p === "/_api/doc") {
           let wanted;
           try {
-            wanted = docSegments(ownPath(url2.searchParams.get("path"), viewer)).join("/");
+            wanted = docSegments(ownPath(url.searchParams.get("path"), viewer)).join("/");
           } catch (error) {
             return json(res, 400, { code: "invalid_argument", message: error.message });
           }
@@ -4464,13 +5091,13 @@ data: ${JSON.stringify(data)}
           return json(res, 403, { code: "invalid_argument", message: "This is an earlier version: open the current one to change it." });
         }
       }
-      if (req.method === "GET" && (p === "/local-host.js" || p === "/comments.js")) return serveFile(req, res, path8.join(EDITOR_DIR, p.slice(1)), "text/javascript; charset=utf-8", "no-store");
+      if (req.method === "GET" && (p === "/local-host.js" || p === "/comments.js")) return serveFile(req, res, path9.join(EDITOR_DIR, p.slice(1)), "text/javascript; charset=utf-8", "no-store");
       if (p === COMMENTS_ROUTE || p.startsWith(`${COMMENTS_ROUTE}/`)) {
         const sub = p.slice(COMMENTS_ROUTE.length);
         if (sub === "/events") share2.hold(viewer, res);
         return await comments.handle(req, res, sub);
       }
-      if (req.method === "GET" && /^\/assets\/[A-Za-z0-9_.-]+$/.test(p)) return serveFile(req, res, path8.join(EDITOR_DIR, p), contentTypeOf(p), "public, max-age=31536000, immutable");
+      if (req.method === "GET" && /^\/assets\/[A-Za-z0-9_.-]+$/.test(p)) return serveFile(req, res, path9.join(EDITOR_DIR, p), contentTypeOf(p), "public, max-age=31536000, immutable");
       const blob = /^\/_blob\/([0-9a-f]{32})$/.exec(p);
       if (req.method === "GET" && blob) {
         const meta = readBlobMeta(root, blob[1]);
@@ -4487,7 +5114,7 @@ data: ${JSON.stringify(data)}
         send(res, "snapshot", { docs: snapshot(viewer) });
         clients.set(res, viewer);
         share2.hold(viewer, res);
-        const peer = url2.searchParams.get("peer") ?? "";
+        const peer = url.searchParams.get("peer") ?? "";
         const leave = presence.join(PEER_ID.test(peer) ? peer : "", viewer, (text) => res.write(text));
         const ping = setInterval(() => res.write(": ping\n\n"), 25e3);
         req.on("close", () => {
@@ -4500,7 +5127,7 @@ data: ${JSON.stringify(data)}
       if (req.method === "GET" && p === "/_api/doc") {
         let doc;
         try {
-          doc = readDoc(root, ownPath(url2.searchParams.get("path"), viewer));
+          doc = readDoc(root, ownPath(url.searchParams.get("path"), viewer));
         } catch (error) {
           return json(res, 400, { code: "invalid_argument", message: error.message });
         }
@@ -4578,7 +5205,6 @@ data: ${JSON.stringify(data)}
       if (!res.headersSent) json(res, 500, { code: "unavailable", message: String(error.message ?? error) });
     }
   }
-  const server = http.createServer(handle);
   const close = () => {
     clearInterval(poll);
     watcher?.close();
@@ -4586,20 +5212,17 @@ data: ${JSON.stringify(data)}
     for (const c of clients.keys()) c.end();
     share2.close();
     presence.close();
-    server.close();
-    server.closeAllConnections?.();
   };
-  const actualPort = await share2.listen(server, { port, host, lan: flags.has("lan"), portGiven: flags.has("port") }).catch((error) => {
-    close();
-    throw error.code === "PORT_IN_USE" ? new CliError("PORT_IN_USE", error.message) : error;
-  });
-  const url = `${serverOrigin(host, actualPort)}${page}`;
-  const state = { kind: "dashboard", pid: process.pid, url, port: actualPort, root, startedAt: (/* @__PURE__ */ new Date()).toISOString() };
-  recordServer(state, close, ["SIGINT", "SIGTERM", "SIGHUP"]);
-  const lan = share2.lanUrls();
-  print({ url, root, pid: process.pid, ...lan.length ? { lan } : {} }, true);
-  log(`serving ${root} at ${url}`);
-  return true;
+  return {
+    root,
+    page,
+    share: share2,
+    handle,
+    // The page's assets, for a frame (an opaque origin) that asks by a root-relative address.
+    common: (pathname) => /^\/(assets|artifact-type)\//.test(pathname),
+    hasBlob: (id) => fs10.existsSync(blobFile(root, id)),
+    close
+  };
 }
 var fail = (code, message) => {
   throw new CliError(code, message);
@@ -4609,41 +5232,47 @@ var lanOn2 = (url, flags) => lanOn(url, flags, fail);
 async function open(root, flags) {
   const existing = await runningServer2(root);
   if (existing) {
-    print({ url: existing.url, root, pid: existing.pid, reused: true, ...await lanOn2(existing.url, flags), log: path8.join(root, LOG_FILE), stop: cmd("stop", root) }, true);
+    print({ url: existing.url, root, pid: existing.pid, reused: true, ...await lanOn2(existing.url, flags), log: path9.join(root, LOG_FILE), stop: cmd("stop", root) }, true);
     return;
   }
   const state = await startBackground(root, flags);
-  const view = await shareCall2(state.url, null).catch(() => null);
-  const empty = !fs9.existsSync(docFile(root, ["files", "index.html"]));
-  print({ url: state.url, root, pid: state.pid, ...view?.lan ? { lan: lanUrls(view) } : {}, log: path8.join(root, LOG_FILE), stop: cmd("stop", root), ...empty ? { note: "files/index.html is not written yet: the page is empty until it is." } : {} }, true);
+  const empty = !fs10.existsSync(docFile(root, ["files", "index.html"]));
+  print({ url: state.url, root, pid: state.pid, ...state.lan?.length ? { lan: state.lan } : {}, log: path9.join(root, LOG_FILE), stop: cmd("stop", root), ...empty ? { note: "files/index.html is not written yet: the page is empty until it is." } : {} }, true);
 }
 async function startBackground(root, flags) {
-  const logFile = path8.join(root, LOG_FILE);
-  const fd = fs9.openSync(logFile, "a");
-  const child = spawn2(process.execPath, [SCRIPT, "serve", root, ...serverFlags(flags)], { detached: true, stdio: ["ignore", "ignore", fd] });
-  child.unref();
-  fs9.closeSync(fd);
-  let exited = false;
-  child.once("exit", () => exited = true);
-  const deadline = Date.now() + 15e3;
-  while (Date.now() < deadline) {
-    await new Promise((r) => setTimeout(r, 120));
-    const state = readState(root);
-    if (state && state.pid === child.pid) return state;
-    if (exited) break;
+  const port = flags.has("port") ? Number(flags.get("port")) : DEFAULT_PORTS.dashboard;
+  if (!Number.isInteger(port) || port < 0 || port > 65535) throw new CliError("INVALID_PORT", "--port is a number from 0 to 65535.");
+  const agentHook = flags.get("agent-hook");
+  const opened = await openOnHub({
+    kind: "dashboard",
+    script: SCRIPT,
+    root,
+    port,
+    portGiven: flags.has("port"),
+    host: flags.get("host") ?? "127.0.0.1",
+    ...agentHook && agentHook !== "true" ? { agentHook } : {},
+    lan: flags.has("lan"),
+    command: [SCRIPT, "serve", root, ...serverFlags(flags)],
+    running: () => runningServer2(root)
+  });
+  if ("state" in opened) {
+    const view = await shareCall2(opened.state.url, null).catch(() => null);
+    return { ...opened.state, ...view?.lan ? { lan: lanUrls(view) } : {} };
   }
-  const tail = fs9.existsSync(logFile) ? fs9.readFileSync(logFile, "utf8").split("\n").slice(-12).join("\n") : "";
-  throw new CliError("SERVER_FAILED", `The editor server did not start. Run ${cmd("serve", root)} in the foreground to see why.${tail ? `
-${tail}` : ""}`);
+  throw new CliError("SERVER_FAILED", `The editor server did not start. Run ${cmd("serve", root)} in the foreground to see why.${opened.tail ? `
+${opened.tail}` : ""}`);
 }
-function stop(root) {
+async function stop(root) {
   const state = readState(root);
   if (!state || !alive(state.pid)) {
-    fs9.rmSync(path8.join(root, STATE_FILE), { force: true });
+    fs10.rmSync(path9.join(root, STATE_FILE), { force: true });
     print({ stopped: false, message: "No editor server is running for this folder." }, true);
     return;
   }
-  process.kill(state.pid, "SIGTERM");
+  if (!await leaveHub(state)) {
+    print({ stopped: false, pid: state.pid, message: `The server did not exit within 5 s; end it with: kill ${state.pid}` }, true);
+    return;
+  }
   print({ stopped: true, pid: state.pid }, true);
 }
 async function share(root, flags) {
@@ -4682,7 +5311,7 @@ function dashboardTitle(root) {
     title = meta.exists ? meta.data?.title : void 0;
   } catch {
   }
-  return typeof title === "string" && title.trim() ? title.trim() : path8.basename(root);
+  return typeof title === "string" && title.trim() ? title.trim() : path9.basename(root);
 }
 async function waitComments(root, flags) {
   const timeout = flags.has("timeout") ? Number(flags.get("timeout")) : Infinity;
@@ -4778,6 +5407,7 @@ Usage:
                                      [--off] [--reset R] [--enable R] [--disable R]
                                                                   R: editor, commenter, viewer, a comma list, or all
                                      [--role G=R,...]            give guest G (an id it prints) role R
+                                                                  (link options only: shared or not stays as it was)
   node scripts/artifact.mjs comments <root> [--all]              the open comments people left in the page (--all: resolved too)
   node scripts/artifact.mjs comments <root> --wait [--timeout s] wait for a comment sent to the agent from the open page
   node scripts/artifact.mjs comment-reply <root> <id> <text|->   reply as the agent (-: text on stdin) [--resolve]
@@ -4800,7 +5430,7 @@ async function main() {
       if (!from) throw new CliError("MISSING_BATCH", "Give the batch: a JSON file, or - to read it from stdin.");
       let text;
       try {
-        text = from === "-" ? fs9.readFileSync(0, "utf8") : fs9.readFileSync(path8.resolve(from), "utf8");
+        text = from === "-" ? fs10.readFileSync(0, "utf8") : fs10.readFileSync(path9.resolve(from), "utf8");
       } catch {
         throw new CliError("FILE_NOT_FOUND", `No such batch file: ${from}`);
       }
@@ -4841,7 +5471,7 @@ async function main() {
     case "serve":
       return await serve(resolveRoot(positional[0]), flags) ? -1 : 0;
     case "stop":
-      stop(resolveRoot(positional[0]));
+      await stop(resolveRoot(positional[0]));
       return 0;
     case "share":
       await share(resolveRoot(positional[0]), flags);

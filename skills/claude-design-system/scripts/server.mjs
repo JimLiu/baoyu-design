@@ -1,13 +1,12 @@
 #!/usr/bin/env node
 // claude-design-system: local editor server (prebuilt; do not edit).
 
-import os5 from "node:os";
+import os6 from "node:os";
 
-import { createHash as createHash3, randomBytes as randomBytes2, randomUUID } from "node:crypto";
-import fs11 from "node:fs";
+import { createHash as createHash5, randomBytes as randomBytes2, randomUUID } from "node:crypto";
+import fs12 from "node:fs";
 import fsp4 from "node:fs/promises";
-import http from "node:http";
-import path11 from "node:path";
+import path12 from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { spawn } from "node:child_process";
@@ -767,6 +766,7 @@ data: ${JSON.stringify(snap)}
   return { handle, presence, deliver, sendRequest, requestStates, close };
 }
 
+import { createHash } from "node:crypto";
 import fs3 from "node:fs";
 import net from "node:net";
 import os2 from "node:os";
@@ -799,17 +799,15 @@ async function runningServer(root, kind, probe) {
     return null;
   }
 }
-function recordServer(state, close, signals = ["SIGINT", "SIGTERM"]) {
-  const file = path2.join(state.root, STATE_FILE);
-  fs3.writeFileSync(file, `${JSON.stringify(state, null, 2)}
+function writeState(state) {
+  fs3.writeFileSync(path2.join(state.root, STATE_FILE), `${JSON.stringify(state, null, 2)}
 `);
   writeGitignore(state.root, state.kind);
-  const shutdown = () => {
-    if (readState(state.root)?.pid === process.pid) fs3.rmSync(file, { force: true });
-    close();
-    process.exit(0);
-  };
-  for (const signal of signals) process.on(signal, shutdown);
+}
+function removeState(root) {
+  const state = readState(root);
+  if (state && state.pid !== process.pid && alive(state.pid)) return;
+  fs3.rmSync(path2.join(root, STATE_FILE), { force: true });
 }
 var GITIGNORE_FILE = ".gitignore";
 var gitignoreLines = (kind) => [STATE_FILE, LOG_FILE, ".sharing.json", ...kind === "docs" ? [] : ["history/"], ".*.tmp", ".DS_Store"];
@@ -908,6 +906,7 @@ function serverOrigin(host, port) {
   const shown2 = host === "0.0.0.0" || host === "::" ? "127.0.0.1" : host.includes(":") ? `[${host}]` : host;
   return `http://${shown2}:${port}`;
 }
+var pagePathOf = (kind, root) => `/${kind}/${createHash("sha256").update(path2.resolve(root)).digest("base64url").slice(0, 22)}/`;
 function sendJson2(response, status, body, headers = {}) {
   const text = JSON.stringify(body);
   response.writeHead(status, {
@@ -1495,8 +1494,764 @@ ${sections || '<p class="muted">This copy has no tokens, components or guide.</p
 `;
 }
 
+import { EventEmitter } from "node:events";
+import fs6 from "node:fs";
+import http from "node:http";
+import os3 from "node:os";
+import path6 from "node:path";
+
+import crypto from "node:crypto";
 import fs5 from "node:fs";
 import path5 from "node:path";
+var GUEST_ROLES = ["editor", "commenter", "viewer"];
+var isGuestRole = (value) => typeof value === "string" && GUEST_ROLES.includes(value);
+var SHARING_FILE = ".sharing.json";
+var MAX_GUESTS = 200;
+var MAX_NAME = 40;
+var token = (bytes = 18) => crypto.randomBytes(bytes).toString("base64url");
+var isRecord2 = (value) => typeof value === "object" && value !== null && !Array.isArray(value);
+function fresh() {
+  return { lan: false, links: { editor: { token: token(), on: true }, commenter: { token: token(), on: true }, viewer: { token: token(), on: true } }, guests: [] };
+}
+function cleanName(raw) {
+  const name = typeof raw === "string" ? raw.replace(/[\u0000-\u001f\u007f@<>]/g, "").replace(/\s+/g, " ").trim() : "";
+  return [...name].slice(0, MAX_NAME).join("");
+}
+function guestUser(guest) {
+  return { id: `guest-${guest.id}`, name: guest.name, email: `${guest.name}@${guest.id}.guest` };
+}
+function isLoopback(address) {
+  if (!address) return false;
+  const a = address.startsWith("::ffff:") ? address.slice(7) : address;
+  return a === "::1" || a.startsWith("127.");
+}
+var Sharing = class _Sharing {
+  file;
+  state;
+  constructor(root) {
+    this.file = path5.join(root, SHARING_FILE);
+    this.state = _Sharing.read(this.file);
+  }
+  static read(file) {
+    let raw;
+    try {
+      raw = JSON.parse(fs5.readFileSync(file, "utf8"));
+    } catch {
+      return fresh();
+    }
+    const state = fresh();
+    if (!isRecord2(raw)) return state;
+    state.lan = raw.lan === true;
+    if (typeof raw.port === "number" && Number.isInteger(raw.port) && raw.port > 0 && raw.port < 65536) state.port = raw.port;
+    if (isRecord2(raw.links)) {
+      for (const role of GUEST_ROLES) {
+        const link = raw.links[role];
+        if (isRecord2(link) && typeof link.token === "string" && link.token.length >= 16) state.links[role] = { token: link.token, on: link.on !== false };
+      }
+    }
+    if (Array.isArray(raw.guests)) {
+      for (const g of raw.guests) {
+        if (!isRecord2(g) || typeof g.id !== "string" || typeof g.secret !== "string" || !isGuestRole(g.role) || typeof g.link !== "string") continue;
+        state.guests.push({
+          id: g.id,
+          secret: g.secret,
+          name: cleanName(g.name) || "Guest",
+          role: g.role,
+          link: g.link,
+          joined: typeof g.joined === "string" ? g.joined : (/* @__PURE__ */ new Date(0)).toISOString(),
+          ...typeof g.seen === "string" ? { seen: g.seen } : {}
+        });
+      }
+    }
+    return state;
+  }
+  save() {
+    const tmp = `${this.file}.${process.pid}.tmp`;
+    fs5.writeFileSync(tmp, `${JSON.stringify(this.state, null, 2)}
+`, { mode: 384 });
+    fs5.renameSync(tmp, this.file);
+  }
+  /** The role whose link has this token, while that link is on. */
+  linkRole(tokenGiven) {
+    for (const role of GUEST_ROLES) {
+      const link = this.state.links[role];
+      if (link.on && tokenGiven.length === link.token.length && crypto.timingSafeEqual(Buffer.from(tokenGiven), Buffer.from(link.token))) return role;
+    }
+    return null;
+  }
+  /** The guest a cookie names, if they still have access (their link on and not reset). */
+  guest(secret) {
+    if (!secret) return null;
+    const guest = this.state.guests.find((g) => g.secret === secret);
+    return guest && this.valid(guest) ? guest : null;
+  }
+  valid(guest) {
+    const link = this.state.links[guest.role];
+    return link.on && link.token === guest.link && this.state.guests.includes(guest);
+  }
+  join(role, name) {
+    const guest = { id: token(4), secret: token(24), name: cleanName(name) || "Guest", role, link: this.state.links[role].token, joined: (/* @__PURE__ */ new Date()).toISOString() };
+    this.state.guests.push(guest);
+    if (this.state.guests.length > MAX_GUESTS) this.state.guests.splice(0, this.state.guests.length - MAX_GUESTS);
+    this.save();
+    return guest;
+  }
+  /** Marks a guest seen now (saved at most once a minute per guest). */
+  seen(guest) {
+    const now = /* @__PURE__ */ new Date();
+    if (guest.seen && now.getTime() - Date.parse(guest.seen) < 6e4) return;
+    guest.seen = now.toISOString();
+    this.save();
+  }
+  setLan(on, port) {
+    this.state.lan = on;
+    if (on && port) this.state.port = port;
+    this.save();
+  }
+  setLink(role, on) {
+    this.state.links[role].on = on;
+    this.save();
+  }
+  /** A new token for the link: the old link stops working and the guests who came through it are dropped. */
+  resetLink(role) {
+    const old = this.state.links[role].token;
+    this.state.links[role] = { token: token(), on: this.state.links[role].on };
+    this.state.guests = this.state.guests.filter((g) => g.link !== old);
+    this.save();
+  }
+  /**
+   * Gives a guest another role. They now hang on that role's link (turning it off or resetting it drops them), so a role
+   * whose link is off would shut them out: false then, as for a guest who isn't there.
+   */
+  setRole(id, role) {
+    const guest = this.state.guests.find((g) => g.id === id);
+    if (!guest || !this.state.links[role].on) return false;
+    guest.role = role;
+    guest.link = this.state.links[role].token;
+    this.save();
+    return true;
+  }
+  removeGuest(id) {
+    const before = this.state.guests.length;
+    this.state.guests = this.state.guests.filter((g) => g.id !== id);
+    if (this.state.guests.length === before) return false;
+    this.save();
+    return true;
+  }
+};
+
+import { createHash as createHash2 } from "node:crypto";
+var GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
+var MAX_MESSAGE = 64 * 1024 * 1024;
+var WebSocketConnection = class {
+  socket;
+  buffer = Buffer.alloc(0);
+  parts = [];
+  partOpcode = 0;
+  closed = false;
+  handlers = {};
+  constructor(socket, head) {
+    this.socket = socket;
+    socket.on("data", (chunk) => this.receive(chunk));
+    socket.on("close", () => this.finish());
+    socket.on("error", () => this.finish());
+    if (head.length) this.receive(head);
+  }
+  get open() {
+    return !this.closed;
+  }
+  sendText(text) {
+    this.send(1, Buffer.from(text, "utf8"));
+  }
+  sendBinary(data) {
+    this.send(2, data);
+  }
+  close(code = 1e3, reason = "") {
+    if (this.closed) return;
+    const body = Buffer.alloc(2 + Buffer.byteLength(reason));
+    body.writeUInt16BE(code, 0);
+    body.write(reason, 2);
+    this.send(8, body);
+    this.socket.end();
+    this.finish();
+  }
+  finish() {
+    if (this.closed) return;
+    this.closed = true;
+    this.socket.destroy();
+    this.handlers.close?.();
+  }
+  send(opcode, payload) {
+    if (this.closed) return;
+    const length = payload.length;
+    let header;
+    if (length < 126) {
+      header = Buffer.from([128 | opcode, length]);
+    } else if (length < 65536) {
+      header = Buffer.alloc(4);
+      header[0] = 128 | opcode;
+      header[1] = 126;
+      header.writeUInt16BE(length, 2);
+    } else {
+      header = Buffer.alloc(10);
+      header[0] = 128 | opcode;
+      header[1] = 127;
+      header.writeBigUInt64BE(BigInt(length), 2);
+    }
+    this.socket.write(Buffer.concat([header, payload]));
+  }
+  receive(chunk) {
+    this.buffer = this.buffer.length ? Buffer.concat([this.buffer, chunk]) : chunk;
+    for (; ; ) {
+      if (this.buffer.length < 2) return;
+      const first = this.buffer[0];
+      const second = this.buffer[1];
+      const fin = (first & 128) !== 0;
+      const opcode = first & 15;
+      const masked = (second & 128) !== 0;
+      let length = second & 127;
+      let offset = 2;
+      if (length === 126) {
+        if (this.buffer.length < 4) return;
+        length = this.buffer.readUInt16BE(2);
+        offset = 4;
+      } else if (length === 127) {
+        if (this.buffer.length < 10) return;
+        const big = this.buffer.readBigUInt64BE(2);
+        if (big > BigInt(MAX_MESSAGE)) return this.close(1009, "message too big");
+        length = Number(big);
+        offset = 10;
+      }
+      const maskLength = masked ? 4 : 0;
+      if (this.buffer.length < offset + maskLength + length) return;
+      const mask = masked ? this.buffer.subarray(offset, offset + 4) : null;
+      const payload = Buffer.from(this.buffer.subarray(offset + maskLength, offset + maskLength + length));
+      if (mask) for (let index = 0; index < payload.length; index++) payload[index] = payload[index] ^ mask[index & 3];
+      this.buffer = this.buffer.subarray(offset + maskLength + length);
+      this.frame(fin, opcode, payload);
+      if (this.closed) return;
+    }
+  }
+  frame(fin, opcode, payload) {
+    switch (opcode) {
+      case 8:
+        this.close(payload.length >= 2 ? payload.readUInt16BE(0) : 1e3);
+        return;
+      case 9:
+        this.send(10, payload);
+        return;
+      case 10:
+        return;
+      case 0:
+      case 1:
+      case 2: {
+        if (opcode !== 0) {
+          this.parts = [];
+          this.partOpcode = opcode;
+        }
+        this.parts.push(payload);
+        if (this.parts.reduce((total, part) => total + part.length, 0) > MAX_MESSAGE) return this.close(1009, "message too big");
+        if (!fin) return;
+        const message = Buffer.concat(this.parts);
+        this.parts = [];
+        if (this.partOpcode === 1) this.handlers.text?.(message.toString("utf8"));
+        else this.handlers.binary?.(message);
+        return;
+      }
+      default:
+        this.close(1002, "unknown opcode");
+    }
+  }
+};
+function acceptWebSocket(request, socket, head, protocol) {
+  const key = request.headers["sec-websocket-key"];
+  if (typeof key !== "string" || String(request.headers.upgrade).toLowerCase() !== "websocket") {
+    socket.end("HTTP/1.1 400 Bad Request\r\n\r\n");
+    return null;
+  }
+  const accept = createHash2("sha1").update(key + GUID).digest("base64");
+  socket.write(["HTTP/1.1 101 Switching Protocols", "Upgrade: websocket", "Connection: Upgrade", `Sec-WebSocket-Accept: ${accept}`, ...protocol ? [`Sec-WebSocket-Protocol: ${protocol}`] : [], "", ""].join("\r\n"));
+  return new WebSocketConnection(socket, head);
+}
+
+var HUB_ROUTE = "/__hub";
+var STREAM_PROTOCOL = "baoyu-sse";
+var STREAM_REFUSED = 4e3;
+function buildOf(script2) {
+  const real = fs6.realpathSync(script2);
+  const { mtimeMs, size } = fs6.statSync(real);
+  return `${real}:${mtimeMs}:${size}`;
+}
+var SiteClash = class extends Error {
+};
+var StreamResponse = class extends EventEmitter {
+  status = 200;
+  headersSent = false;
+  writableEnded = false;
+  destroyed = false;
+  ws;
+  constructor(ws) {
+    super();
+    this.ws = ws;
+  }
+  writeHead(status) {
+    this.status = status;
+    this.headersSent = true;
+    return this;
+  }
+  setHeader() {
+    return this;
+  }
+  flushHeaders() {
+  }
+  write(chunk) {
+    if (this.status === 200 && !this.writableEnded) this.ws.sendText(String(chunk));
+    return true;
+  }
+  end(chunk) {
+    if (this.writableEnded) return this;
+    if (chunk !== void 0) this.write(chunk);
+    this.writableEnded = true;
+    this.ws.close(this.status === 200 ? 1e3 : STREAM_REFUSED + Math.min(this.status, 999));
+    return this;
+  }
+  destroy() {
+    this.destroyed = true;
+    return this.end();
+  }
+  closed() {
+    this.writableEnded = true;
+    this.emit("close");
+  }
+};
+var Hub = class {
+  port = 0;
+  kind;
+  host;
+  build;
+  factory;
+  /** Sites' logs go to its stderr too: it runs in someone's terminal, not in the background. */
+  echo;
+  server;
+  /** page → site. */
+  sites = /* @__PURE__ */ new Map();
+  adding = /* @__PURE__ */ new Map();
+  startedAt = /* @__PURE__ */ new Map();
+  hosts = /* @__PURE__ */ new Set();
+  /** One listener per LAN address while any site is open to the network. */
+  lanServers = /* @__PURE__ */ new Map();
+  network;
+  constructor(options) {
+    this.echo = options.echo;
+    this.kind = options.kind;
+    this.build = options.build;
+    this.host = options.host;
+    this.factory = options.site;
+    this.server = this.createServer();
+    const hub = this;
+    this.network = {
+      get port() {
+        return hub.port;
+      },
+      addresses: () => [...this.lanServers.keys()],
+      open: () => this.openLan(),
+      release: () => this.releaseLan()
+    };
+  }
+  createServer() {
+    const server2 = http.createServer((request, response) => {
+      this.onRequest(request, response).catch((error) => {
+        process.stderr.write(`[${(/* @__PURE__ */ new Date()).toISOString()}] request failed: ${error instanceof Error ? error.stack ?? error.message : String(error)}
+`);
+        if (!response.headersSent) sendJson2(response, 500, { code: "internal", message: "internal error" });
+        else response.destroy();
+      });
+    });
+    server2.on("upgrade", (request, socket, head) => this.onUpgrade(request, socket, head));
+    return server2;
+  }
+  /** Listens at the first free port from `port`; `first` is tried before them. */
+  async listen(port, first) {
+    this.port = await listenFree(this.server, port, this.host, first);
+    const named = this.host === "0.0.0.0" || this.host === "::" ? [] : [this.host.includes(":") ? `[${this.host}]:${this.port}` : `${this.host}:${this.port}`];
+    this.hosts = /* @__PURE__ */ new Set([`127.0.0.1:${this.port}`, `localhost:${this.port}`, `[::1]:${this.port}`, ...named]);
+    return this.port;
+  }
+  /** Ends every site and the listeners; what the folders' state files say goes with them. */
+  close() {
+    for (const site of [...this.sites.values()]) this.drop(site);
+    this.closeLan();
+    this.server.close();
+    this.server.closeAllConnections?.();
+  }
+  /** On a signal (or a stray error, logged): every site's record goes and the process exits. */
+  ownProcess() {
+    const shutdown = () => {
+      this.close();
+      process.exit(0);
+    };
+    for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"]) process.on(signal, shutdown);
+    const stray = (error) => process.stderr.write(`[${(/* @__PURE__ */ new Date()).toISOString()}] uncaught: ${error instanceof Error ? error.stack ?? error.message : String(error)}
+`);
+    process.on("uncaughtException", stray);
+    process.on("unhandledRejection", stray);
+  }
+  // ---- the sites -------------------------------------------------------------------------------------------------
+  urlOf(site) {
+    return `${serverOrigin(this.host, this.port)}${site.page}`;
+  }
+  stateOf(site) {
+    const lan = site.share.lanUrls();
+    return { pid: process.pid, url: this.urlOf(site), port: this.port, root: site.root, kind: this.kind, startedAt: this.startedAt.get(site.page) ?? (/* @__PURE__ */ new Date()).toISOString(), ...lan.length ? { lan } : {} };
+  }
+  /** Mounts a folder (already mounted: the same site), writing its <root>/.artifact-server.json. */
+  add(root, options) {
+    const mounted = [...this.sites.values()].find((site) => site.root === root);
+    if (mounted) return (options.lan && !mounted.share.shared ? mounted.share.setLan(true) : Promise.resolve()).then(() => this.stateOf(mounted));
+    const adding = this.adding.get(root);
+    if (adding) return adding;
+    const work = this.mount(root, options).finally(() => this.adding.delete(root));
+    this.adding.set(root, work);
+    return work;
+  }
+  async mount(root, { agentHook, lan = false }) {
+    const file = path6.join(root, LOG_FILE);
+    const log = (line) => {
+      const text = `[${(/* @__PURE__ */ new Date()).toISOString()}] ${line}
+`;
+      try {
+        fs6.appendFileSync(file, text);
+      } catch {
+      }
+      if (this.echo) process.stderr.write(text);
+    };
+    const site = await this.factory(root, { log, network: this.network, ...agentHook ? { agentHook } : {} });
+    const other = this.sites.get(site.page);
+    if (other) {
+      site.close();
+      throw new SiteClash(`${other.root} is already open at ${site.page}.`);
+    }
+    this.sites.set(site.page, site);
+    this.startedAt.set(site.page, (/* @__PURE__ */ new Date()).toISOString());
+    try {
+      await site.share.start(lan);
+    } catch (error) {
+      this.drop(site);
+      throw error;
+    }
+    const state = this.stateOf(site);
+    const { lan: _lan, ...record } = state;
+    writeState(record);
+    log(`serving ${root} at ${state.url}${agentHook ? `; each comment sent to the agent runs: ${agentHook}` : ""}`);
+    return state;
+  }
+  drop(site) {
+    this.sites.delete(site.page);
+    this.startedAt.delete(site.page);
+    removeState(site.root);
+    site.close();
+  }
+  /** Ends one site; true when one was mounted there. The process ends with its last site. */
+  remove(root) {
+    const site = [...this.sites.values()].find((candidate) => candidate.root === root);
+    if (site) this.drop(site);
+    return site !== void 0;
+  }
+  // ---- the network side ------------------------------------------------------------------------------------------
+  async openLan() {
+    for (const address of lanAddresses()) {
+      if (this.lanServers.has(address)) continue;
+      const server2 = this.createServer();
+      try {
+        await listen(server2, this.port, address);
+        this.lanServers.set(address, server2);
+      } catch (error) {
+        server2.close();
+        process.stderr.write(`[${(/* @__PURE__ */ new Date()).toISOString()}] not listening on ${address}:${this.port}: ${errorText(error)}
+`);
+      }
+    }
+    return [...this.lanServers.keys()];
+  }
+  /** A site stopped sharing: the listeners stay while another is shared. */
+  releaseLan() {
+    if (![...this.sites.values()].some((site) => site.share.shared)) this.closeLan();
+  }
+  closeLan() {
+    for (const server2 of this.lanServers.values()) {
+      server2.close();
+      server2.closeAllConnections?.();
+    }
+    this.lanServers.clear();
+  }
+  /** A Host header this hub answers: its own names, and while something is shared, its LAN addresses and machine name. */
+  hostAllowed(request) {
+    const host = request.headers.host ?? "";
+    if (this.hosts.has(host)) return true;
+    if (!this.lanServers.size) return false;
+    const suffix = `:${this.port}`;
+    if (!host.endsWith(suffix)) return false;
+    const name = host.slice(0, -suffix.length).toLowerCase();
+    const machine = os3.hostname().toLowerCase();
+    return this.lanServers.has(name) || name === machine || name === `${machine.replace(/\.local$/, "")}.local`;
+  }
+  // ---- requests --------------------------------------------------------------------------------------------------
+  /** The site whose address `pathname` is under, with the path below it. */
+  under(pathname) {
+    const [, first, second] = pathname.split("/");
+    const site = first && second ? this.sites.get(`/${first}/${second}/`) : void 0;
+    if (site) return { site, rest: pathname.slice(site.page.length - 1) };
+    for (const candidate of this.sites.values()) if (candidate.claims?.(pathname)) return { site: candidate, rest: pathname };
+    return null;
+  }
+  /** The site a page at this request's Referer belongs to. */
+  referred(request) {
+    const referer = request.headers.referer;
+    if (typeof referer !== "string") return null;
+    try {
+      const at = new URL(referer);
+      return at.host === request.headers.host ? this.under(at.pathname)?.site ?? null : null;
+    } catch {
+      return null;
+    }
+  }
+  /** The sites this request's person may see. */
+  seenBy(request) {
+    return [...this.sites.values()].filter((site) => site.share.viewerOf(request));
+  }
+  async onRequest(request, response) {
+    if (!this.hostAllowed(request)) {
+      request.resume();
+      response.writeHead(421, { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" }).end("Misdirected request");
+      return;
+    }
+    const url = new URL(request.url ?? "/", "http://local");
+    const pathname = url.pathname;
+    if (pathname === HUB_ROUTE) return this.control(request, response);
+    if (pathname === "/favicon.ico") {
+      response.writeHead(204).end();
+      return;
+    }
+    if (pathname === "/" || pathname === "/index.html") return this.landing(request, response, url.search);
+    const at = this.under(pathname);
+    if (at) {
+      if (at.rest === "") {
+        request.resume();
+        response.writeHead(308, { Location: `${pathname}/${url.search}`, "Cache-Control": "no-store" }).end();
+        return;
+      }
+      request.url = `${at.rest}${url.search}`;
+      return at.site.handle(request, response);
+    }
+    const site = await this.answering(request, pathname);
+    if (site) return site.handle(request, response);
+    request.resume();
+    response.writeHead(404, { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" }).end("Not found");
+  }
+  /** The site that answers a path outside every site's address. */
+  async answering(request, pathname) {
+    const link = /^\/s\/([A-Za-z0-9_-]{16,64})$/.exec(pathname);
+    if (link) return [...this.sites.values()].find((site) => site.share.sharing.linkRole(link[1])) ?? null;
+    const blob = /^\/_blob\/([0-9a-f]{32})$/.exec(pathname);
+    if (blob) {
+      const referred = this.referred(request);
+      const seen = this.seenBy(request);
+      for (const site of referred && seen.includes(referred) ? [referred, ...seen] : seen) if (await site.hasBlob?.(blob[1])) return site;
+      return null;
+    }
+    for (const site of this.sites.values()) if (site.common?.(pathname)) return site;
+    return this.referred(request);
+  }
+  /** `/`: where this person goes. */
+  landing(request, response, search) {
+    const seen = this.seenBy(request);
+    const only = seen[0];
+    if (seen.length === 1 && only) {
+      request.resume();
+      response.writeHead(302, { Location: `${only.page}${search}`, "Cache-Control": "no-store" }).end();
+      return;
+    }
+    const any = only ?? [...this.sites.values()][0];
+    if (!any) {
+      request.resume();
+      response.writeHead(404, { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" }).end("Nothing is open here.");
+      return;
+    }
+    if (!only) return any.share.denied(request, response);
+    any.share.sendList(response, seen.map((site) => ({ page: site.page, title: site.share.title() })));
+  }
+  /** The CLIs' route: over loopback, from a process (a browser's POST carries an Origin). */
+  async control(request, response) {
+    const info = { hub: 1, kind: this.kind, build: this.build, host: this.host, pid: process.pid };
+    if (!isLoopback(request.socket.remoteAddress) || request.headers.origin !== void 0) {
+      request.resume();
+      return sendJson2(response, 403, { code: "not_granted", message: "Only a local process can do this." });
+    }
+    if (request.method === "GET") return sendJson2(response, 200, info);
+    if (request.method !== "POST") {
+      request.resume();
+      return sendJson2(response, 405, { code: "method_not_allowed", message: "GET or POST." });
+    }
+    let body;
+    try {
+      body = JSON.parse((await readBody(request, 64 << 10)).toString("utf8"));
+    } catch {
+      return sendJson2(response, 400, { code: "invalid_argument", message: "The call is not JSON." });
+    }
+    if (typeof body.root !== "string" || !path6.isAbsolute(body.root)) return sendJson2(response, 400, { code: "invalid_argument", message: "root: an absolute path." });
+    if (body.action === "mount") {
+      try {
+        const state = await this.add(body.root, { ...typeof body.agentHook === "string" && body.agentHook ? { agentHook: body.agentHook } : {}, lan: body.lan === true });
+        return sendJson2(response, 200, { ...info, state });
+      } catch (error) {
+        sendJson2(response, error instanceof SiteClash ? 409 : 400, { ...info, code: error.code ?? "SERVER_FAILED", message: errorText(error) });
+        return this.endIfEmpty();
+      }
+    }
+    if (body.action === "unmount") {
+      const removed = this.remove(body.root);
+      const remaining = this.sites.size;
+      sendJson2(response, 200, { ...info, removed, remaining });
+      return this.endIfEmpty();
+    }
+    return sendJson2(response, 400, { code: "invalid_argument", message: "action: mount or unmount." });
+  }
+  /** The process ends with its last site. */
+  endIfEmpty() {
+    if (this.sites.size > 0 || this.adding.size > 0) return;
+    this.close();
+    setImmediate(() => process.exit(0));
+  }
+  onUpgrade(request, socket, head) {
+    socket.on("error", () => {
+    });
+    const url = new URL(request.url ?? "/", "http://local");
+    const at = this.hostAllowed(request) && this.originOk(request) ? this.under(url.pathname) : null;
+    if (!at) {
+      socket.end("HTTP/1.1 403 Forbidden\r\n\r\n");
+      return;
+    }
+    request.url = `${at.rest}${url.search}`;
+    const asked = String(request.headers["sec-websocket-protocol"] ?? "").split(",").map((p) => p.trim());
+    if (asked.includes(STREAM_PROTOCOL)) return this.stream(at.site, request, socket, head, url);
+    if (at.site.upgrade) return at.site.upgrade(request, socket, head);
+    socket.end("HTTP/1.1 404 Not Found\r\n\r\n");
+  }
+  originOk(request) {
+    const origin = request.headers.origin;
+    if (origin === void 0) return true;
+    try {
+      return new URL(origin).host === request.headers.host;
+    } catch {
+      return false;
+    }
+  }
+  /** An event stream over a WebSocket: the site's handler answers it as a GET. */
+  stream(site, request, socket, head, url) {
+    const ws = acceptWebSocket(request, socket, head, STREAM_PROTOCOL);
+    if (!ws) return;
+    const last = url.searchParams.get("__lastEventId");
+    if (last !== null) {
+      request.headers["last-event-id"] = last;
+      url.searchParams.delete("__lastEventId");
+      request.url = `${request.url?.split("?")[0]}${url.search}`;
+    }
+    request.method = "GET";
+    const response = new StreamResponse(ws);
+    ws.handlers = {
+      close: () => {
+        response.closed();
+        request.emit("close");
+      }
+    };
+    Promise.resolve(site.handle(request, response)).catch(() => ws.close(STREAM_REFUSED + 500));
+  }
+};
+async function hubAt(origin) {
+  try {
+    const response = await fetch(`${origin}${HUB_ROUTE}`, { signal: AbortSignal.timeout(1e3) });
+    if (!response.ok) return null;
+    const info = await response.json();
+    return info.hub === 1 ? info : null;
+  } catch {
+    return null;
+  }
+}
+async function joinHub(call, below = Infinity) {
+  if (call.port === 0) return null;
+  const ports = call.portGiven ? [call.port] : Array.from({ length: PORT_TRIES }, (_, i) => call.port + i).filter((port) => port <= 65535 && port < below);
+  const build = buildOf(call.script);
+  const origins = ports.map((port) => serverOrigin(call.host, port));
+  const infos = await Promise.all(origins.map(hubAt));
+  for (const [i, info] of infos.entries()) {
+    if (!info || info.kind !== call.kind || info.build !== build || info.host !== call.host) continue;
+    const response = await fetch(`${origins[i]}${HUB_ROUTE}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "mount", root: call.root, ...call.agentHook ? { agentHook: call.agentHook } : {}, lan: call.lan === true }),
+      signal: AbortSignal.timeout(2e4)
+    }).catch(() => null);
+    if (!response) continue;
+    const body = await response.json().catch(() => ({}));
+    if (response.ok && body.state) return body.state;
+    if (response.status === 409) continue;
+    throw Object.assign(new Error(body.message ?? `the server answered ${response.status}`), { code: body.code ?? "SERVER_FAILED" });
+  }
+  return null;
+}
+async function leaveHub(state) {
+  let remaining = 0;
+  const response = await fetch(`${new URL(state.url).origin}${HUB_ROUTE}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "unmount", root: state.root }),
+    signal: AbortSignal.timeout(5e3)
+  }).catch(() => null);
+  const body = response ? await response.json().catch(() => null) : null;
+  if (body?.hub === 1) remaining = Number(body.remaining ?? 0);
+  else if (alive(state.pid)) process.kill(state.pid, "SIGTERM");
+  const deadline = Date.now() + 5e3;
+  while (remaining === 0 && alive(state.pid) && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 100));
+  if (remaining === 0 && alive(state.pid)) return false;
+  fs6.rmSync(path6.join(state.root, STATE_FILE), { force: true });
+  return true;
+}
+function holdSite(state) {
+  const leave = () => {
+    void leaveHub(state).finally(() => process.exit(0));
+  };
+  for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"]) process.on(signal, leave);
+  setInterval(() => {
+    if (!alive(state.pid) || readState(state.root)?.pid !== state.pid) process.exit(0);
+  }, 2e3);
+}
+async function serveHub(call) {
+  const joined = await joinHub(call);
+  const stayed = (state) => {
+    if (!call.background) holdSite(state);
+    return { ...state, joined: true };
+  };
+  if (joined) return stayed(joined);
+  const hub = new Hub({ kind: call.kind, build: buildOf(call.script), host: call.host, site: call.site, echo: !call.background });
+  const { state: sharing } = new Sharing(call.root);
+  const linksPort = !call.portGiven && (call.lan || sharing.lan) ? sharing.port : void 0;
+  const port = await hub.listen(call.port, linksPort);
+  const lower = call.portGiven ? null : await joinHub(call, port);
+  if (lower) {
+    hub.close();
+    return stayed(lower);
+  }
+  hub.ownProcess();
+  try {
+    return { ...await hub.add(call.root, { ...call.agentHook ? { agentHook: call.agentHook } : {}, lan: call.lan === true }), joined: false };
+  } catch (error) {
+    hub.close();
+    throw error;
+  }
+}
+
+import fs7 from "node:fs";
+import path7 from "node:path";
 var FOLDER2 = /^[a-z0-9][a-z0-9_-]{0,63}$/;
 var MAX_FILES = 2e3;
 var MAX_FILE_BYTES2 = 64 * 1024 * 1024;
@@ -1504,7 +2259,7 @@ var DESIGN_SYSTEM_FILE = "design-system.json";
 function readRecords(project, indexFile) {
   let index;
   try {
-    index = JSON.parse(fs5.readFileSync(path5.join(project, indexFile), "utf8"));
+    index = JSON.parse(fs7.readFileSync(path7.join(project, indexFile), "utf8"));
   } catch {
     return [];
   }
@@ -1523,11 +2278,11 @@ function readRecords(project, indexFile) {
   return out;
 }
 function plain(p, want) {
-  const stat = fs5.lstatSync(p, { throwIfNoEntry: false });
+  const stat = fs7.lstatSync(p, { throwIfNoEntry: false });
   return Boolean(stat && !stat.isSymbolicLink() && (want === "file" ? stat.isFile() : stat.isDirectory()));
 }
 function walk(dir, prefix = "", out = []) {
-  for (const entry of fs5.readdirSync(path5.join(dir, prefix), { withFileTypes: true })) {
+  for (const entry of fs7.readdirSync(path7.join(dir, prefix), { withFileTypes: true })) {
     if (out.length >= MAX_FILES) break;
     const rel = prefix ? `${prefix}/${entry.name}` : entry.name;
     if (entry.isDirectory()) walk(dir, rel, out);
@@ -1535,22 +2290,22 @@ function walk(dir, prefix = "", out = []) {
   }
   return out;
 }
-var projectOf = (candidate) => path5.basename(candidate) === "project" ? candidate : path5.join(candidate, "project");
+var projectOf = (candidate) => path7.basename(candidate) === "project" ? candidate : path7.join(candidate, "project");
 function sourceProject(artifact, root, from) {
   const given = from ?? artifact;
   if (!given) return { reason: "the record names no source folder", kind: "none" };
   if (!from && /^[a-z][a-z0-9+.-]*:\/\//i.test(given)) return { reason: `its source is ${given}, which is not a folder on this machine`, kind: "remote" };
-  const candidates = path5.isAbsolute(given) ? [given] : [path5.resolve(given), path5.resolve(root, given), path5.resolve(root, "..", given)];
+  const candidates = path7.isAbsolute(given) ? [given] : [path7.resolve(given), path7.resolve(root, given), path7.resolve(root, "..", given)];
   for (const candidate of candidates) {
     const project = projectOf(candidate);
     if (plain(project, "dir")) return { project };
   }
-  if (!from && !path5.isAbsolute(given)) {
-    let dir = path5.resolve(root, "..");
-    for (let up = path5.dirname(dir); up !== dir; up = path5.dirname(dir)) {
+  if (!from && !path7.isAbsolute(given)) {
+    let dir = path7.resolve(root, "..");
+    for (let up = path7.dirname(dir); up !== dir; up = path7.dirname(dir)) {
       dir = up;
-      const project = projectOf(path5.resolve(dir, given));
-      if (plain(path5.join(project, DESIGN_SYSTEM_FILE), "file")) return { project };
+      const project = projectOf(path7.resolve(dir, given));
+      if (plain(path7.join(project, DESIGN_SYSTEM_FILE), "file")) return { project };
     }
   }
   return { reason: `its source folder ${given} was not found${from ? "" : ` (tried from ${process.cwd()} and the folders above the artifact); pass --from <folder>`}`, kind: "not-found" };
@@ -1559,21 +2314,21 @@ function compareSystem(project, root, record, from) {
   const diff = { namespace: record.namespace, title: record.title, changed: [], removed: [] };
   const found = sourceProject(record.artifact, root, from);
   if (!found.project) return { ...diff, skipped: found.reason, skippedKind: found.kind };
-  diff.source = path5.dirname(found.project);
-  const copy = path5.join(project, "ds", record.namespace);
+  diff.source = path7.dirname(found.project);
+  const copy = path7.join(project, "ds", record.namespace);
   if (!plain(copy, "dir")) return { ...diff, missing: true };
   for (const rel of walk(copy)) {
-    const mine = path5.join(copy, rel);
-    const theirs = path5.join(found.project, rel);
+    const mine = path7.join(copy, rel);
+    const theirs = path7.join(found.project, rel);
     if (!plain(mine, "file")) continue;
     if (!plain(theirs, "file")) {
       diff.removed.push(rel);
       continue;
     }
-    const a = fs5.statSync(mine);
-    const b = fs5.statSync(theirs);
+    const a = fs7.statSync(mine);
+    const b = fs7.statSync(theirs);
     if (a.size > MAX_FILE_BYTES2 || b.size > MAX_FILE_BYTES2) continue;
-    if (a.size !== b.size || !fs5.readFileSync(mine).equals(fs5.readFileSync(theirs))) diff.changed.push(rel);
+    if (a.size !== b.size || !fs7.readFileSync(mine).equals(fs7.readFileSync(theirs))) diff.changed.push(rel);
   }
   return diff;
 }
@@ -1599,8 +2354,8 @@ function compareSystems(project, root, indexFile, namespace, from) {
   return pick(readRecords(project, indexFile), namespace).map((r) => compareSystem(project, root, r, from));
 }
 function stamp(project, indexFile, namespaces, now) {
-  const file = path5.join(project, indexFile);
-  const text = fs5.readFileSync(file, "utf8");
+  const file = path7.join(project, indexFile);
+  const text = fs7.readFileSync(file, "utf8");
   const index = JSON.parse(text);
   const list = index.designSystems;
   const records = Array.isArray(list) ? list : list && typeof list === "object" ? Object.values(list) : [];
@@ -1611,9 +2366,9 @@ function stamp(project, indexFile, namespaces, now) {
   const indent = /^\{\n/.test(text) ? /\n( +|\t)"/.exec(text)?.[1] ?? 2 : void 0;
   const out = JSON.stringify(index, null, indent);
   const tmp = `${file}.${process.pid}.tmp`;
-  fs5.writeFileSync(tmp, text.endsWith("\n") ? `${out}
+  fs7.writeFileSync(tmp, text.endsWith("\n") ? `${out}
 ` : out);
-  fs5.renameSync(tmp, file);
+  fs7.renameSync(tmp, file);
 }
 function syncSystems(project, root, indexFile, opts) {
   const diffs = compareSystems(project, root, indexFile, opts.namespace, opts.from);
@@ -1624,10 +2379,10 @@ function syncSystems(project, root, indexFile, opts) {
     const result = { ...diff, copied: [] };
     if (!opts.check && diff.source && !diff.missing) {
       for (const rel of diff.changed) {
-        const target = path5.join(project, "ds", diff.namespace, rel);
+        const target = path7.join(project, "ds", diff.namespace, rel);
         const tmp = `${target}.${process.pid}.tmp`;
-        fs5.copyFileSync(path5.join(diff.source, "project", rel), tmp);
-        fs5.renameSync(tmp, target);
+        fs7.copyFileSync(path7.join(diff.source, "project", rel), tmp);
+        fs7.renameSync(tmp, target);
         result.copied.push(rel);
       }
       if (diff.changed.length > 0) synced.add(diff.namespace);
@@ -1641,9 +2396,9 @@ function syncSystems(project, root, indexFile, opts) {
   return results;
 }
 
-import { createHash, randomBytes } from "node:crypto";
-import fs6 from "node:fs";
-import path6 from "node:path";
+import { createHash as createHash3, randomBytes } from "node:crypto";
+import fs8 from "node:fs";
+import path8 from "node:path";
 var HISTORY_DIR = "history";
 var INDEX = "index.json";
 var OBJECTS = "objects";
@@ -1654,34 +2409,34 @@ var MAX_NOTICES = 50;
 var NOTICE_DAYS = 7;
 var AGENT = { by: "agent", user: { id: "agent", name: "Agent" } };
 var SYSTEM = { by: "system", user: { id: "system", name: "" } };
-var sha256 = (bytes) => createHash("sha256").update(bytes).digest("hex");
+var sha256 = (bytes) => createHash3("sha256").update(bytes).digest("hex");
 var SHA = /^[0-9a-f]{64}$/;
-var isRecord2 = (value) => typeof value === "object" && value !== null && !Array.isArray(value);
+var isRecord3 = (value) => typeof value === "object" && value !== null && !Array.isArray(value);
 function writeAtomic2(file, data) {
-  fs6.mkdirSync(path6.dirname(file), { recursive: true });
-  const tmp = path6.join(path6.dirname(file), `.${path6.basename(file)}.${process.pid}.${randomBytes(4).toString("hex")}.tmp`);
+  fs8.mkdirSync(path8.dirname(file), { recursive: true });
+  const tmp = path8.join(path8.dirname(file), `.${path8.basename(file)}.${process.pid}.${randomBytes(4).toString("hex")}.tmp`);
   try {
-    fs6.writeFileSync(tmp, data);
-    fs6.renameSync(tmp, file);
+    fs8.writeFileSync(tmp, data);
+    fs8.renameSync(tmp, file);
   } catch (error) {
-    fs6.rmSync(tmp, { force: true });
+    fs8.rmSync(tmp, { force: true });
     throw error;
   }
 }
 var emptyIndex = () => ({ format: 1, next: 1, base: {}, versions: [], notices: [] });
 function readUser(value) {
-  return isRecord2(value) && typeof value.id === "string" && typeof value.name === "string" ? { id: value.id, name: value.name } : null;
+  return isRecord3(value) && typeof value.id === "string" && typeof value.name === "string" ? { id: value.id, name: value.name } : null;
 }
 var isAuthor = (value) => value === "human" || value === "agent" || value === "system";
 function parseIndex(raw) {
   const index = emptyIndex();
-  if (!isRecord2(raw)) return index;
-  if (isRecord2(raw.base)) {
+  if (!isRecord3(raw)) return index;
+  if (isRecord3(raw.base)) {
     for (const [p, s] of Object.entries(raw.base)) if (typeof s === "string" && SHA.test(s)) index.base[p] = s;
   }
   if (Array.isArray(raw.versions)) {
     for (const v of raw.versions) {
-      if (!isRecord2(v) || typeof v.n !== "number" || !isAuthor(v.by) || typeof v.at !== "string" || !isRecord2(v.changes)) continue;
+      if (!isRecord3(v) || typeof v.n !== "number" || !isAuthor(v.by) || typeof v.at !== "string" || !isRecord3(v.changes)) continue;
       const user = readUser(v.user);
       if (!user) continue;
       const changes = {};
@@ -1693,8 +2448,8 @@ function parseIndex(raw) {
       if (Array.isArray(v.overwrote)) {
         const list = [];
         for (const o of v.overwrote) {
-          const who = isRecord2(o) ? readUser(o.user) : null;
-          if (!isRecord2(o) || !who || typeof o.path !== "string" || o.lost !== null && typeof o.lost !== "string" || typeof o.n !== "number" || !isAuthor(o.by)) continue;
+          const who = isRecord3(o) ? readUser(o.user) : null;
+          if (!isRecord3(o) || !who || typeof o.path !== "string" || o.lost !== null && typeof o.lost !== "string" || typeof o.n !== "number" || !isAuthor(o.by)) continue;
           list.push({
             path: o.path,
             lost: o.lost,
@@ -1716,10 +2471,10 @@ function parseIndex(raw) {
   index.next = Math.max(typeof raw.next === "number" ? raw.next : 1, (last?.n ?? 0) + 1);
   if (Array.isArray(raw.notices)) {
     for (const n of raw.notices) {
-      if (!isRecord2(n) || typeof n.id !== "string" || typeof n.to !== "string" || typeof n.path !== "string" || typeof n.n !== "number") continue;
+      if (!isRecord3(n) || typeof n.id !== "string" || typeof n.to !== "string" || typeof n.path !== "string" || typeof n.n !== "number") continue;
       if (n.kind !== "overwritten" && n.kind !== "overwrote") continue;
       const by = readUser(n.by);
-      const lost = isRecord2(n.lost) ? n.lost : null;
+      const lost = isRecord3(n.lost) ? n.lost : null;
       const lostUser = lost ? readUser(lost.user) : null;
       if (!by || !lost || !lostUser || lost.sha !== null && typeof lost.sha !== "string" || typeof lost.n !== "number" || !isAuthor(lost.by)) continue;
       index.notices.push({
@@ -1745,10 +2500,10 @@ var History = class {
   /** path → sha: what the files hold after the newest version. */
   headState;
   constructor(root) {
-    this.dir = path6.join(root, HISTORY_DIR);
+    this.dir = path8.join(root, HISTORY_DIR);
     let raw = null;
     try {
-      raw = JSON.parse(fs6.readFileSync(path6.join(this.dir, INDEX), "utf8"));
+      raw = JSON.parse(fs8.readFileSync(path8.join(this.dir, INDEX), "utf8"));
     } catch {
     }
     this.index = parseIndex(raw);
@@ -1792,7 +2547,7 @@ var History = class {
   read(sha) {
     if (!SHA.test(sha)) return null;
     try {
-      return fs6.readFileSync(path6.join(this.dir, OBJECTS, sha));
+      return fs8.readFileSync(path8.join(this.dir, OBJECTS, sha));
     } catch {
       return null;
     }
@@ -1806,7 +2561,7 @@ var History = class {
   size(sha) {
     if (!SHA.test(sha)) return null;
     try {
-      return fs6.statSync(path6.join(this.dir, OBJECTS, sha)).size;
+      return fs8.statSync(path8.join(this.dir, OBJECTS, sha)).size;
     } catch {
       return null;
     }
@@ -1940,8 +2695,8 @@ var History = class {
     return out;
   }
   putObject(sha, bytes) {
-    const file = path6.join(this.dir, OBJECTS, sha);
-    if (fs6.existsSync(file)) return;
+    const file = path8.join(this.dir, OBJECTS, sha);
+    if (fs8.existsSync(file)) return;
     writeAtomic2(file, bytes);
   }
   /** Past MAX_VERSIONS the oldest fold into the base; old notices go; contents no one holds are removed. */
@@ -1978,14 +2733,14 @@ var History = class {
     }
     let names;
     try {
-      names = fs6.readdirSync(path6.join(this.dir, OBJECTS));
+      names = fs8.readdirSync(path8.join(this.dir, OBJECTS));
     } catch {
       return;
     }
-    for (const name of names) if (SHA.test(name) && !keep.has(name)) fs6.rmSync(path6.join(this.dir, OBJECTS, name), { force: true });
+    for (const name of names) if (SHA.test(name) && !keep.has(name)) fs8.rmSync(path8.join(this.dir, OBJECTS, name), { force: true });
   }
   save() {
-    writeAtomic2(path6.join(this.dir, INDEX), `${JSON.stringify(this.index)}
+    writeAtomic2(path8.join(this.dir, INDEX), `${JSON.stringify(this.index)}
 `);
   }
 };
@@ -2054,157 +2809,16 @@ function diffContents(before, after) {
   return { added, removed, lines, ...truncated ? { truncated: true } : {} };
 }
 
-import { createHash as createHash2 } from "node:crypto";
-import fs10 from "node:fs";
-import os4 from "node:os";
-import path10 from "node:path";
+import { createHash as createHash4 } from "node:crypto";
+import fs11 from "node:fs";
+import os5 from "node:os";
+import path11 from "node:path";
 
-import fs8 from "node:fs";
+import fs9 from "node:fs";
 import fsp2 from "node:fs/promises";
-import path8 from "node:path";
+import path9 from "node:path";
 import { promisify } from "node:util";
 import zlib from "node:zlib";
-
-import crypto from "node:crypto";
-import fs7 from "node:fs";
-import path7 from "node:path";
-var GUEST_ROLES = ["editor", "commenter", "viewer"];
-var isGuestRole = (value) => typeof value === "string" && GUEST_ROLES.includes(value);
-var SHARING_FILE = ".sharing.json";
-var MAX_GUESTS = 200;
-var MAX_NAME = 40;
-var token = (bytes = 18) => crypto.randomBytes(bytes).toString("base64url");
-var isRecord3 = (value) => typeof value === "object" && value !== null && !Array.isArray(value);
-function fresh() {
-  return { lan: false, links: { editor: { token: token(), on: true }, commenter: { token: token(), on: true }, viewer: { token: token(), on: true } }, guests: [] };
-}
-function cleanName(raw) {
-  const name = typeof raw === "string" ? raw.replace(/[\u0000-\u001f\u007f@<>]/g, "").replace(/\s+/g, " ").trim() : "";
-  return [...name].slice(0, MAX_NAME).join("");
-}
-function guestUser(guest) {
-  return { id: `guest-${guest.id}`, name: guest.name, email: `${guest.name}@${guest.id}.guest` };
-}
-function isLoopback(address) {
-  if (!address) return false;
-  const a = address.startsWith("::ffff:") ? address.slice(7) : address;
-  return a === "::1" || a.startsWith("127.");
-}
-var Sharing = class _Sharing {
-  file;
-  state;
-  constructor(root) {
-    this.file = path7.join(root, SHARING_FILE);
-    this.state = _Sharing.read(this.file);
-  }
-  static read(file) {
-    let raw;
-    try {
-      raw = JSON.parse(fs7.readFileSync(file, "utf8"));
-    } catch {
-      return fresh();
-    }
-    const state = fresh();
-    if (!isRecord3(raw)) return state;
-    state.lan = raw.lan === true;
-    if (typeof raw.port === "number" && Number.isInteger(raw.port) && raw.port > 0 && raw.port < 65536) state.port = raw.port;
-    if (isRecord3(raw.links)) {
-      for (const role of GUEST_ROLES) {
-        const link = raw.links[role];
-        if (isRecord3(link) && typeof link.token === "string" && link.token.length >= 16) state.links[role] = { token: link.token, on: link.on !== false };
-      }
-    }
-    if (Array.isArray(raw.guests)) {
-      for (const g of raw.guests) {
-        if (!isRecord3(g) || typeof g.id !== "string" || typeof g.secret !== "string" || !isGuestRole(g.role) || typeof g.link !== "string") continue;
-        state.guests.push({
-          id: g.id,
-          secret: g.secret,
-          name: cleanName(g.name) || "Guest",
-          role: g.role,
-          link: g.link,
-          joined: typeof g.joined === "string" ? g.joined : (/* @__PURE__ */ new Date(0)).toISOString(),
-          ...typeof g.seen === "string" ? { seen: g.seen } : {}
-        });
-      }
-    }
-    return state;
-  }
-  save() {
-    const tmp = `${this.file}.${process.pid}.tmp`;
-    fs7.writeFileSync(tmp, `${JSON.stringify(this.state, null, 2)}
-`, { mode: 384 });
-    fs7.renameSync(tmp, this.file);
-  }
-  /** The role whose link has this token, while that link is on. */
-  linkRole(tokenGiven) {
-    for (const role of GUEST_ROLES) {
-      const link = this.state.links[role];
-      if (link.on && tokenGiven.length === link.token.length && crypto.timingSafeEqual(Buffer.from(tokenGiven), Buffer.from(link.token))) return role;
-    }
-    return null;
-  }
-  /** The guest a cookie names, if they still have access (their link on and not reset). */
-  guest(secret) {
-    if (!secret) return null;
-    const guest = this.state.guests.find((g) => g.secret === secret);
-    return guest && this.valid(guest) ? guest : null;
-  }
-  valid(guest) {
-    const link = this.state.links[guest.role];
-    return link.on && link.token === guest.link && this.state.guests.includes(guest);
-  }
-  join(role, name) {
-    const guest = { id: token(4), secret: token(24), name: cleanName(name) || "Guest", role, link: this.state.links[role].token, joined: (/* @__PURE__ */ new Date()).toISOString() };
-    this.state.guests.push(guest);
-    if (this.state.guests.length > MAX_GUESTS) this.state.guests.splice(0, this.state.guests.length - MAX_GUESTS);
-    this.save();
-    return guest;
-  }
-  /** Marks a guest seen now (saved at most once a minute per guest). */
-  seen(guest) {
-    const now = /* @__PURE__ */ new Date();
-    if (guest.seen && now.getTime() - Date.parse(guest.seen) < 6e4) return;
-    guest.seen = now.toISOString();
-    this.save();
-  }
-  setLan(on, port) {
-    this.state.lan = on;
-    if (on && port) this.state.port = port;
-    this.save();
-  }
-  setLink(role, on) {
-    this.state.links[role].on = on;
-    this.save();
-  }
-  /** A new token for the link: the old link stops working and the guests who came through it are dropped. */
-  resetLink(role) {
-    const old = this.state.links[role].token;
-    this.state.links[role] = { token: token(), on: this.state.links[role].on };
-    this.state.guests = this.state.guests.filter((g) => g.link !== old);
-    this.save();
-  }
-  /**
-   * Gives a guest another role. They now hang on that role's link (turning it off or resetting it drops them), so a role
-   * whose link is off would shut them out: false then, as for a guest who isn't there.
-   */
-  setRole(id, role) {
-    const guest = this.state.guests.find((g) => g.id === id);
-    if (!guest || !this.state.links[role].on) return false;
-    guest.role = role;
-    guest.link = this.state.links[role].token;
-    this.save();
-    return true;
-  }
-  removeGuest(id) {
-    const before = this.state.guests.length;
-    this.state.guests = this.state.guests.filter((g) => g.id !== id);
-    if (this.state.guests.length === before) return false;
-    this.save();
-    return true;
-  }
-};
-
 var LOCAL_FILES = /* @__PURE__ */ new Set([STATE_FILE, LOG_FILE, SHARING_FILE]);
 var LOCAL_DIRS = /* @__PURE__ */ new Set([EXPORTS_DIR]);
 var JUNK_FILES = /* @__PURE__ */ new Set([".DS_Store", "Thumbs.db", "desktop.ini"]);
@@ -2216,8 +2830,8 @@ var ArchiveTooLarge = class extends Error {
   code = "TOO_LARGE";
 };
 async function archiveEntries(root, skip = []) {
-  const folder = path8.basename(path8.resolve(root)) || "artifact";
-  const skipped = new Set(skip.map((file) => path8.resolve(file)));
+  const folder = path9.basename(path9.resolve(root)) || "artifact";
+  const skipped = new Set(skip.map((file) => path9.resolve(file)));
   const entries = [];
   const walk2 = async (dir, rel) => {
     let names;
@@ -2230,7 +2844,7 @@ async function archiveEntries(root, skip = []) {
     for (const dirent of names.sort((a, b) => a.name < b.name ? -1 : a.name > b.name ? 1 : 0)) {
       const name = dirent.name;
       if (JUNK_FILES.has(name) || isTemp(name) || !rel && (LOCAL_FILES.has(name) || LOCAL_DIRS.has(name) && dirent.isDirectory())) continue;
-      const file = path8.join(dir, name);
+      const file = path9.join(dir, name);
       if (skipped.has(file)) continue;
       const inner = rel ? `${rel}/${name}` : name;
       if (dirent.isDirectory()) await walk2(file, inner);
@@ -2240,7 +2854,7 @@ async function archiveEntries(root, skip = []) {
       }
     }
   };
-  await walk2(path8.resolve(root), "");
+  await walk2(path9.resolve(root), "");
   if (entries.length > MAX_ENTRIES) throw new ArchiveTooLarge(`The folder holds ${entries.length} files, more than a zip holds (${MAX_ENTRIES}); copy the folder itself instead.`);
   const bound = entries.reduce((sum, entry) => sum + entry.size + 2 * (46 + Buffer.byteLength(entry.name)), 22);
   if (bound > MAX_BYTES) throw new ArchiveTooLarge(`The folder holds ${(bound / 2 ** 30).toFixed(1)} GiB, more than a zip holds (4 GiB); copy the folder itself instead.`);
@@ -2289,7 +2903,7 @@ async function writeZip(entries, write) {
     const crc = crc32(data);
     let method = 0;
     let body = data;
-    if (data.length > 0 && !STORED.has(path8.extname(entry.name).toLowerCase())) {
+    if (data.length > 0 && !STORED.has(path9.extname(entry.name).toLowerCase())) {
       const deflated = await deflateRaw(data);
       if (deflated.length < data.length) {
         method = 8;
@@ -2343,12 +2957,12 @@ async function writeZip(entries, write) {
 }
 function archiveFileName(root, now = /* @__PURE__ */ new Date()) {
   const day = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-  return `${path8.basename(path8.resolve(root)) || "artifact"}-${day}.zip`;
+  return `${path9.basename(path9.resolve(root)) || "artifact"}-${day}.zip`;
 }
 async function writeArchive(root, out) {
-  const file = path8.resolve(out);
+  const file = path9.resolve(out);
   const entries = await archiveEntries(root, [file]);
-  const tmp = path8.join(path8.dirname(file), `.${path8.basename(file)}.${process.pid}.tmp`);
+  const tmp = path9.join(path9.dirname(file), `.${path9.basename(file)}.${process.pid}.tmp`);
   const handle = await fsp2.open(tmp, "w");
   let bytes;
   try {
@@ -2366,10 +2980,10 @@ async function writeArchive(root, out) {
   return { file, files: entries.length, bytes };
 }
 async function archiveCommand(root, out) {
-  const where = out ? path8.resolve(out) : path8.dirname(path8.resolve(root));
-  const target = fs8.statSync(where, { throwIfNoEntry: false })?.isDirectory() ? path8.join(where, archiveFileName(root)) : where;
+  const where = out ? path9.resolve(out) : path9.dirname(path9.resolve(root));
+  const target = fs9.statSync(where, { throwIfNoEntry: false })?.isDirectory() ? path9.join(where, archiveFileName(root)) : where;
   const { file, files, bytes } = await writeArchive(root, target);
-  return { file, folder: path8.basename(path8.resolve(root)), files, bytes, leftOut: [...LOCAL_FILES] };
+  return { file, folder: path9.basename(path9.resolve(root)), files, bytes, leftOut: [...LOCAL_FILES] };
 }
 function attachment(name) {
   const ascii = name.replace(/[^\x20-\x7e]|["\\]/g, "_");
@@ -2417,31 +3031,31 @@ async function sendArchive(request, response, root) {
   }
 }
 
-import fs9 from "node:fs";
+import fs10 from "node:fs";
 import fsp3 from "node:fs/promises";
-import os3 from "node:os";
-import path9 from "node:path";
+import os4 from "node:os";
+import path10 from "node:path";
 var MAX_BYTES2 = 4294967295;
 function shown(file) {
-  const home = os3.homedir();
-  return home && (file === home || file.startsWith(home + path9.sep)) ? `~${file.slice(home.length)}` : file;
+  const home = os4.homedir();
+  return home && (file === home || file.startsWith(home + path10.sep)) ? `~${file.slice(home.length)}` : file;
 }
 function saved(file, bytes) {
-  return { path: file, name: path9.basename(file), folder: path9.dirname(file), shown: shown(file), bytes };
+  return { path: file, name: path10.basename(file), folder: path10.dirname(file), shown: shown(file), bytes };
 }
 function safeFileName(raw) {
   let name = (raw.replace(/\\/g, "/").split("/").pop() ?? "").replace(/[\u0000-\u001f\u007f<>:"|?*]/g, "_").replace(/^[.\s]+|[.\s]+$/g, "");
   if (name.length > 200) {
-    const ext = path9.extname(name).slice(0, 16);
+    const ext = path10.extname(name).slice(0, 16);
     name = name.slice(0, 200 - ext.length) + ext;
   }
   return name || "download";
 }
 async function openFree(dir, name) {
-  const ext = path9.extname(name);
+  const ext = path10.extname(name);
   const stem = name.slice(0, name.length - ext.length);
   for (let n = 0; ; n++) {
-    const file = path9.join(dir, n === 0 ? name : `${stem} (${n})${ext}`);
+    const file = path10.join(dir, n === 0 ? name : `${stem} (${n})${ext}`);
     try {
       return { file, handle: await fsp3.open(file, "wx") };
     } catch (error) {
@@ -2460,7 +3074,7 @@ async function saveDownload(request, response, root) {
   let handle = null;
   let bytes = 0;
   try {
-    const dir = path9.join(root, EXPORTS_DIR);
+    const dir = path10.join(root, EXPORTS_DIR);
     await fsp3.mkdir(dir, { recursive: true });
     ({ file, handle } = await openFree(dir, name));
     for await (const chunk of request) {
@@ -2485,7 +3099,7 @@ async function saveArchive(request, response, root) {
   request.resume();
   try {
     const { file } = await archiveCommand(root, void 0);
-    sendJson2(response, 200, saved(file, fs9.statSync(file).size));
+    sendJson2(response, 200, saved(file, fs10.statSync(file).size));
   } catch (error) {
     const tooLarge = error instanceof ArchiveTooLarge;
     sendJson2(response, tooLarge ? 413 : 500, { code: tooLarge ? "too_large" : "upstream_error", message: error instanceof Error ? error.message : String(error) });
@@ -2514,108 +3128,73 @@ function commentsViewer(viewer) {
 var isRecord4 = (value) => typeof value === "object" && value !== null && !Array.isArray(value);
 var esc2 = (text) => text.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 var script = (value) => JSON.stringify(value).replace(/</g, "\\u003c");
-function ownHosts(host, port) {
-  const named = host === "0.0.0.0" || host === "::" ? [] : [host.includes(":") ? `[${host}]:${port}` : `${host}:${port}`];
-  return [.../* @__PURE__ */ new Set([`127.0.0.1:${port}`, `localhost:${port}`, `[::1]:${port}`, ...named])];
-}
 function localOwner() {
   let name = "You";
   try {
-    name = os4.userInfo().username.trim() || name;
+    name = os5.userInfo().username.trim() || name;
   } catch {
   }
   return { id: "local", name, email: `${name}@localhost` };
 }
-var guestCookieName = (kind, root) => `${kind.replace(/-/g, "_")}_guest_${createHash2("sha256").update(path10.resolve(root)).digest("hex").slice(0, 12)}`;
+var guestCookieName = (kind, root) => `${kind.replace(/-/g, "_")}_guest_${createHash4("sha256").update(path11.resolve(root)).digest("hex").slice(0, 12)}`;
 var ShareHost = class {
   sharing;
   options;
-  /** The port the server listens on (set by `listening`); the LAN listeners take the same one. */
-  port = 0;
-  hosts = /* @__PURE__ */ new Set();
-  /** One listener per LAN address while the artifact is open to the network. */
-  lanServers = /* @__PURE__ */ new Map();
+  network;
+  page;
+  /** Open to the local network now (the hub's listeners are up, for this artifact too). */
+  on = false;
   live = /* @__PURE__ */ new Set();
   constructor(options) {
     this.options = options;
+    this.network = options.network;
+    this.page = options.page;
     this.sharing = new Sharing(options.root);
   }
-  /**
-   * Starts `server` on the first free port from `port` (a shared artifact tries the port its links were given out with
-   * first, so they keep working, unless the port was given), shares it on the network with `lan` (or as it was left)
-   * and answers the port taken. If this throws, the caller closes what it started.
-   */
-  async listen(server2, { port, host, lan = false, portGiven = false }) {
+  get port() {
+    return this.network.port;
+  }
+  /** The hub took the artifact: open to the network now with `lan`, or if it was left shared. */
+  async start(lan = false) {
     const { state } = this.sharing;
-    const linksPort = !portGiven && (lan || state.lan) && state.port ? state.port : void 0;
-    const taken = await listenFree(server2, port, host, linksPort);
-    if (linksPort && taken !== linksPort) this.options.log(`port ${linksPort} (the shared links') is in use; took ${taken}: give the new links out again`);
-    else if (!linksPort && port && taken !== port) this.options.log(`port ${port} is in use; took ${taken}`);
-    if (lan && !this.sharing.state.lan) this.sharing.setLan(true, taken);
-    await this.listening(taken, ownHosts(host, taken));
-    return taken;
+    if (!lan && !state.lan) return;
+    if (state.port && state.port !== this.port) this.options.log(`port ${state.port} (the shared links') is not this server's; it is on ${this.port}: give the new links out again`);
+    await this.setLan(true);
   }
   /** The artifact at each LAN address it is shared on ([] while it is not). */
   lanUrls() {
-    return [...this.lanServers.keys()].map((a) => `http://${a}:${this.port}/`);
-  }
-  /** The main listener is up on `port` (answering `hosts`): open to the network now if the artifact was left shared. */
-  async listening(port, hosts) {
-    this.port = port;
-    this.hosts = new Set(hosts);
-    if (this.sharing.state.lan) await this.setLan(true);
+    return this.on ? this.network.addresses().map((a) => `http://${a}:${this.port}${this.page}`) : [];
   }
   /** Open to the local network now. */
   get shared() {
-    return this.lanServers.size > 0;
+    return this.on;
   }
-  /** A Host header this server answers: its own names, and while shared, its LAN addresses and machine name. */
-  hostAllowed(request) {
-    const host = request.headers.host ?? "";
-    if (this.hosts.has(host)) return true;
-    if (!this.lanServers.size) return false;
-    const suffix = `:${this.port}`;
-    if (!host.endsWith(suffix)) return false;
-    const name = host.slice(0, -suffix.length).toLowerCase();
-    const machine = os4.hostname().toLowerCase();
-    return this.lanServers.has(name) || name === machine || name === `${machine.replace(/\.local$/, "")}.local`;
+  /** The artifact's name, for the join page and the list of what is open at the server's root. */
+  title() {
+    return this.options.title();
   }
   /**
-   * Opens the artifact to the local network (a listener on each LAN address, on the server's port) or closes it.
-   * Returns the addresses it listens on. Guests already in keep their place for when it opens again.
+   * Opens the artifact to the local network or closes it, and returns the addresses it is on. Guests already in keep
+   * their place for when it opens again.
    */
   async setLan(on) {
     if (!on) {
-      this.closeLan();
+      this.on = false;
+      this.network.release();
       for (const live of [...this.live]) if (live.viewer.guest) live.close("unshared");
       if (this.sharing.state.lan) this.sharing.setLan(false);
       return [];
     }
-    for (const address of lanAddresses()) {
-      if (this.lanServers.has(address)) continue;
-      const server2 = this.options.createServer();
-      try {
-        await listen(server2, this.port, address);
-        this.lanServers.set(address, server2);
-      } catch (error) {
-        server2.close();
-        this.options.log(`not listening on ${address}:${this.port}: ${error.message}`);
-      }
-    }
+    const addresses = await this.network.open();
+    this.on = addresses.length > 0;
     if (!this.sharing.state.lan || this.sharing.state.port !== this.port) this.sharing.setLan(true, this.port);
-    this.options.log(`shared on the local network: ${[...this.lanServers.keys()].map((a) => `http://${a}:${this.port}/`).join(", ") || "(no LAN address)"}`);
-    return [...this.lanServers.keys()];
+    this.options.log(`shared on the local network: ${addresses.map((a) => `http://${a}:${this.port}${this.page}`).join(", ") || "(no LAN address)"}`);
+    return addresses;
   }
-  closeLan() {
-    for (const server2 of this.lanServers.values()) {
-      server2.close();
-      server2.closeAllConnections?.();
-    }
-    this.lanServers.clear();
-  }
-  /** Stops the LAN listeners (the server closes its own). */
+  /** The artifact left the hub: it stays shared in .sharing.json, for the next time it opens. */
   close() {
-    this.closeLan();
+    this.on = false;
+    this.network.release();
   }
   // ---- who is asking ---------------------------------------------------------------------------------------------
   cookie(request) {
@@ -2633,7 +3212,7 @@ var ShareHost = class {
    */
   viewerOf(request) {
     if (isLoopback(request.socket.remoteAddress)) return { role: "owner", user: this.options.owner };
-    const guest = this.lanServers.size ? this.sharing.guest(this.cookie(request)) : null;
+    const guest = this.on ? this.sharing.guest(this.cookie(request)) : null;
     if (!guest) return null;
     this.sharing.seen(guest);
     return { role: guest.role, user: guestUser(guest), guest };
@@ -2651,7 +3230,7 @@ var ShareHost = class {
   }
   /** Still allowed in: the owner, or a guest whose link is on and who was not removed. */
   stillIn(viewer) {
-    return !viewer.guest || this.shared && this.sharing.valid(viewer.guest);
+    return !viewer.guest || this.on && this.sharing.valid(viewer.guest);
   }
   /** Ends the streams of guests who lost access (a link turned off or reset, a guest removed). */
   dropRevoked() {
@@ -2691,7 +3270,7 @@ var ShareHost = class {
     }
     if (method === "GET" && p === "/__share/invite") return sendJson2(response, 200, this.invites(viewer, request.headers.host ?? "")), true;
     if (method === "GET" && p === "/__share/ui.js") {
-      fs10.stat(this.options.uiFile, (error, stat) => {
+      fs11.stat(this.options.uiFile, (error, stat) => {
         if (error || !stat.isFile()) return sendJson2(response, 404, { code: "not_found", message: "The Share panel is missing." });
         sendFile(request, response, this.options.uiFile, { "Content-Type": "text/javascript; charset=utf-8", "Content-Length": stat.size, "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" });
       });
@@ -2710,8 +3289,8 @@ var ShareHost = class {
    * ("?…") goes to the boot script, for `globals`.
    */
   headTags(_viewer, query = "") {
-    let tags = `<script src="/__share/boot.js${query.replace(/[<>"']/g, "").replace(/&/g, "&amp;")}"></script>`;
-    if (fs10.existsSync(this.options.uiFile)) tags += '<script type="module" src="/__share/ui.js"></script>';
+    let tags = `<script src="${this.page}__share/boot.js${query.replace(/[<>"']/g, "").replace(/&/g, "&amp;")}"></script>`;
+    if (fs11.existsSync(this.options.uiFile)) tags += `<script type="module" src="${this.page}__share/ui.js"></script>`;
     return tags;
   }
   /** `html` with the head tags first in its <head>; null when it has none. */
@@ -2721,10 +3300,10 @@ var ShareHost = class {
     const end = html.indexOf(">", at) + 1;
     return html.slice(0, end) + this.headTags(viewer, query) + html.slice(end);
   }
-  /** What the page runs before anything else (see SECURE_CONTEXT_SHIM and GUEST_WATCH). */
+  /** What the page runs before anything else (see ROOT_SHIM, SECURE_CONTEXT_SHIM and GUEST_WATCH). */
   bootScript(viewer, query = new URLSearchParams()) {
     const share = { ...this.me(viewer), noun: this.options.noun, title: this.options.title(), ...this.options.reactions ? { reactions: true } : {} };
-    let js = `${SECURE_CONTEXT_SHIM}window.__baoyuShare=${script(share)};`;
+    let js = `(function(BASE){${ROOT_SHIM}})(${script(this.page)});${SECURE_CONTEXT_SHIM}window.__baoyuShare=${script(share)};`;
     for (const [name, value] of Object.entries(this.options.globals?.(viewer, query) ?? {})) js += `window[${script(name)}]=${script(value)};`;
     if (viewer.guest) js += GUEST_WATCH;
     return js;
@@ -2736,6 +3315,11 @@ var ShareHost = class {
     if (!navigation) return sendJson2(response, 403, { code: "not_granted", message: `This ${this.options.noun.en} is not shared with you.` });
     const t = this.words(request);
     this.sendPage(response, 403, t.noAccessTitle, `<h1>${esc2(t.noAccessTitle)}</h1><p>${esc2(t.noAccess)}</p>${this.ownerHint(request, t)}`);
+  }
+  /** `/` on the server for someone who may see more than one artifact: a page of links. */
+  sendList(response, sites) {
+    const noun = this.options.noun.en;
+    this.sendPage(response, 200, `Open ${noun}s`, `<h1>Open ${esc2(noun)}s</h1><ul>${sites.map((site) => `<li><a href="${esc2(site.page)}">${esc2(site.title)}</a></li>`).join("")}</ul>`);
   }
   /** A small page of our own (the join form, the refusal), in the reader's language. */
   sendPage(response, status, title, body, headers = {}) {
@@ -2751,8 +3335,8 @@ var ShareHost = class {
   /** On the computer that shares the artifact, over its LAN address: the way back to the owner's page. */
   ownerHint(request, t) {
     const from = (request.socket.remoteAddress ?? "").replace(/^::ffff:/, "");
-    if (!this.lanServers.has(from)) return "";
-    const url = `http://127.0.0.1:${this.port}/`;
+    if (!this.network.addresses().includes(from)) return "";
+    const url = `http://127.0.0.1:${this.port}${this.page}`;
     return `<p class="note">${esc2(t.ownerHere)} <a href="${esc2(url)}">${esc2(url)}</a></p>`;
   }
   /** GET /s/<token>: the name form (or straight in, for a guest already in through this link); POST: join. */
@@ -2762,16 +3346,16 @@ var ShareHost = class {
     const local = isLoopback(request.socket.remoteAddress);
     const form = method === "POST" ? await readBody(request, 8 << 10).then((body) => body.toString("utf8"), () => "") : "";
     const title = this.options.title();
-    if (!role || !local && !this.lanServers.size) return this.sendPage(response, 404, t.linkGoneTitle, `<h1>${esc2(t.linkGoneTitle)}</h1><p>${esc2(t.linkGone)}</p>`);
+    if (!role || !local && !this.on) return this.sendPage(response, 404, t.linkGoneTitle, `<h1>${esc2(t.linkGoneTitle)}</h1><p>${esc2(t.linkGone)}</p>`);
     if (local) {
-      const lan = [...this.lanServers.keys()][0];
-      const there = lan ? `http://${lan}:${this.port}/s/${token2}` : "";
+      const lan = this.on ? this.network.addresses()[0] : void 0;
+      const there = lan ? `http://${lan}:${this.port}${this.page}s/${token2}` : "";
       const tryIt = there ? `<p>${esc2(t.tryRole(t.roles[role]))} <a href="${esc2(there)}">${esc2(there)}</a></p>` : "";
-      return this.sendPage(response, 200, title, `<h1>${esc2(title)}</h1><p>${esc2(t.youOwn)} <a href="/">${esc2(t.openAsOwner)}</a></p>${tryIt}`);
+      return this.sendPage(response, 200, title, `<h1>${esc2(title)}</h1><p>${esc2(t.youOwn)} <a href="${esc2(this.page)}">${esc2(t.openAsOwner)}</a></p>${tryIt}`);
     }
     const current = this.sharing.guest(this.cookie(request));
     if (method === "GET" && current && current.link === this.sharing.state.links[role].token) {
-      response.writeHead(303, { Location: "/", "Cache-Control": "no-store" }).end();
+      response.writeHead(303, { Location: this.page, "Cache-Control": "no-store" }).end();
       return;
     }
     if (method === "GET") {
@@ -2786,21 +3370,21 @@ var ShareHost = class {
     const guest = this.sharing.join(role, name);
     this.options.log(`share: ${guest.name} joined as ${role} (${request.socket.remoteAddress})`);
     const cookie = `${this.options.cookieName}=${guest.secret}; Path=/; HttpOnly; SameSite=Lax; Max-Age=31536000`;
-    response.writeHead(303, { Location: "/", "Set-Cookie": cookie, "Cache-Control": "no-store" }).end();
+    response.writeHead(303, { Location: this.page, "Set-Cookie": cookie, "Cache-Control": "no-store" }).end();
   }
   /**
    * The links this person may pass on: their own role's and the ones below it that are on (the owner: every one on), at
-   * the address they came by (`host`, a Host header hostAllowed let in). A guest could forward the link they joined
+   * the address they came by (`host`, a Host header the hub let in). A guest could forward the link they joined
    * with anyway; a lower one gives no more than that. Who joins through one shows in the owner's panel like anyone else.
    */
   invites(viewer, host) {
     const { links } = this.sharing.state;
     const from = viewer.role === "owner" ? 0 : GUEST_ROLES.indexOf(viewer.role);
-    return { links: GUEST_ROLES.slice(from).filter((role) => links[role].on).map((role) => ({ role, url: `http://${host}/s/${links[role].token}` })) };
+    return { links: GUEST_ROLES.slice(from).filter((role) => links[role].on).map((role) => ({ role, url: `http://${host}${this.page}s/${links[role].token}` })) };
   }
   /** Links, addresses and people, for the share panel and `artifact.mjs share`. */
   shareView() {
-    const addresses = [...this.lanServers.keys()].sort((a, b) => Number(isTailnet(a)) - Number(isTailnet(b)));
+    const addresses = (this.on ? this.network.addresses() : []).sort((a, b) => Number(isTailnet(a)) - Number(isTailnet(b)));
     const local = addresses.filter((a) => !isTailnet(a));
     const base = local.length ? `http://${local[0]}:${this.port}` : addresses.length ? `http://${addresses[0]}:${this.port}` : `http://127.0.0.1:${this.port}`;
     const tailnet = addresses.find(isTailnet);
@@ -2811,12 +3395,13 @@ var ShareHost = class {
     const network = lan.length ? `http://${lan[0]}:${this.port}` : base;
     return {
       title: this.options.title(),
-      lan: this.lanServers.size > 0,
+      lan: this.on,
       port: this.port,
+      page: this.page,
       addresses,
-      local: `http://127.0.0.1:${this.port}/`,
-      links: Object.fromEntries(GUEST_ROLES.map((role) => [role, { on: links[role].on, url: `${base}/s/${links[role].token}`, networkUrl: `${network}/s/${links[role].token}` }])),
-      ...tailnet ? { tailnet: { address: tailnet, links: Object.fromEntries(GUEST_ROLES.map((role) => [role, { on: links[role].on, url: `http://${tailnet}:${this.port}/s/${links[role].token}` }])) } } : {},
+      local: `http://127.0.0.1:${this.port}${this.page}`,
+      links: Object.fromEntries(GUEST_ROLES.map((role) => [role, { on: links[role].on, url: `${base}${this.page}s/${links[role].token}`, networkUrl: `${network}${this.page}s/${links[role].token}` }])),
+      ...tailnet ? { tailnet: { address: tailnet, links: Object.fromEntries(GUEST_ROLES.map((role) => [role, { on: links[role].on, url: `http://${tailnet}:${this.port}${this.page}s/${links[role].token}` }])) } } : {},
       guests: guests.filter((g) => this.sharing.valid(g) || links[g.role].token === g.link).map((g) => ({ id: g.id, name: g.name, role: g.role, joined: g.joined, ...g.seen ? { seen: g.seen } : {}, online: online.has(g.id), active: this.sharing.valid(g) }))
     };
   }
@@ -2880,6 +3465,31 @@ var ShareHost = class {
     return (zh ? ZH : EN)(this.options.noun);
   }
 };
+var ROOT_SHIM = `
+var P=location.protocol==='https:'?'wss:':'ws:';
+function under(u){try{var a=new URL(String(u),location.href);if(a.host===location.host&&/^(https?|wss?):$/.test(a.protocol)&&a.pathname.indexOf(BASE)!==0)a.pathname=BASE+a.pathname.slice(1);return a.href}catch(e){return u}}
+var F=window.fetch;
+window.fetch=function(i,o){if(typeof Request==='function'&&i instanceof Request){var r=under(i.url);return F.call(this,r===i.url?i:new Request(r,i),o)}return F.call(this,under(i&&i.href||i),o)};
+var X=XMLHttpRequest.prototype.open;
+XMLHttpRequest.prototype.open=function(m,u){var a=[].slice.call(arguments);a[1]=under(u);return X.apply(this,a)};
+var W=window.WebSocket;
+function WS(u,p){return p===undefined?new W(under(u)):new W(under(u),p)}
+WS.prototype=W.prototype;WS.CONNECTING=0;WS.OPEN=1;WS.CLOSING=2;WS.CLOSED=3;
+window.WebSocket=WS;
+if(navigator.sendBeacon){var B=navigator.sendBeacon;navigator.sendBeacon=function(u,d){return B.call(navigator,under(u),d)}}
+class S extends EventTarget{
+constructor(u){super();this.url=under(u);this.withCredentials=false;this.readyState=0;this.onopen=this.onmessage=this.onerror=null;this.l='';this.c()}
+c(){var t=this,a=new URL(t.url);a.protocol=P;if(t.l)a.searchParams.set('__lastEventId',t.l);var w=t.w=new W(a.href,'baoyu-sse'),b='';
+w.onopen=function(){t.readyState=1;t.f(new Event('open'))};
+w.onmessage=function(e){b+=e.data;var i;while((i=b.indexOf('\\n\\n'))>=0){t.b(b.slice(0,i));b=b.slice(i+2)}};
+w.onclose=function(e){if(t.readyState===2)return;if(e.code>=4000){t.readyState=2;t.f(new Event('error'));return}t.readyState=0;t.f(new Event('error'));t.r=setTimeout(function(){t.c()},1000)}}
+b(s){var n='message',d=[],h=false;s.split('\\n').forEach(function(x){if(!x||x[0]===':')return;var i=x.indexOf(':'),k=i<0?x:x.slice(0,i),v=i<0?'':x.slice(i+1).replace(/^ /,'');if(k==='event')n=v;else if(k==='data'){d.push(v);h=true}else if(k==='id')this.l=v}.bind(this));if(h)this.f(new MessageEvent(n,{data:d.join('\\n'),origin:location.origin,lastEventId:this.l}))}
+f(e){this.dispatchEvent(e);var h=this['on'+e.type];if(typeof h==='function')h.call(this,e)}
+close(){this.readyState=2;clearTimeout(this.r);if(this.w)this.w.close()}
+}
+S.CONNECTING=0;S.OPEN=1;S.CLOSED=2;
+window.EventSource=S;
+`;
 var SECURE_CONTEXT_SHIM = "if(window.crypto&&!crypto.randomUUID)crypto.randomUUID=function(){var b=crypto.getRandomValues(new Uint8Array(16)),h='',i;b[6]=b[6]&15|64;b[8]=b[8]&63|128;for(i=0;i<16;i++){h+=(b[i]+256).toString(16).slice(1);if(i==3||i==5||i==7||i==9)h+='-'}return h};";
 var GUEST_WATCH = "setInterval(function(){fetch('/__share/me',{cache:'no-store'}).then(function(r){if(r.status===403)return location.reload();return r.json().then(function(m){if(m&&m.role&&m.role!==window.__baoyuShare.role)location.reload()})},function(){})},5000);";
 var PAGE_CSS = `
@@ -3354,7 +3964,7 @@ var OVERWRITE_WINDOW_MS = 6e4;
 var filesOf = (listing, paths) => Object.fromEntries(paths.map((p) => [p, listing.files[p]?.sha256 ?? null]));
 var authorOf = (who) => ({ id: who.user.id, name: who.user.name, ...who.by === "agent" ? { agent: true } : {} });
 var CLIENT_ID = /^[A-Za-z0-9_-]{8,64}$/;
-var sha2562 = (bytes) => createHash3("sha256").update(bytes).digest("hex");
+var sha2562 = (bytes) => createHash5("sha256").update(bytes).digest("hex");
 function contentTypeOf(file) {
   const ext = file.slice(file.lastIndexOf(".") + 1).toLowerCase();
   return MIME[ext] ?? "application/octet-stream";
@@ -3403,7 +4013,7 @@ async function collectFiles(root, limit) {
   const seen = /* @__PURE__ */ new Set();
   let truncated = false;
   const visit = async (relDir, descend) => {
-    const dir = relDir === "" ? root : path11.join(root, ...relDir.split("/"));
+    const dir = relDir === "" ? root : path12.join(root, ...relDir.split("/"));
     let entries;
     try {
       entries = await fsp4.readdir(dir, { withFileTypes: true });
@@ -3434,8 +4044,8 @@ async function collectFiles(root, limit) {
   return { rels, truncated };
 }
 async function writeFileAtomic(file, bytes) {
-  await fsp4.mkdir(path11.dirname(file), { recursive: true });
-  const tmp = path11.join(path11.dirname(file), `.${path11.basename(file)}.${randomUUID()}.tmp`);
+  await fsp4.mkdir(path12.dirname(file), { recursive: true });
+  const tmp = path12.join(path12.dirname(file), `.${path12.basename(file)}.${randomUUID()}.tmp`);
   try {
     await fsp4.writeFile(tmp, bytes);
     await fsp4.rename(tmp, file);
@@ -3491,11 +4101,11 @@ var Store = class {
   async diskPath(rel) {
     const realRoot = await fsp4.realpath(this.root).catch(() => null);
     if (realRoot === null) return null;
-    const file = path11.join(realRoot, ...rel.split("/"));
-    for (let dir = path11.dirname(file); ; dir = path11.dirname(dir)) {
+    const file = path12.join(realRoot, ...rel.split("/"));
+    for (let dir = path12.dirname(file); ; dir = path12.dirname(dir)) {
       const real = await fsp4.realpath(dir).catch(() => null);
       if (real === null) {
-        if (path11.dirname(dir) === dir) return null;
+        if (path12.dirname(dir) === dir) return null;
         continue;
       }
       if (real !== dir) return null;
@@ -3725,7 +4335,7 @@ var Store = class {
   }
   async findBlobFile(id) {
     try {
-      const names = await fsp4.readdir(path11.join(this.root, LAYOUT.blobDir));
+      const names = await fsp4.readdir(path12.join(this.root, LAYOUT.blobDir));
       const name = names.find((n) => n.startsWith(`${id}.`) && !n.endsWith(".tmp"));
       if (name === void 0) return null;
       const file = await this.diskPath(`${LAYOUT.blobDir}/${name}`);
@@ -3780,13 +4390,13 @@ function watchArtifact(store, onChange, onError) {
     const directories = /* @__PURE__ */ new Map();
     const visit = (rel, descend) => {
       if (directories.size >= maxDirectories) return;
-      const dir = rel === "" ? store.root : path11.join(store.root, ...rel.split("/"));
-      if (directories.has(dir) || !fs11.existsSync(dir)) return;
-      const info = fs11.lstatSync(dir);
+      const dir = rel === "" ? store.root : path12.join(store.root, ...rel.split("/"));
+      if (directories.has(dir) || !fs12.existsSync(dir)) return;
+      const info = fs12.lstatSync(dir);
       if (!info.isDirectory()) return;
       directories.set(dir, `${info.dev}:${info.ino}`);
       if (!descend) return;
-      for (const entry of fs11.readdirSync(dir, { withFileTypes: true })) {
+      for (const entry of fs12.readdirSync(dir, { withFileTypes: true })) {
         if (!entry.isDirectory() || entry.name.startsWith(".")) continue;
         const child = rel === "" ? entry.name : `${rel}/${entry.name}`;
         if (LAYOUT.descendInto(child)) visit(child, true);
@@ -3803,19 +4413,19 @@ function watchArtifact(store, onChange, onError) {
       if (watchers.has(dir)) continue;
       let watcher;
       try {
-        watcher = fs11.watch(dir, (event, name) => {
+        watcher = fs12.watch(dir, (event, name) => {
           if (stopped) return;
           if (name) {
-            const changed = path11.join(dir, String(name));
+            const changed = path12.join(dir, String(name));
             if (event === "rename" && watchers.has(changed)) {
               for (const [watchedDir, item] of watchers) {
-                if (watchedDir === changed || watchedDir.startsWith(changed + path11.sep)) {
+                if (watchedDir === changed || watchedDir.startsWith(changed + path12.sep)) {
                   item.watcher.close();
                   watchers.delete(watchedDir);
                 }
               }
             }
-            const rel = path11.relative(store.root, changed).split(path11.sep).join("/");
+            const rel = path12.relative(store.root, changed).split(path12.sep).join("/");
             if (isIgnoredPath(rel) || !LAYOUT.watches(rel)) return;
           }
           schedule();
@@ -3851,7 +4461,7 @@ function watchArtifact(store, onChange, onError) {
     const { rels } = await collectFiles(store.root, LAYOUT.maxFiles);
     const parts = [];
     for (const rel of rels) {
-      const info = await fsp4.lstat(path11.join(store.root, ...rel.split("/"))).catch(() => null);
+      const info = await fsp4.lstat(path12.join(store.root, ...rel.split("/"))).catch(() => null);
       parts.push(info ? `${rel}\0${info.size}\0${info.mtimeMs}\0${info.ino}` : `${rel}\0-`);
     }
     return parts.join("\n");
@@ -3880,23 +4490,23 @@ function watchArtifact(store, onChange, onError) {
   };
 }
 var publishError = (response, status, code, message) => sendJson2(response, status, { code, message });
-async function startServer({ root, port = DEFAULT_PORTS[KIND], host = "127.0.0.1", log = (line) => process.stderr.write(`${line}
-`), agentHook, lan = false, portGiven = false }) {
-  const project = path11.join(root, "project");
-  const stamp2 = (line) => log(`[${(/* @__PURE__ */ new Date()).toISOString()}] ${line}`);
+async function mountSite(root, { log: stamp2, network, agentHook }) {
+  const project = path12.join(root, "project");
+  const editorPath = pagePathOf(KIND, root);
   const projectDir = await fsp4.realpath(project);
   const history = new History(root);
   const store = new Store(projectDir, history, stamp2);
   const owner = localOwner();
   const share = new ShareHost({
     root,
+    page: editorPath,
+    network,
     cookieName: guestCookieName(KIND, root),
     owner,
     noun: NOUNS[KIND] ?? { en: NOUN, zh: NOUN, zhThis: NOUN },
     title: () => artifactTitle(root, projectDir),
     log: stamp2,
-    createServer: () => http.createServer(handle),
-    uiFile: path11.join(EDITOR_DIR, "share-ui.js"),
+    uiFile: path12.join(EDITOR_DIR, "share-ui.js"),
     // The History panel's address and what this person may do there; on a version's page (?at=n), which version.
     globals: (viewer, query) => {
       const at = Number(query.get("at") ?? "");
@@ -3915,8 +4525,6 @@ async function startServer({ root, port = DEFAULT_PORTS[KIND], host = "127.0.0.1
       return viewer ? commentsViewer(viewer) : null;
     }
   });
-  const grant = randomBytes2(24).toString("base64url");
-  const editorPath = `/${KIND}/${grant}/`;
   const boot = randomBytes2(6).toString("hex");
   const clients = /* @__PURE__ */ new Map();
   const presence = new PresenceHub();
@@ -4047,7 +4655,7 @@ data: ${JSON.stringify(event)}
     const parts = rest === "" ? ["index.html"] : rest.split("/");
     const invalid = parts.some((p) => p === "" || p === "." || p === ".." || p.startsWith(".") || p.includes("\\")) || parts[0] === "node";
     const realDist = invalid ? null : await fsp4.realpath(EDITOR_DIR).catch(() => null);
-    const file = realDist === null ? null : path11.join(realDist, ...parts);
+    const file = realDist === null ? null : path12.join(realDist, ...parts);
     const real = file === null ? null : await fsp4.realpath(file).catch(() => null);
     const info = real === null ? null : await fsp4.lstat(real).catch(() => null);
     if (file === null || real !== file || !info?.isFile()) {
@@ -4058,7 +4666,7 @@ data: ${JSON.stringify(event)}
       response.writeHead(404, { "Cache-Control": "no-store" }).end();
       return;
     }
-    const ext = path11.extname(file).toLowerCase();
+    const ext = path12.extname(file).toLowerCase();
     const type = STATIC_TYPES[ext] ?? "application/octet-stream";
     if (ext === ".html") {
       const key = parts.join("/");
@@ -4074,7 +4682,8 @@ data: ${JSON.stringify(event)}
         "Content-Length": body.length,
         "Cache-Control": "no-cache",
         "X-Content-Type-Options": "nosniff",
-        "Referrer-Policy": "no-referrer",
+        // A root-relative <link> or <a href> finds its way to this artifact by the page's address (hub.ts).
+        "Referrer-Policy": "same-origin",
         "Content-Security-Policy": page.csp
       });
       response.end(request.method === "HEAD" ? void 0 : body);
@@ -4285,7 +4894,7 @@ data: ${JSON.stringify(event)}
         "Content-Length": body.length,
         "Cache-Control": "no-store",
         "X-Content-Type-Options": "nosniff",
-        // The address holds the grant, and a README may link anywhere.
+        // A README may link anywhere, and the page (no script, its own origin) asks for nothing by its address.
         "Referrer-Policy": "no-referrer",
         "Content-Security-Policy": DATA_CSP
       });
@@ -4326,48 +4935,18 @@ data: ${JSON.stringify(event)}
     }
   };
   async function handle(request, response) {
-    if (!share.hostAllowed(request)) {
-      request.resume();
-      response.writeHead(421, { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" }).end("Misdirected request");
-      return;
-    }
-    const url2 = new URL(request.url ?? "/", "http://localhost");
-    const pathname = url2.pathname;
-    if (pathname === "/favicon.ico") {
-      response.writeHead(204).end();
-      return;
-    }
     if (await share.route(request, response)) return;
     const viewer = share.viewerOf(request);
     if (!viewer) return share.denied(request, response);
-    if (pathname === "/" || pathname === "/index.html") {
-      response.writeHead(302, { Location: editorPath, "Cache-Control": "no-store" }).end();
-      return;
-    }
-    const rootBlob = BLOB_PATH.exec(pathname.slice(1));
-    if (rootBlob) {
-      void guard(response, () => serveBlob(request, response, rootBlob[1]));
-      return;
-    }
-    const match = /^\/([a-z-]+)\/([^/]+)(\/.*)?$/.exec(pathname);
-    if (!match || match[1] !== KIND || match[2] !== grant) {
-      response.writeHead(404, { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" }).end("Not found");
-      return;
-    }
-    if (match[3] === void 0) {
-      response.writeHead(308, { Location: `${editorPath}${url2.search}`, "Cache-Control": "no-store" }).end();
-      return;
-    }
     let rest;
     try {
-      rest = decodeURIComponent(match[3].slice(1));
+      rest = decodeURIComponent(new URL(request.url ?? "/", "http://localhost").pathname.slice(1));
     } catch {
       response.writeHead(400).end();
       return;
     }
-    void guard(response, () => route(request, response, rest, viewer));
+    return route(request, response, rest, viewer);
   }
-  const server2 = http.createServer((request, response) => void guard(response, () => handle(request, response)));
   const close = () => {
     stopWatch();
     comments.close();
@@ -4375,32 +4954,27 @@ data: ${JSON.stringify(event)}
     presence.close();
     for (const client of clients.keys()) client.end();
     clients.clear();
-    server2.close();
-    server2.closeAllConnections?.();
   };
-  const actualPort = await share.listen(server2, { port, host, lan, portGiven }).catch((error) => {
-    close();
-    throw error;
-  });
-  const url = `${serverOrigin(host, actualPort)}${editorPath}`;
-  stamp2(`serving ${project} at ${url}`);
-  const lanUrls = share.lanUrls();
-  return { url, port: actualPort, grant, close, ...lanUrls.length ? { lan: lanUrls } : {} };
+  return {
+    root,
+    page: editorPath,
+    share,
+    handle: (request, response) => guard(response, () => handle(request, response)),
+    hasBlob: async (id) => await store.findBlobFile(id) !== null,
+    close
+  };
 }
 function artifactTitle(root, projectDir) {
   try {
-    const index = JSON.parse(fs11.readFileSync(path11.join(projectDir, INDEX_FILE), "utf8"));
+    const index = JSON.parse(fs12.readFileSync(path12.join(projectDir, INDEX_FILE), "utf8"));
     for (const value of [index.title, index.name]) if (typeof value === "string" && value.trim() && value.trim() !== "project") return value.trim();
   } catch {
   }
-  return path11.basename(root);
+  return path12.basename(root);
 }
 var runningServer2 = (root) => runningServer(root, KIND, ROUTES.session);
-async function serveForeground({ root, port, host, agentHook, lan, portGiven }) {
-  const running = await startServer({ root, port, host, agentHook, lan, portGiven });
-  const state = { pid: process.pid, url: running.url, port: running.port, root, kind: KIND, startedAt: (/* @__PURE__ */ new Date()).toISOString() };
-  recordServer(state, running.close);
-  return { ...state, ...running.lan ? { lan: running.lan } : {} };
+function serveForeground(options) {
+  return serveHub({ ...options, kind: KIND, script: SCRIPT, portGiven: options.portGiven === true, site: mountSite });
 }
 async function main(argv) {
   const positional = [];
@@ -4409,23 +4983,23 @@ async function main(argv) {
     const arg = argv[i];
     if (!arg.startsWith("--")) positional.push(arg);
     else if (arg.includes("=")) flags.set(arg.slice(2, arg.indexOf("=")), arg.slice(arg.indexOf("=") + 1));
-    else if (arg === "--lan") flags.set("lan", "true");
+    else if (arg === "--lan" || arg === "--background") flags.set(arg.slice(2), "true");
     else flags.set(arg.slice(2), argv[++i] ?? "");
   }
   if (positional.length !== 1 || flags.has("help")) {
     process.stderr.write(
-      `Usage: node ${path11.basename(SCRIPT)} <root> [--port n] [--host h] [--lan] [--agent-hook "<command>"]
+      `Usage: node ${path12.basename(SCRIPT)} <root> [--port n] [--host h] [--lan] [--agent-hook "<command>"]
 <root> holds project/${INDEX_FILE}.
 `
     );
     return 2;
   }
-  let root = path11.resolve(positional[0]);
-  if (path11.basename(root) === "project" && fs11.existsSync(path11.join(root, INDEX_FILE)) && !fs11.existsSync(path11.join(root, "project"))) {
-    root = path11.dirname(root);
+  let root = path12.resolve(positional[0]);
+  if (path12.basename(root) === "project" && fs12.existsSync(path12.join(root, INDEX_FILE)) && !fs12.existsSync(path12.join(root, "project"))) {
+    root = path12.dirname(root);
   }
-  if (!fs11.statSync(path11.join(root, "project", INDEX_FILE), { throwIfNoEntry: false })?.isFile()) {
-    process.stderr.write(`${JSON.stringify({ error: "NOT_FOUND", message: `${path11.join(root, "project", INDEX_FILE)} does not exist.` })}
+  if (!fs12.statSync(path12.join(root, "project", INDEX_FILE), { throwIfNoEntry: false })?.isFile()) {
+    process.stderr.write(`${JSON.stringify({ error: "NOT_FOUND", message: `${path12.join(root, "project", INDEX_FILE)} does not exist.` })}
 `);
     return 2;
   }
@@ -4442,14 +5016,14 @@ async function main(argv) {
     return 0;
   }
   const agentHook = flags.get("agent-hook") || void 0;
-  const state = await serveForeground({ root, port, host: flags.get("host") ?? "127.0.0.1", agentHook, lan: flags.has("lan"), portGiven: flags.has("port") });
+  const state = await serveForeground({ root, port, host: flags.get("host") ?? "127.0.0.1", agentHook, lan: flags.has("lan"), portGiven: flags.has("port"), background: flags.has("background") });
   process.stdout.write(`${JSON.stringify({ url: state.url, root, pid: state.pid, ...state.lan ? { lan: state.lan } : {} }, null, 2)}
 `);
-  return -1;
+  return state.joined && flags.has("background") ? 0 : -1;
 }
 function isMain(moduleUrl) {
   try {
-    return Boolean(process.argv[1]) && pathToFileURL(fs11.realpathSync(process.argv[1])).href === moduleUrl;
+    return Boolean(process.argv[1]) && pathToFileURL(fs12.realpathSync(process.argv[1])).href === moduleUrl;
   } catch {
     return false;
   }
@@ -4466,7 +5040,7 @@ function createArtifactServer(kind, moduleUrl) {
   kindLabels = kind.labels;
   kindAgentContext = kind.agentContext;
   SCRIPT = fileURLToPath(moduleUrl);
-  EDITOR_DIR = path11.join(path11.dirname(SCRIPT), "editor");
+  EDITOR_DIR = path12.join(path12.dirname(SCRIPT), "editor");
   const runIfMain = () => {
     if (!isMain(moduleUrl)) return;
     main(process.argv.slice(2)).then(
@@ -4481,7 +5055,7 @@ function createArtifactServer(kind, moduleUrl) {
       }
     );
   };
-  return { startServer, runningServer: runningServer2, serveForeground, readState, runIfMain };
+  return { mountSite, runningServer: runningServer2, serveForeground, readState, runIfMain };
 }
 
 var KIND2 = "design-system";
@@ -4586,7 +5160,7 @@ var LAYOUT2 = {
 };
 function sessionExtras2() {
   try {
-    const name = os5.userInfo().username.trim();
+    const name = os6.userInfo().username.trim();
     return name ? { userName: name } : {};
   } catch {
     return {};
@@ -4613,15 +5187,15 @@ var server = createArtifactServer(
   },
   import.meta.url
 );
-var { startServer: startServer2, serveForeground: serveForeground2, runningServer: runningServer3, readState: readState2 } = server;
+var { mountSite: mountSite2, serveForeground: serveForeground2, runningServer: runningServer3, readState: readState2 } = server;
 server.runIfMain();
 export {
   INDEX_FILE2 as INDEX_FILE,
   KIND2 as KIND,
   LAYOUT2 as LAYOUT,
   NOUN2 as NOUN,
+  mountSite2 as mountSite,
   readState2 as readState,
   runningServer3 as runningServer,
-  serveForeground2 as serveForeground,
-  startServer2 as startServer
+  serveForeground2 as serveForeground
 };

@@ -11,7 +11,7 @@ https://github.com/user-attachments/assets/d5b4f39b-a701-49de-87b8-64f3c6ef9c61
 
 [![许可：自有代码 MIT，详见 NOTICE](https://img.shields.io/badge/License-MIT%20for%20own%20code%20%C2%B7%20see%20NOTICE-blue.svg)](NOTICE.md) ![Best with Opus 5.5](https://img.shields.io/badge/Best%20with-Opus%205.5-d97757) ![Harness](https://img.shields.io/badge/Cursor%20%C2%B7%20Claude%20Code%20%C2%B7%20Codex-supported-1f6feb)
 
-本仓库把 claude.ai 的 **Artifact 类型**搬到本地 Agent 上：可编辑的幻灯片、设计画布、设计系统和数据仪表盘，每一种都用它自己的编辑器打开，编辑器就运行在你的电脑上。第五个技能 `dataviz` 是一份图表指南：Agent 在画任何图表之前先读它，不管是在这几个技能里还是别处。四个编辑器也做成了 [DeepSeek Harness 插件](#deepseek-harness-插件)，按包名从 npm 安装。
+本仓库把 claude.ai 的 **Artifact 类型**搬到本地 Agent 上：可编辑的幻灯片、设计画布、设计系统、数据仪表盘和动画影片，每一种都用它自己的编辑器打开，编辑器就运行在你的电脑上。`motion-director` 负责给这些影片当导演，从想清楚要说什么一直到成片。`dataviz` 是一份图表指南：Agent 在画任何图表之前先读它，不管是在这几个技能里还是别处。五个编辑器也做成了 [DeepSeek Harness 插件](#deepseek-harness-插件)，按包名从 npm 安装。
 
 原来的 `baoyu-design` 技能（以自包含 HTML 产出 UI 稿和原型）已归档到 [`archive/baoyu-design/`](archive/baoyu-design/)。
 
@@ -27,17 +27,19 @@ https://github.com/user-attachments/assets/d5b4f39b-a701-49de-87b8-64f3c6ef9c61
 | [`claude-design`](skills/claude-design/) | 一块画布上的多个画板：`project/canvas.json` 加上 `.dc.html` 设计组件 | 画布编辑器：并排查看画板、播放原型、改文案、调 tweaks；导出 HTML、PDF 或 PNG |
 | [`claude-design-system`](skills/claude-design-system/) | 设计系统：tokens、README 品牌手册、组件预览、字体、素材分组 | 设计系统编辑器：浏览和编辑颜色、字体、组件和素材 |
 | [`claude-dashboard`](skills/claude-dashboard/) | 数据驱动的仪表盘：数据集（CSV、TSV、JSON）加上基于它们的图表、数字和表格页面 | 仪表盘页面：实时图表、筛选，以及能把每个数字追溯到原始行的 Sources 面板 |
+| [`claude-motion`](skills/claude-motion/) | 动画影片：动画视频，默认 10–30 秒，要长可以加，最长 15 分钟，用代码一场一场写进影片自己在 `<root>/db/` 下的存储 | Motion 播放器：看着它一点点写出来，改台词，拖动场景长度，调样式和 Tweaks；导出 MP4 或 GIF |
+| [`motion-director`](skills/motion-director/) | 有话要说的成片：找到要说的那一点，写适合听的旁白，配音，让每一场对上台词，再像观众那样检查画面。要和 `claude-motion` 装在一起 | 同一个 Motion 播放器，从第一分钟起就开着 |
 | [`dataviz`](skills/dataviz/) | 在任何载体里（HTML、SVG、d3、matplotlib、plotly…）把图表做好：选图表形式、在浅色和深色下以及色弱读者都看得清的配色、图形标记、图例和提示框，附带配色校验脚本 | 不需要打开：Agent 写图表代码前先读它；把 [`palette.md`](skills/dataviz/references/palette.md) 换成你自己品牌的颜色即可 |
 
 ---
 
-## Artifact 技能：可编辑的幻灯片、画布、设计系统与仪表盘
+## Artifact 技能：可编辑的幻灯片、画布、设计系统、仪表盘与影片
 
-这四个技能按该 Artifact 类型自己的文件格式把内容写进一个文件夹，再用这个类型的编辑器页面打开它，编辑器就在你自己的电脑上运行。Agent 写文件，编辑器立刻显示每一次写入；你在编辑器里的修改也会存回同一批文件，所以你和 Agent 可以轮流改。
+这五个技能按该 Artifact 类型自己的文件格式把内容写进一个文件夹，再用这个类型的编辑器页面打开它，编辑器就在你自己的电脑上运行。Agent 写文件，编辑器立刻显示每一次写入；你在编辑器里的修改也会存回同一批文件，所以你和 Agent 可以轮流改。
 
-在幻灯片、画布、设计系统编辑器和仪表盘页面里，点击 **Comment**（或按 **C**）就能对元素或区域留下评论。评论保存在项目本地的 `comments.json`，Agent 通过 `artifact.mjs` 读取和回复。Agent 用 `comments <root> --wait` 等待评论时，编辑器会显示 **Send to Agent**，让你把评论交给它处理。
+在幻灯片、画布、设计系统编辑器和仪表盘页面里，点击 **Comment**（或按 **C**）就能对元素或区域留下评论；在 Motion 播放器里，用它的 **Comment** 按钮对影片的某个时刻留下评论。评论保存在项目本地的 `comments.json`，Agent 通过 `artifact.mjs` 读取和回复。Agent 用 `comments <root> --wait` 等待评论时，编辑器会显示 **Send to Agent**，让你把评论交给它处理。
 
-要和别人一起做，`share <root>`（或 `open <root> --lan`）把幻灯片、画布、设计系统或仪表盘开放到局域网（同一个 Wi‑Fi 或内网），每种角色打印一个链接：**editor** 能改也能评论，**commenter** 只能评论，**viewer** 只能看。拿到链接的人输个名字就进来了，他改的内容会出现在每个人的页面上，评论也写进同一份 `comments.json`。坐在这台电脑前的人是主人：**Share** 按钮里能看到谁加入了、谁在线，能改某个人的角色或把他移出去，能关掉、重新打开或重置每个链接。访客也有 Share 按钮，里面是他可以转发的链接：自己这一级和更低的角色。不用注册账号，内容不出你的网络；走的是局域网里的明文 http，网络里拿到链接的人都进得来。
+要和别人一起做，`share <root>`（或 `open <root> --lan`）把幻灯片、画布、设计系统、仪表盘或影片开放到局域网（同一个 Wi‑Fi 或内网），每种角色打印一个链接：**editor** 能改也能评论，**commenter** 只能评论，**viewer** 只能看。拿到链接的人输个名字就进来了，他改的内容会出现在每个人的页面上，评论也写进同一份 `comments.json`。坐在这台电脑前的人是主人：**Share** 按钮里能看到谁加入了、谁在线，能改某个人的角色或把他移出去，能关掉、重新打开或重置每个链接。访客也有 Share 按钮，里面是他可以转发的链接：自己这一级和更低的角色。不用注册账号，内容不出你的网络；走的是局域网里的明文 http，网络里拿到链接的人都进得来。
 
 每一次修改都存成一个版本，记着是谁改的：访客按他加入时填的名字，主人，或者 **Agent**（直接改这台电脑上的文件）。**History** 按钮（Share 旁边的时钟）按天列出所有版本；点开一个版本能看到它改了哪几页、哪块画板或哪份文档，逐行对比改动，也能预览当时的整体样子，或者把整个版本（也可以只挑其中一处）恢复回来，恢复本身也是一个新版本，什么都不会丢。两个人同时保存同一页时，后存的不会再悄悄盖掉先存的：这个版本会记下它覆盖了谁的修改，两个人都会收到提醒，可以**看看差别**、一键**找回**，找回的只是被盖掉的那部分，对方别处的修改照样留着。在幻灯片、设计稿和设计系统编辑器里，别人保存后你的页面就地更新，不再整页刷新；要是他存的正好是你还没保存的那一页、那块画板或那个文件，顶上会出一条提示，让你选用他的、保留你的，还是两份都留（你的另存成后面一页、旁边一块画板，或文件的一份副本）。两边会先合并：画布按元素，幻灯片和设计系统的文件按行（token 文件按 token）。两人改的是不同的元素或不同的行，两边的修改都留着，不用选；合不了（比如改到同一行）才出这条提示。历史存在项目的 `history/` 文件夹里。
 
@@ -69,9 +71,15 @@ https://github.com/user-attachments/assets/d5b4f39b-a701-49de-87b8-64f3c6ef9c61
 
 一个仪表盘就是数据集（CSV、TSV 或 JSON）加上一页基于它们算出来的图表、数字和表格。图表是实时的，Sources 面板能把每个数字追溯到原始数据行。拿到新导出的数据交给 Agent，它会把文件换上，页面上的数字全部重算。数字、日期和说明文字都跟着你的语言走。*上图：一年的 X 账号每日数据，用的是示例数据。*
 
+### `claude-motion`：动画影片
+
+<img src="assets/screenshots/claude-motion-player.webp" alt="claude-motion 播放器里打开的一部 56 秒的 Motion 介绍片，时间线上是它的各场" width="880">
+
+一部影片就是一个文件夹，里面是 Agent 用技能的脚本一场一场写进去的文档，你在播放器里看着它写出来。画面上的一切都是代码，是时间的纯函数，所以改动就是重写那一刻，不用等重新渲染。可以改台词，拖动场景长度，在 **Tweaks** 里换样式，也可以在某个时刻上留评论发给 Agent。带旁白的影片有一条配音轨：每场一段配音，用你自己的语音服务生成或者自己录，动作对着台词走，字幕跟着台词出；录好的音乐也能铺在底下当配乐。从播放器导出 MP4 或 GIF，也可以在命令行用 `export`（要有 Chrome；用 `record` 拍你自己产品的页面还要 ffmpeg）。要做有话要说的片子，就用 `motion-director`，它当导演，`claude-motion` 是它的摄制组。*上图：介绍 Motion 的影片，就是用 Motion 做的。*
+
 ### 运行编辑器
 
-每个 `SKILL.md` 都基本原样保留了该类型的英文原版说明，只把 Artifact 工具的调用换成了本地的等价操作。这个工具就放在每个技能里，是 `scripts/artifact.mjs`（Node 20+，仪表盘需 Node 22+；无需安装依赖）。平时 Agent 会替你运行；手动运行的话：
+每个 `SKILL.md` 都基本原样保留了该类型的英文原版说明，只把 Artifact 工具的调用换成了本地的等价操作。这个工具就放在每个技能里，是 `scripts/artifact.mjs`（Node 20+，仪表盘和 Motion 需 Node 22+；无需安装依赖）。平时 Agent 会替你运行；手动运行的话：
 
 ```bash
 node skills/claude-slides/scripts/artifact.mjs open designs/q3-review             # 启动编辑器，打印网址
@@ -81,13 +89,13 @@ node skills/claude-slides/scripts/artifact.mjs list                             
 node skills/claude-slides/scripts/artifact.mjs share designs/q3-review           # 开放到局域网，每种角色打印一个链接
 ```
 
-仪表盘也用同一个脚本（`write-db`、`read-db`、`upload`、`check`、`open`）写入它自己在 `<root>/db/` 下的存储。每个技能都运行自己的本地服务器，`scripts/` 里的文件都是预先构建好的 JavaScript，只要有 Node 就能运行，不用安装依赖，也不用构建。
+仪表盘和影片也用同一个脚本（`write-db`、`read-db`、`upload`、`check`、`open`）写入它自己在 `<root>/db/` 下的存储。每个技能都运行自己的本地服务器，`scripts/` 里的文件都是预先构建好的 JavaScript，只要有 Node 就能运行，不用安装依赖，也不用构建。
 
 ---
 
 ## DeepSeek Harness 插件
 
-四个编辑器技能也做成了 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 插件，发布在 npm 上。每个插件带着本仓库发布的那份技能，连同预先构建好的编辑器，让 Claude Design 这几个编辑器跑在你的 DeepSeek Agent 上。
+五个编辑器技能也做成了 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 插件，发布在 npm 上。每个插件带着本仓库发布的那份技能，连同预先构建好的编辑器，让 Claude Design 这几个编辑器跑在你的 DeepSeek Agent 上。
 
 | npm 包名 | 加入的技能 | 版本 |
 |---|---|---|
@@ -95,10 +103,11 @@ node skills/claude-slides/scripts/artifact.mjs share designs/q3-review          
 | [`dsh-claude-design`](https://www.npmjs.com/package/dsh-claude-design) | `/claude-design`：设计画布 | [![npm](https://img.shields.io/npm/v/dsh-claude-design)](https://www.npmjs.com/package/dsh-claude-design) |
 | [`dsh-claude-design-system`](https://www.npmjs.com/package/dsh-claude-design-system) | `/claude-design-system`：设计系统 | [![npm](https://img.shields.io/npm/v/dsh-claude-design-system)](https://www.npmjs.com/package/dsh-claude-design-system) |
 | [`dsh-claude-dashboard`](https://www.npmjs.com/package/dsh-claude-dashboard) | `/claude-dashboard`：数据仪表盘 | [![npm](https://img.shields.io/npm/v/dsh-claude-dashboard)](https://www.npmjs.com/package/dsh-claude-dashboard) |
+| [`dsh-claude-motion`](https://www.npmjs.com/package/dsh-claude-motion) | `/claude-motion`：动画影片 | [![npm](https://img.shields.io/npm/v/dsh-claude-motion)](https://www.npmjs.com/package/dsh-claude-motion) |
 
-幻灯片、画布、设计系统编辑器和仪表盘页面里的评论可以直接交给 Agent：Agent 每次打开编辑器，插件都会开始等评论。在页面上标注，勾选 **Send to Agent**，Agent 就会醒来，读你的评论，改好页面，再在评论串里回复你。评论也会以卡片的形式出现在对话里。
+幻灯片、画布、设计系统编辑器、仪表盘页面和 Motion 播放器里的评论可以直接交给 Agent：Agent 每次打开编辑器，插件都会开始等评论。在页面上标注，勾选 **Send to Agent**，Agent 就会醒来，读你的评论，改好页面，再在评论串里回复你。评论也会以卡片的形式出现在对话里。
 
-插件还会在应用左侧栏加一个 **Artifacts**（中文界面是「作品」）入口：列出 Agent 打开过的所有幻灯片、画布、设计系统和仪表盘，最近打开的在前，可以搜索，也可以按类型筛选。点一个，应用就回到做它的那个对话，在右侧栏里打开编辑器。
+插件还会在应用左侧栏加一个 **Artifacts**（中文界面是「作品」）入口：列出 Agent 打开过的所有幻灯片、画布、设计系统、仪表盘和影片，最近打开的在前，可以搜索，也可以按类型筛选。点一个，应用就回到做它的那个对话，在右侧栏里打开编辑器。
 
 ### 从 npm 安装
 
@@ -106,7 +115,7 @@ node skills/claude-slides/scripts/artifact.mjs share designs/q3-review          
 
 1. 在应用里打开 **Plugins** → **Add plugin**。
 2. 在 **Package name or address** 一栏填表里的包名，比如 `dsh-claude-design`，点 **Install**。插件的开关没开就打开。要装几个就重复几次。
-3. 退出应用再重新打开，然后新开一个会话，直接说要幻灯片、画布、设计系统或仪表盘，或者输入 `/claude-design`（`/claude-slides` 等）。
+3. 退出应用再重新打开，然后新开一个会话，直接说要幻灯片、画布、设计系统、仪表盘或影片，或者输入 `/claude-design`（`/claude-slides` 等）。
 
 用命令行装到某个 CLI profile（比如 `web`）：
 
@@ -144,7 +153,7 @@ https://jimliu.github.io/baoyu-design/dsh-plugins/index.json
 
 - 一个本地 Agent —— **[Cursor](https://cursor.com)**、**[Claude Code](https://claude.com/claude-code)**、**[Codex](https://developers.openai.com/codex/)**，或安装器支持的其余 70+ 个 Agent（Cline、Roo Code、GitHub Copilot……）。其中 Cursor、Claude Code 与 Codex 在技能里内置了一等的工具参考文档。
 - 模型选择 **Claude Opus 5.5**，效果最佳。
-- **Node.js**，用于运行下面的 `npx` 安装器，以及 Artifact 技能的编辑器（Node 20+，仪表盘需 Node 22+）。
+- **Node.js**，用于运行下面的 `npx` 安装器，以及 Artifact 技能的编辑器（Node 20+，仪表盘和 Motion 需 Node 22+）。
 
 ### 安装
 
@@ -196,7 +205,7 @@ Agent 会 clone 或抓取该仓库、加载 `SKILL.md` 然后开干 —— 临�
 
 ### 开始使用
 
-技能装好（或被抓取）之后，直接说你要什么（*「根据这份 PRD 做一套 12 页的幻灯片」*、*「把这个 CSV 做成仪表盘」*），或者点名调用：Claude Code 里用 `/claude-slides`、`/claude-design`、`/claude-design-system` 或 `/claude-dashboard`，Codex 里用 `$claude-slides` 等。Agent 会把文件写到 `designs/<slug>/` 下，启动编辑器，再把它的 `http://127.0.0.1` 地址给你。
+技能装好（或被抓取）之后，直接说你要什么（*「根据这份 PRD 做一套 12 页的幻灯片」*、*「把这个 CSV 做成仪表盘」*），或者点名调用：Claude Code 里用 `/claude-slides`、`/claude-design`、`/claude-design-system`、`/claude-dashboard`、`/claude-motion` 或 `/motion-director`，Codex 里用 `$claude-slides` 等。Agent 会把文件写到 `designs/<slug>/` 下，启动编辑器，再把它的 `http://127.0.0.1` 地址给你。
 
 ---
 

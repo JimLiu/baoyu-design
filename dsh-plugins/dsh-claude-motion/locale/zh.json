@@ -1,0 +1,7 @@
+{
+  "meta": {
+    "title": "Claude 动画",
+    "description": "加入 claude-motion 技能：Agent 用代码一幕一幕地写出短动画（讲解视频、产品演示、片头等），在本地 Motion 播放器里播放。你可以看着它一点点成形，在某个时刻留评论，再导出 MP4 或 GIF。",
+    "detail": "docs/DETAIL.zh.md"
+  }
+}

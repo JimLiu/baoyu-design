@@ -32,8 +32,8 @@ does every call; below, `A` is `<this skill's folder>/scripts/artifact.mjs`.
 | `node $A upload <root> <file> [--name n]` | Attaches a CSV, TSV or JSON file: `{"url": "/_blob/<id>", "bytes", "contentType", …}`. |
 | `node $A delete-asset <root> <url \| id>` | Removes an attached file no document names any more. |
 | `node $A check <root>` | Checks the documents, the page's files, and that each dataset mark's `data-where`/`data-row` finds its rows. Exit 1 while `problems` > 0. |
-| `node $A open <root> [--port n] [--lan]` | Starts the editor at 127.0.0.1:4740 (the next free port up when 4740 is taken; `--port n` starts from n, `--port 0` takes any) in the background and returns `{"url", "pid", "stop", …}`; `url` is the dashboard's own page; its path, `/dashboard/<id>/`, stays the same from one start to the next (`/` goes there). Run again, it reuses the one running. `--lan`: also on the local network (see Sharing). `--agent-hook "<command>"`: see Comments. |
-| `node $A serve <root> [--port n] [--lan]` / `stop <root>` | The same server in the foreground / stops the background one. |
+| `node $A open <root> [--port n] [--lan]` | Starts the editor in the background and returns `{"url", "pid", "stop", …}`. All the dashboards open on this computer share one server and port (4740, the next free port up when that is taken; `--port n` looks for it at n and starts from n, `--port 0` runs a server of its own on any port); `url` is this dashboard's own page, whose path, `/dashboard/<id>/`, stays the same from one start to the next. Run again, it reuses the one running. `--lan`: also on the local network (see Sharing). `--agent-hook "<command>"`: see Comments. |
+| `node $A serve <root> [--port n] [--lan]` / `stop <root>` | The same server in the foreground / takes this folder off the server, which ends with the last one. |
 | `node $A share <root>` | Opens it to the local network and prints a link per role; `--disable` / `--enable` / `--reset <role>`, `--role <guest>=<role>`, `--off`. See Sharing. |
 | `node $A comments <root> [--all]` / `--wait` | The comments people left on the page / waits for one they send you. See Comments. |
 | `node $A comment-reply <root> <id> <text\|->` / `comment-resolve <root> <id>` | Answers one (`--resolve` closes it too) / closes one (`--reopen`). |
@@ -383,8 +383,9 @@ page.
 ## Sharing
 
 `share <root>` opens the dashboard to the local network (the same Wi-Fi or LAN,
-as `http://<this computer's address>:4740/`), starting the server if it isn't
-running, and prints a link per role: `editor` edits and comments, `commenter`
+as `http://<this computer's address>:4740/dashboard/<id>/`), starting the server if
+it isn't running, and prints a link per role (the other dashboards on the same
+server stay closed to the network): `editor` edits and comments, `commenter`
 comments without editing, `viewer` only looks. `open <root> --lan` (or
 `serve --lan`) shares it as it starts.
 
@@ -409,7 +410,7 @@ comments without editing, `viewer` only looks. `open <root> --lan` (or
   by it until it is on again. `--reset <role>` gives the role a new link: the
   old one stops working and the people who came by it are out.
   `--role <guest>=<role>` gives someone who joined another role (`<guest>`: an
-  id from the `guests` it prints). `--off` stops sharing on the network.
+  id from the `guests` it prints). `--off` stops sharing on the network, and only `share <root>` alone opens it: the link options leave it shared or not as it was.
 - Who writes what follows the page's own store rules: the owner and editors
   write the shared documents; commenters and viewers write nothing, their own
   per-person documents (`data/users/<id>`) included, so a run, a check or other

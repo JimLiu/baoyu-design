@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en" class="cds-root" data-density="comfortable" data-thumb-defer>
+<head>
+<meta charset="utf-8">
+<script>
+(function(){var values={"appifact_bottom_toolbar":true,"appifact_icon_set":true,"appifact_film_layers":true,"appifact_film_plan":true,"appifact_extra_export_formats":true,"appifact_film_voice":true};function kind(v){return v===null?"null":Array.isArray(v)?"array":typeof v}function copy(v){return JSON.parse(JSON.stringify(v))}globalThis.__appifact_flags={version:"appifact-flags:v1",ready:function(){return Promise.resolve(true)},get:function(key,fallback){if(!Object.prototype.hasOwnProperty.call(values,key)||kind(values[key])!==kind(fallback))return fallback;return copy(values[key])},all:function(){return copy(values)}};})();
+</script>
+<title>Motion</title>
+<!--
+  claude-motion: the claude.ai Motion type player, served locally by scripts/artifact.mjs serve.
+  A film's content is its store, <root>/db/<collection>/<doc_id>.json; local-host.js gives the player
+  globalThis.claude (db, assets, user, downloads, comments) over HTTP to that server. Opened from file:// with
+  #tools it is the headless renderer for stills (artifact-type/reference/render-offline.md). Prebuilt; see SKILL.md.
+
+## Fonts
+
+This page embeds modified versions (Latin subsets; axes pinned or limited) of
+nine font families, each under the SIL Open Font License 1.1
+(https://scripts.sil.org/OFL); none of them reserves a font name:
+
+- Shantell Sans 1.011: Copyright 2022 The Shantell Sans Project Authors (https://github.com/arrowtype/shantell-sans); upstream github.com/arrowtype/shantell-sans
+- Manrope 4.504: Copyright 2019 The Manrope Project Authors (https://github.com/sharanda/manrope); upstream github.com/sharanda/manrope
+- Inter Display 4.000 (git a52131595): Copyright 2016 The Inter Project Authors; upstream github.com/rsms/inter
+- Fraunces 1.000 (0bf87f6ff): Copyright 2020 The Fraunces Project Authors (github.com/undercasetype/Fraunces); upstream github.com/undercasetype/Fraunces
+- Instrument Sans 1.000: Copyright 2022 The Instrument Sans Project Authors (https://github.com/Instrument/instrument-sans); upstream github.com/Instrument/instrument-sans
+- Space Grotesk 2.000: Copyright 2020 The Space Grotesk Project Authors (https://github.com/floriankarsten/space-grotesk); upstream github.com/floriankarsten/space-grotesk
+- DM Mono 1.000: Copyright 2020 The DM Mono Project Authors (https://www.github.com/googlefonts/dm-mono); upstream github.com/googlefonts/dm-mono
+- Departure Mono 1.500: Copyright 2022–2024 Helena Zhang (helenazhang.com); upstream github.com/rektdeckard/departure-mono
+- Plus Jakarta Sans 2.071: Copyright 2020 The Plus Jakarta Sans Project Authors (https://github.com/tokotype/PlusJakartaSans); upstream github.com/tokotype/PlusJakartaSans
+
+Each file's name table keeps its copyright, names its licence and says that it
+is a modified version. Copies of Google Fonts files that are stored with a film
+are Google's own files, unchanged, and this version of the page keeps each
+family's copyright lines and the whole text of its licence beside them.
+
+The nine built-in families share one licence text, below. Departure Mono's own
+copy gives https://openfontlicense.org as the FAQ's address, and Instrument
+Sans's gives https://scripts.sil.org/OFL.
+
+```
+This Font Software is licensed under the SIL Open Font License, Version 1.1.
+This license is copied below, and is also available with a FAQ at:
+http://scripts.sil.org/OFL
+
+
+-----------------------------------------------------------
+SIL OPEN FONT LICENSE Version 1.1 - 26 February 2007
+-----------------------------------------------------------
+
+PREAMBLE
+The goals of the Open Font License (OFL) are to stimulate worldwide
+development of collaborative font projects, to support the font creation
+efforts of academic and linguistic communities, and to provide a free and
+open framework in which fonts may be shared and improved in partnership
+with others.
+
+The OFL allows the licensed fonts to be used, studied, modified and
+redistributed freely as long as they are not sold by themselves. The
+fonts, including any derivative works, can be bundled, embedded,
+redistributed and/or sold with any software provided that any reserved
+names are not used by derivative works. The fonts and derivatives,
+however, cannot be released under any other type of license. The
+requirement for fonts to remain under this license does not apply
+to any document created using the fonts or their derivatives.
+
+DEFINITIONS
+"Font Software" refers to the set of files released by the Copyright
+Holder(s) under this license and clearly marked as such. This may
+include source files, build scripts and documentation.
+
+"Reserved Font Name" refers to any names specified as such after the
+copyright statement(s).
+
+"Original Version" refers to the collection of Font Software components as
+distributed by the Copyright Holder(s).
+
+"Modified Version" refers to any derivative made by adding to, deleting,
+or substituting -- in part or in whole -- any of the components of the
+Original Version, by changing formats or by porting the Font Software to a
+new environment.
+
+"Author" refers to any designer, engineer, programmer, technical
+writer or other person who contributed to the Font Software.
+
+PERMISSION & CONDITIONS
+Permission is hereby granted, free of charge, to any person obtaining
+a copy of the Font Software, to use, study, copy, merge, embed, modify,
+redistribute, and sell modified and unmodified copies of the Font
+Software, subject to the following conditions:
+
+1) Neither the Font Software nor any of its individual components,
+in Original or Modified Versions, may be sold by itself.
+
+2) Original or Modified Versions of the Font Software may be bundled,
+redistributed and/or sold with any software, provided that each copy
+contains the above copyright notice and this license. These can be
+included either as stand-alone text files, human-readable headers or
+in the appropriate machine-readable metadata fields within text or
+binary files as long as those fields can be easily viewed by the user.
+
+3) No Modified Version of the Font Software may use the Reserved Font
+Name(s) unless explicit written permission is granted by the corresponding
+Copyright Holder. This restriction only applies to the primary font name as
+presented to the users.
+
+4) The name(s) of the Copyright Holder(s) or the Author(s) of the Font
+Software shall not be used to promote, endorse or advertise any
+Modified Version, except to acknowledge the contribution(s) of the
+Copyright Holder(s) and the Author(s) or with their explicit written
+permission.
+
+5) The Font Software, modified or unmodified, in part or in whole,
+must be distributed entirely under this license, and must not be
+distributed under any other license. The requirement for fonts to
+remain under this license does not apply to any document created
+using the Font Software.
+
+TERMINATION
+This license becomes null and void if any of the above conditions are
+not met.
+
+DISCLAIMER
+THE FONT SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO ANY WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT
+OF COPYRIGHT, PATENT, TRADEMARK, OR OTHER RIGHT. IN NO EVENT SHALL THE
+COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+INCLUDING ANY GENERAL, SPECIAL, INDIRECT, INCIDENTAL, OR CONSEQUENTIAL
+DAMAGES, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+FROM, OUT OF THE USE OR INABILITY TO USE THE FONT SOFTWARE OR FROM
+OTHER DEALINGS IN THE FONT SOFTWARE.
+```
+-->
+<meta name="appifact-capabilities" content="{&quot;downloads&quot;:{},&quot;comments&quot;:{&quot;composer_only&quot;:true,&quot;customAnchors&quot;:true},&quot;db&quot;:{&quot;rules&quot;:[{&quot;path&quot;:&quot;&quot;,&quot;write&quot;:&quot;admin&quot;}]},&quot;assets&quot;:{},&quot;user&quot;:{}}">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script id="appifact-mode">(function(){var h=document.documentElement;function s(){var t=h.getAttribute('data-theme');if(t==='light'||t==='dark'){h.setAttribute('data-mode',t)}else{h.removeAttribute('data-mode')}}s();if(typeof MutationObserver==='function'){new MutationObserver(s).observe(h,{attributes:true,attributeFilter:['data-theme']})}})();</script>
+
+  <link rel="stylesheet" href="./artifact-type/app.css">
+</head>
+<body>
+<div id="root"></div>
+<script src="./local-host.js"></script>
+<script src="./artifact-type/app.js"></script>
+</body>
+</html>

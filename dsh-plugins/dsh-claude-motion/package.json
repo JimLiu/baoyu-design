@@ -1,0 +1,68 @@
+{
+  "name": "dsh-claude-motion",
+  "version": "2.8.0",
+  "description": "DeepSeek Harness plugin: the claude-motion skill from baoyu-design. The agent writes short animated films as code, scene by scene, and plays them in a local Motion player that exports MP4 or GIF.",
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "skill",
+    "motion",
+    "animation",
+    "video"
+  ],
+  "homepage": "https://github.com/JimLiu/baoyu-design",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JimLiu/baoyu-design.git",
+    "directory": "dsh-plugins/dsh-claude-motion"
+  },
+  "license": "SEE LICENSE IN LICENSE",
+  "author": "Jim Liu 宝玉",
+  "type": "module",
+  "main": "lib/index.js",
+  "icon": "./icon.svg",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./locale/*.json": "./locale/*.json",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "locale/*.json",
+    "docs",
+    "skills",
+    "cordis.patch.yml",
+    "icon.svg",
+    "README.md",
+    "LICENSE",
+    "NOTICE.md"
+  ],
+  "engines": {
+    "node": ">=20",
+    "dsh": ">=0.2.0-0"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-api-session-controller",
+        "@deepseek-ai/dsh-api-workspace-controller",
+        "@deepseek-ai/dsh-client-connection",
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-chat",
+        "@deepseek-ai/dsh-client-ui-conversation",
+        "@deepseek-ai/dsh-client-ui-layout",
+        "@deepseek-ai/dsh-client-ui-renderer",
+        "@deepseek-ai/dsh-client-ui-sidebar",
+        "@deepseek-ai/dsh-client-ui-sidebar-right",
+        "@deepseek-ai/dsh-client-ui-workspace"
+      ]
+    }
+  }
+}

@@ -2,7 +2,7 @@
 
 [English](README.md) · [简体中文](README.zh-CN.md) · [返回 baoyu-design](../README.zh-CN.md)
 
-这里的每个文件夹都是一个 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 插件，各带一个 baoyu-design 技能。你让 Agent 做幻灯片、设计稿、设计系统或数据看板，它会把文件写进你的工作区，再给你一个编辑器链接。编辑器就运行在你自己的电脑上，链接在应用的侧栏里打开，和对话并排。
+这里的每个文件夹都是一个 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 插件，各带一个 baoyu-design 技能。你让 Agent 做幻灯片、设计稿、设计系统、数据看板或影片，它会把文件写进你的工作区，再给你一个编辑器链接。编辑器就运行在你自己的电脑上，链接在应用的侧栏里打开，和对话并排。
 
 | 插件 | npm 包名 | 能做什么 | 评论 |
 |---|---|---|---|
@@ -10,6 +10,7 @@
 | [Claude 设计稿](dsh-claude-design/)<br>`/claude-design` | [`dsh-claude-design`](https://www.npmjs.com/package/dsh-claude-design) | Agent 把可编辑的设计画布（多个画板并排）写成本地文件，并在本地画布编辑器里打开，你可以改文字、调参数，也可以把评论发给 Agent 修改。 | Send to Agent |
 | [Claude 设计系统](dsh-claude-design-system/)<br>`/claude-design-system` | [`dsh-claude-design-system`](https://www.npmjs.com/package/dsh-claude-design-system) | Agent 把设计系统（设计令牌、字体样式、组件、素材和品牌手册）写成本地文件，并在本地页面里打开，你可以浏览、修改，也可以把评论发给 Agent 修改。 | Send to Agent |
 | [Claude 数据看板](dsh-claude-dashboard/)<br>`/claude-dashboard` | [`dsh-claude-dashboard`](https://www.npmjs.com/package/dsh-claude-dashboard) | Agent 根据你的数据文件做出数据看板（图表、数字和表格），并在本地看板编辑器里打开，来源面板会显示每个数字是从哪里来的，你也可以把评论发给 Agent 修改。 | Send to Agent |
+| [Claude 动画](dsh-claude-motion/)<br>`/claude-motion` | [`dsh-claude-motion`](https://www.npmjs.com/package/dsh-claude-motion) | Agent 用代码一幕一幕地写出短动画（讲解视频、产品演示、片头等），在本地 Motion 播放器里播放。你可以看着它一点点成形，在某个时刻留评论，再导出 MP4 或 GIF。 | Send to Agent |
 
 只需要 DeepSeek Harness 桌面版。插件用的是桌面版自带的 Node.js，不用另外安装任何东西。
 
@@ -55,13 +56,13 @@ dsh plugin --profile web add dsh-claude-slides
    - **Send to Agent**：在页面上加评论，勾选 **Send to Agent** 再发送。对话空闲时 Agent 也会接手，改好以后在评论里回复你。评论也会以卡片的形式出现在对话里，点卡片上的 **View thread**（中文界面是「查看评论」）会在编辑器里打开这条评论。这个勾选框只在 Agent 等评论时出现；Agent 每次给你链接时都会开始等。
    - **无**：这个编辑器没有评论功能。直接在对话里告诉 Agent 要改哪里、怎么改。
 
-以后要接着改，点左侧栏的 **Artifacts**（「作品」）。这里列着 Agent 用这些插件打开过的所有幻灯片、设计稿、设计系统和看板，最近打开的在前，可以搜索，也可以按类型筛选。点一个，应用就回到做它的那个对话，在右侧栏的浏览器里打开编辑器；那个对话已经删除或归档的，编辑器改在新窗口里打开。也可以在同一个工作区里开会话，让 Agent 再打开它，Agent 会启动编辑器，给你一个新链接。
+以后要接着改，点左侧栏的 **Artifacts**（「作品」）。这里列着 Agent 用这些插件打开过的所有幻灯片、设计稿、设计系统、看板和影片，最近打开的在前，可以搜索，也可以按类型筛选。点一个，应用就回到做它的那个对话，在右侧栏的浏览器里打开编辑器；那个对话已经删除或归档的，编辑器改在新窗口里打开。也可以在同一个工作区里开会话，让 Agent 再打开它，Agent 会启动编辑器，给你一个新链接。
 
 ## 更新
 
 应用不会自己更新这些插件。如果你在[「发现」](#安装)里加了索引，出了新版本时，插件卡片上会显示 **Update available**（有新版本）。要装新版本：
 
-1. 在插件页打开这个插件，点 **Uninstall**。你做好的幻灯片、设计稿和看板还留在各自的工作区文件夹里。
+1. 在插件页打开这个插件，点 **Uninstall**。你做好的幻灯片、设计稿、看板和影片还留在各自的工作区文件夹里。
 2. 重新安装：在「发现」里点它卡片上的 **Install**，或者按[安装](#安装)的步骤用插件名重新添加。
 3. 退出应用再重新打开，再新开一个会话。
 
@@ -71,7 +72,7 @@ dsh plugin --profile web add dsh-claude-slides
 
 ## 卸载
 
-在插件页打开这个插件，点 **Uninstall**。你做好的幻灯片、设计稿和看板还留在各自的工作区文件夹里。
+在插件页打开这个插件，点 **Uninstall**。你做好的幻灯片、设计稿、看板和影片还留在各自的工作区文件夹里。
 
 ## 遇到问题
 

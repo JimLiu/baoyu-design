@@ -1,0 +1,7 @@
+{
+  "meta": {
+    "title": "Claude Motion",
+    "description": "Adds the claude-motion skill: the agent writes short animated films (explainers, product demos, title sequences) as code, scene by scene, and plays them in a local Motion player where you watch them fill in, comment on a moment, and export MP4 or GIF.",
+    "detail": "docs/DETAIL.md"
+  }
+}
