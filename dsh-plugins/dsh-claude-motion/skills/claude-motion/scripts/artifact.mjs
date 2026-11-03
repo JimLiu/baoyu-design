@@ -79,6 +79,26 @@ var PortsTaken = class extends Error {
     this.to = to;
   }
 };
+var NetworkBlocked = class extends Error {
+  code = "NETWORK_BLOCKED";
+  constructor() {
+    super(
+      "A sandbox blocks local network here (127.0.0.1), so the server cannot start and no port is really in use. Run this same command with local network allowed, outside the sandbox, asking for that permission if your commands need approval."
+    );
+  }
+};
+function loopbackBlocked(port) {
+  return new Promise((resolve) => {
+    const socket = net.connect({ host: "127.0.0.1", port });
+    const done = (blocked) => {
+      socket.destroy();
+      resolve(blocked);
+    };
+    socket.setTimeout(300, () => done(false));
+    socket.once("connect", () => done(false));
+    socket.once("error", (error) => done(error.code === "EPERM" || error.code === "EACCES"));
+  });
+}
 var isBenchmarkRange = (address) => /^198\.1[89]\./.test(address);
 function isTailnet(address) {
   const m = /^100\.(\d{1,3})\./.exec(address);
@@ -125,6 +145,7 @@ async function answersAnyPort(address) {
   return port > 0 && answers(address, port);
 }
 async function listenFree(server, from, host, first) {
+  if (await loopbackBlocked(first || from || 1)) throw new NetworkBlocked();
   if (from === 0) return listen(server, 0, host);
   const to = Math.min(from + PORT_TRIES - 1, 65535);
   const range = Array.from({ length: to - from + 1 }, (_, i) => from + i);
@@ -965,6 +986,7 @@ async function serveHub(call) {
   }
 }
 async function openOnHub(call) {
+  if (await loopbackBlocked(call.port || 1)) throw new NetworkBlocked();
   const joined = await joinHub(call);
   if (joined) return { state: joined };
   const logFile = path3.join(call.root, LOG_FILE);

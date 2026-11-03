@@ -2470,6 +2470,7 @@ async function updateComments(root, change) {
 }
 
 import fs8 from "node:fs";
+import net from "node:net";
 import path10 from "node:path";
 var STATE_FILE = ".artifact-server.json";
 var LOG_FILE = ".artifact-server.log";
@@ -2501,6 +2502,26 @@ async function runningServer(root, kind, probe) {
 }
 var DEFAULT_PORTS = { slides: 4710, design: 4720, "design-system": 4730, dashboard: 4740, docs: 4750, motion: 4760 };
 var PORT_TRIES = 100;
+var NetworkBlocked = class extends Error {
+  code = "NETWORK_BLOCKED";
+  constructor() {
+    super(
+      "A sandbox blocks local network here (127.0.0.1), so the server cannot start and no port is really in use. Run this same command with local network allowed, outside the sandbox, asking for that permission if your commands need approval."
+    );
+  }
+};
+function loopbackBlocked(port) {
+  return new Promise((resolve) => {
+    const socket = net.connect({ host: "127.0.0.1", port });
+    const done = (blocked) => {
+      socket.destroy();
+      resolve(blocked);
+    };
+    socket.setTimeout(300, () => done(false));
+    socket.once("connect", () => done(false));
+    socket.once("error", (error) => done(error.code === "EPERM" || error.code === "EACCES"));
+  });
+}
 function serverOrigin(host, port) {
   const shown = host === "0.0.0.0" || host === "::" ? "127.0.0.1" : host.includes(":") ? `[${host}]` : host;
   return `http://${shown}:${port}`;
@@ -2700,6 +2721,7 @@ async function leaveHub(state) {
   return true;
 }
 async function openOnHub(call) {
+  if (await loopbackBlocked(call.port || 1)) throw new NetworkBlocked();
   const joined = await joinHub(call);
   if (joined) return { state: joined };
   const logFile = path12.join(call.root, LOG_FILE);
