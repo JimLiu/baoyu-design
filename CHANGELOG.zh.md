@@ -4,6 +4,11 @@
 
 本文档记录 `baoyu-design` 的重要变更。
 
+## 2.8.2 - 2026-11-02
+
+### 修复
+- `claude-slides`：导出 PowerPoint 时，如果中日韩文字用的东亚字体在对方电脑上没有，或者这个字体本身不含这些字（basic 字体导出里的 Arial、拉丁字体、长 deck 里漏了字的内嵌子集），文字可能显示成方块。这类文字现在改用 Windows 和 Office 常见的字体（Microsoft YaHei、Microsoft JhengHei、Yu Gothic 或 Malgun Gothic）。内嵌字体装得下的文字、不含这些字的文字和 Google Slides 导出都不变（[#29](https://github.com/JimLiu/baoyu-design/issues/29)）。
+
 ## 2.8.1 - 2026-11-02
 
 ### 修复

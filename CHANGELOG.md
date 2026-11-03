@@ -4,6 +4,11 @@ English | [中文](./CHANGELOG.zh.md)
 
 All notable changes to `baoyu-design` are tracked in this file.
 
+## 2.8.2 - 2026-11-02
+
+### Fixes
+- `claude-slides`: in a PowerPoint export, Chinese, Japanese or Korean text could show as boxes when its East Asian font was missing on the reader's computer or held none of those characters: Arial in the basic-fonts export, a Latin family, or an embedded subset that left characters out of a long deck. That text now names a font Windows and Office have instead (Microsoft YaHei, Microsoft JhengHei, Yu Gothic or Malgun Gothic). Text the embedded font holds, text without these characters and the Google Slides export are unchanged ([#29](https://github.com/JimLiu/baoyu-design/issues/29)).
+
 ## 2.8.1 - 2026-11-02
 
 ### Fixes

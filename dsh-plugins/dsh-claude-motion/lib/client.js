@@ -1,4 +1,4 @@
-// dsh-claude-motion 2.8.1: built from baoyu-design.
+// dsh-claude-motion 2.8.2: built from baoyu-design.
 window.__ModuleLoader__.load({
 	id: "dsh-claude-motion",
 	factory: (require) => {
