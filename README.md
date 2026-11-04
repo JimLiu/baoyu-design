@@ -111,7 +111,7 @@ The five editor skills also come as [DeepSeek Harness](https://github.com/deepse
 
 In the slides, canvas and design-system editors, on the dashboard page and in the Motion player, a comment goes straight to the agent: whenever the agent opens an editor, the plugin waits for comments. Mark up the page, tick **Send to Agent**, and the agent wakes up, reads your comment, makes the change and replies in the comment thread. The comment also shows in the chat as a card.
 
-The plugins also add **Artifacts** to the app's left sidebar: every deck, canvas, design system, dashboard and film the agent has opened, most recent first, with search and a tab for each type. Click one and the app goes back to the conversation that made it and opens the editor in the right sidebar.
+The plugins also add **Artifacts** to the app's left sidebar: every deck, canvas, design system, dashboard and film the agent has opened, each with a thumbnail, as a grid or a list, with search, sort and filters. Click one and the app goes back to the conversation that made it and opens the editor in the right sidebar. A tile at the top starts a new session with the input filled in for that kind of thing, so the right skill loads.
 
 ### Install from npm
 

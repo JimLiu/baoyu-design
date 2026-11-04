@@ -1,21 +1,28 @@
-// dsh-claude-design-system 2.8.2: built from baoyu-design.
+// dsh-claude-design-system 2.9.0: built from baoyu-design.
 var define_PLUGIN_default = { name: "claude-design-system", provider: "dsh-claude-design-system", skills: [{ name: "claude-design-system", description: "Create and revise design systems in the Design System artifact format (project/design-system.json, tokens.json, a README brand book, component previews, fonts and asset groups) as local files, then open them in a local design-system page where the user can browse and edit tokens, type, components and assets. Use when the user asks for a design system or brand kit in this format, built from a code repository, a design tool or scratch, names claude-design-system or the Design System type, or wants to revise a folder that holds project/design-system.json. claude-slides and claude-design install these systems. Not for a free-form HTML style guide, UI kit or token page.", comments: true }] };
 
 import { spawn as spawn2 } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { statSync } from "node:fs";
+import { statSync as statSync2 } from "node:fs";
 import { readFile } from "node:fs/promises";
-import { basename as basename2, delimiter, dirname, isAbsolute, join as join2, sep } from "node:path";
+import { basename as basename2, delimiter, dirname as dirname2, isAbsolute, join as join2, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { basename, join } from "node:path";
+import { basename, dirname, join, parse } from "node:path";
 
-var listPath = (skill) => `/api/baoyu-design.${skill}.artifacts`;
-var openPath = (skill) => `/api/baoyu-design.${skill}.artifacts.open`;
+var base = (skill) => `/api/baoyu-design.${skill}.artifacts`;
+var listPath = base;
+var openPath = (skill) => `${base(skill)}.open`;
+var previewPath = (skill) => `${base(skill)}.preview`;
+var releasePath = (skill) => `${base(skill)}.release`;
+var thumbnailPath = (skill) => `${base(skill)}.thumbnail`;
+var updatePath = (skill) => `${base(skill)}.update`;
+var deletePath = (skill) => `${base(skill)}.delete`;
+var restorePath = (skill) => `${base(skill)}.restore`;
 
 var TITLES = {
   "claude-slides": ["project/deck.json", "title"],
@@ -26,6 +33,18 @@ var TITLES = {
   "claude-motion": ["db/film/meta.json", "title"]
 };
 var OPEN_TIMEOUT_MS = 3e4;
+var TITLE_MAX = 200;
+var EDITOR_FILES = [".artifact-server.json", ".artifact-server.log", ".sharing.json", ".gitignore", ".DS_Store", "comments.json", "history", "exports"];
+var FOLDER = {
+  "claude-slides": ["project"],
+  "claude-design": ["project"],
+  "claude-design-system": ["project"],
+  "claude-dashboard": ["db", "_blobs", "src"],
+  "claude-docs": ["doc.json", "tabs", "_blobs", ".sessions.json"],
+  "claude-motion": ["db", "_blobs", "src"]
+};
+var NOT_CONTENT = /* @__PURE__ */ new Set([...EDITOR_FILES, ".sessions.json", ".git", "node_modules"]);
+var STAMP_MAX_ENTRIES = 2e4;
 function dshHome() {
   const set = process.env.DSH_HOME?.trim();
   return set ? set : join(homedir(), ".dsh");
@@ -33,8 +52,15 @@ function dshHome() {
 function artifactsDir() {
   return join(dshHome(), "baoyu-design", "artifacts");
 }
+var folderHash = (root) => createHash("sha256").update(root).digest("hex").slice(0, 24);
 function recordFile(root) {
-  return join(artifactsDir(), `${createHash("sha256").update(root).digest("hex").slice(0, 24)}.json`);
+  return join(artifactsDir(), `${folderHash(root)}.json`);
+}
+function thumbnailFile(root) {
+  return join(dshHome(), "baoyu-design", "thumbnails", `${folderHash(root)}.jpg`);
+}
+function trashDir() {
+  return join(dshHome(), "baoyu-design", "trash");
 }
 function artifactTitle(skill, root) {
   const at = TITLES[skill];
@@ -59,9 +85,20 @@ function readRecord(file) {
     return null;
   }
 }
+function writeWhole(file, data) {
+  mkdirSync(dirname(file), { recursive: true });
+  const tmp = `${file}.${process.pid}.${Date.now()}.tmp`;
+  writeFileSync(tmp, data);
+  renameSync(tmp, file);
+}
+function writeRecord(record) {
+  writeWhole(recordFile(record.root), `${JSON.stringify(record, null, 2)}
+`);
+}
 function recordOpened(skill, plugin, sessionId, root, now = /* @__PURE__ */ new Date()) {
   const file = recordFile(root);
   const before = readRecord(file);
+  const mine = before?.root === root ? before : null;
   const record = {
     v: 1,
     root,
@@ -70,14 +107,54 @@ function recordOpened(skill, plugin, sessionId, root, now = /* @__PURE__ */ new 
     sessionId,
     title: artifactTitle(skill, root) ?? before?.title ?? basename(root),
     openedAt: now.toISOString(),
-    firstOpenedAt: before?.root === root ? before.firstOpenedAt ?? before.openedAt : now.toISOString()
+    firstOpenedAt: mine ? mine.firstOpenedAt ?? mine.openedAt : now.toISOString(),
+    ...mine?.pinned ? { pinned: true } : {},
+    ...mine?.thumbStamp ? { thumbStamp: mine.thumbStamp } : {}
   };
-  mkdirSync(artifactsDir(), { recursive: true });
-  const tmp = `${file}.${process.pid}.${Date.now()}.tmp`;
-  writeFileSync(tmp, `${JSON.stringify(record, null, 2)}
-`);
-  renameSync(tmp, file);
+  writeRecord(record);
   return record;
+}
+function contentStamp(root) {
+  let newest = 0;
+  let entries = 0;
+  const walk = (dir, top) => {
+    let names;
+    try {
+      names = readdirSync(dir);
+    } catch {
+      return;
+    }
+    for (const name2 of names) {
+      if (++entries > STAMP_MAX_ENTRIES) return;
+      if (name2.endsWith(".tmp") || top && NOT_CONTENT.has(name2)) continue;
+      const path = join(dir, name2);
+      try {
+        const stat = statSync(path);
+        if (stat.isDirectory()) walk(path, false);
+        else if (stat.mtimeMs > newest) newest = stat.mtimeMs;
+      } catch {
+      }
+    }
+  };
+  walk(root, true);
+  return newest > 0 ? new Date(newest).toISOString() : "";
+}
+function isShared(root) {
+  try {
+    return JSON.parse(readFileSync(join(root, ".sharing.json"), "utf8")).lan === true;
+  } catch {
+    return false;
+  }
+}
+function isDeletable(skill, root) {
+  const own = FOLDER[skill];
+  if (own === void 0) return false;
+  if (root === homedir() || root === parse(root).root) return false;
+  try {
+    return readdirSync(root).every((name2) => own.includes(name2) || EDITOR_FILES.includes(name2) || name2.endsWith(".tmp"));
+  } catch {
+    return false;
+  }
 }
 function listArtifacts() {
   let names;
@@ -97,7 +174,13 @@ function listArtifacts() {
       plugin: record.plugin,
       sessionId: record.sessionId,
       title: artifactTitle(record.skill, record.root) ?? record.title,
-      openedAt: record.openedAt
+      openedAt: record.openedAt,
+      firstOpenedAt: record.firstOpenedAt ?? record.openedAt,
+      updatedAt: contentStamp(record.root) || record.openedAt,
+      pinned: record.pinned === true,
+      shared: isShared(record.root),
+      deletable: isDeletable(record.skill, record.root),
+      thumbnail: record.thumbStamp !== void 0 && existsSync(thumbnailFile(record.root)) ? record.thumbStamp : null
     });
   }
   return views.sort((a, b) => a.openedAt < b.openedAt ? 1 : a.openedAt > b.openedAt ? -1 : 0);
@@ -114,30 +197,108 @@ function scriptEnv(node) {
   }
   return env;
 }
-function runOpen(node, script, root) {
+function runScript(node, script, args, input) {
   return new Promise((resolve, reject) => {
-    const child = spawn(node.path, [script, "open", root], { env: scriptEnv(node), stdio: ["ignore", "pipe", "pipe"], windowsHide: true });
+    const child = spawn(node.path, [script, ...args], { env: scriptEnv(node), stdio: [input === void 0 ? "ignore" : "pipe", "pipe", "pipe"], windowsHide: true });
     let stdout = "";
     let stderr = "";
     const timer = setTimeout(() => {
       child.kill();
-      reject(new Error("the editor did not start in time"));
+      reject(new Error(`${args[0]} did not finish in time`));
     }, OPEN_TIMEOUT_MS);
     child.stdout?.setEncoding("utf8").on("data", (chunk) => stdout += chunk);
     child.stderr?.setEncoding("utf8").on("data", (chunk) => stderr += chunk);
+    child.stdin?.end(input);
     child.on("error", (error) => {
       clearTimeout(timer);
       reject(error);
     });
     child.on("close", (code) => {
       clearTimeout(timer);
-      const out = firstJson(stdout);
-      if (code === 0 && typeof out?.url === "string") return resolve({ url: out.url, reused: out.reused === true });
-      const failure = firstJson(stderr);
-      const message = typeof failure?.message === "string" ? failure.message : stderr.trim() || `open exited with ${code ?? "a signal"}`;
+      if (code === 0) return resolve(firstJson(stdout));
+      const failure = firstJson(stderr) ?? firstJson(stdout);
+      const message = typeof failure?.message === "string" ? failure.message : stderr.trim() || `${args[0]} exited with ${code ?? "a signal"}`;
       reject(new Error(message));
     });
   });
+}
+async function runOpen(node, script, root) {
+  const out = await runScript(node, script, ["open", root]);
+  if (typeof out?.url !== "string") throw new Error("open printed no address");
+  return { url: out.url, reused: out.reused === true };
+}
+async function renameArtifact(node, script, record, title) {
+  const { root, skill } = record;
+  const at = TITLES[skill];
+  if (at === void 0) throw new Error(`no title to change for ${skill}`);
+  if (skill === "claude-dashboard" || skill === "claude-motion") {
+    const path = at[0].replace(/^db\//, "").replace(/\.json$/, "");
+    await runScript(node, script, ["write-db", root, "-"], JSON.stringify([{ op: "update", path, data: { [at[1]]: title } }]));
+    return;
+  }
+  const file = join(root, at[0]);
+  const index = JSON.parse(readFileSync(file, "utf8"));
+  if (skill === "claude-docs") {
+    await runScript(node, script, ["update", root, JSON.stringify({ ref: { object: "project", id: String(index.id) }, payload: { name: title } })]);
+    return;
+  }
+  writeWhole(file, `${JSON.stringify({ ...index, [at[1]]: title }, null, 2)}
+`);
+}
+function cleanTitle(raw) {
+  if (typeof raw !== "string") return null;
+  const title = raw.replace(/\s+/g, " ").trim().slice(0, TITLE_MAX);
+  return title || null;
+}
+function moveFolder(from, to) {
+  mkdirSync(dirname(to), { recursive: true });
+  try {
+    renameSync(from, to);
+  } catch (error) {
+    if (error.code !== "EXDEV") throw error;
+    cpSync(from, to, { recursive: true, preserveTimestamps: true });
+    rmSync(from, { recursive: true, force: true });
+  }
+}
+var TRASH_ID = /^[0-9a-f]{24}-\d+$/;
+function trashArtifact(record) {
+  const id = `${folderHash(record.root)}-${Date.now()}`;
+  const entry = join(trashDir(), id);
+  try {
+    for (const name2 of readdirSync(trashDir())) {
+      if (TRASH_ID.test(name2) && !existsSync(join(trashDir(), name2, "folder"))) rmSync(join(trashDir(), name2), { recursive: true, force: true });
+    }
+  } catch {
+  }
+  mkdirSync(entry, { recursive: true });
+  writeFileSync(join(entry, "record.json"), `${JSON.stringify(record, null, 2)}
+`);
+  const thumbnail = thumbnailFile(record.root);
+  if (existsSync(thumbnail)) renameSync(thumbnail, join(entry, "thumbnail.jpg"));
+  const moved = isDeletable(record.skill, record.root);
+  const path = join(entry, "folder", basename(record.root));
+  if (moved) moveFolder(record.root, path);
+  rmSync(recordFile(record.root), { force: true });
+  return { trash: id, moved, path: moved ? path : record.root };
+}
+function restoreArtifact(id) {
+  if (!TRASH_ID.test(id)) throw new Error("not a trash entry");
+  const entry = join(trashDir(), id);
+  const record = readRecord(join(entry, "record.json"));
+  if (record === null) throw new Error("nothing to put back");
+  const folder = join(entry, "folder", basename(record.root));
+  if (existsSync(folder)) {
+    if (existsSync(record.root)) throw new Error(`${record.root} is taken`);
+    moveFolder(folder, record.root);
+  }
+  writeRecord(record);
+  const thumbnail = join(entry, "thumbnail.jpg");
+  if (existsSync(thumbnail)) {
+    mkdirSync(dirname(thumbnailFile(record.root)), { recursive: true });
+    renameSync(thumbnail, thumbnailFile(record.root));
+  }
+  rmSync(entry, { recursive: true, force: true });
+  return record;
 }
 function firstJson(text) {
   const start = text.indexOf("{");
@@ -177,6 +338,129 @@ function registerRoutes(routes, skill, opened) {
       }
     }
   });
+  const rootOf = (request) => new URL(request.url).searchParams.get("root") ?? "";
+  const mine = (root) => {
+    const record = root ? findArtifact(root) : null;
+    return record?.skill === skill.name && existsSync(root) ? record : null;
+  };
+  const notMine = () => json({ error: "not a recorded artifact of this skill" }, 404);
+  const started = /* @__PURE__ */ new Map();
+  routes.register({
+    path: previewPath(skill.name),
+    methods: ["POST"],
+    requestBody: "buffered",
+    fetch: async (request) => {
+      const root = rootOf(request);
+      const record = mine(root);
+      if (record === null) return notMine();
+      try {
+        const { url, reused } = await runOpen(skill.node, skill.script, root);
+        if (!reused) started.set(root, record.openedAt);
+        return json({ url, reused });
+      } catch (error) {
+        return json({ error: error.message }, 500);
+      }
+    }
+  });
+  routes.register({
+    path: releasePath(skill.name),
+    methods: ["POST"],
+    requestBody: "buffered",
+    fetch: async (request) => {
+      const root = rootOf(request);
+      const since = started.get(root);
+      started.delete(root);
+      const record = mine(root);
+      if (record === null) return notMine();
+      if (since === void 0 || since !== record.openedAt || new URL(request.url).searchParams.get("keep") === "1") return json({ stopped: false });
+      try {
+        await runScript(skill.node, skill.script, ["stop", root]);
+        return json({ stopped: true });
+      } catch (error) {
+        return json({ error: error.message }, 500);
+      }
+    }
+  });
+  routes.register({
+    path: thumbnailPath(skill.name),
+    methods: ["GET", "POST"],
+    requestBody: "buffered",
+    fetch: async (request) => {
+      const root = rootOf(request);
+      const record = root ? findArtifact(root) : null;
+      if (record === null) return json({ error: "not a recorded artifact" }, 404);
+      if (request.method === "GET") {
+        try {
+          const bytes2 = readFileSync(thumbnailFile(root));
+          return new Response(bytes2, { headers: { "content-type": "image/jpeg", "cache-control": "private, max-age=31536000, immutable" } });
+        } catch {
+          return json({ error: "no thumbnail yet" }, 404);
+        }
+      }
+      const bytes = new Uint8Array(await request.arrayBuffer());
+      if (bytes.length < 3 || bytes[0] !== 255 || bytes[1] !== 216) return json({ error: "a thumbnail is a JPEG" }, 400);
+      writeWhole(thumbnailFile(root), bytes);
+      const stamp = contentStamp(root) || record.openedAt;
+      writeRecord({ ...findArtifact(root) ?? record, thumbStamp: stamp });
+      return json({ thumbnail: stamp, updatedAt: stamp });
+    }
+  });
+  routes.register({
+    path: updatePath(skill.name),
+    methods: ["POST"],
+    requestBody: "buffered",
+    fetch: async (request) => {
+      const root = rootOf(request);
+      const record = mine(root);
+      if (record === null) return notMine();
+      const patch = await request.json().catch(() => null);
+      if (patch === null || typeof patch !== "object") return json({ error: "not a JSON object" }, 400);
+      try {
+        if (patch.title !== void 0) {
+          const title = cleanTitle(patch.title);
+          if (title === null) return json({ error: "a title cannot be empty" }, 400);
+          await renameArtifact(skill.node, skill.script, record, title);
+        }
+        const now = findArtifact(root) ?? record;
+        const next = { ...now, title: artifactTitle(skill.name, root) ?? now.title };
+        if (patch.pinned === true) next.pinned = true;
+        else if (patch.pinned === false) delete next.pinned;
+        writeRecord(next);
+        return json({ title: next.title, pinned: next.pinned === true });
+      } catch (error) {
+        return json({ error: error.message }, 500);
+      }
+    }
+  });
+  routes.register({
+    path: deletePath(skill.name),
+    methods: ["POST"],
+    requestBody: "buffered",
+    fetch: async (request) => {
+      const root = rootOf(request);
+      const record = mine(root);
+      if (record === null) return notMine();
+      try {
+        if (isDeletable(skill.name, root)) await runScript(skill.node, skill.script, ["stop", root]).catch(() => null);
+        started.delete(root);
+        return json(trashArtifact(record));
+      } catch (error) {
+        return json({ error: error.message }, 500);
+      }
+    }
+  });
+  routes.register({
+    path: restorePath(skill.name),
+    methods: ["POST"],
+    requestBody: "buffered",
+    fetch: (request) => {
+      try {
+        return Promise.resolve(json({ root: restoreArtifact(new URL(request.url).searchParams.get("trash") ?? "").root }));
+      } catch (error) {
+        return Promise.resolve(json({ error: error.message }, 400));
+      }
+    }
+  });
 }
 
 var PLUGIN = define_PLUGIN_default;
@@ -186,7 +470,7 @@ var BUNDLED_SKILL_RANK = 600;
 var packageRoot = fileURLToPath(new URL("../", import.meta.url));
 function isFile(path) {
   try {
-    return statSync(path).isFile();
+    return statSync2(path).isFile();
   } catch {
     return false;
   }
@@ -204,10 +488,10 @@ function resolveNode(config = {}) {
   const roots = [];
   const resourcesPath = process.resourcesPath;
   if (typeof resourcesPath === "string") roots.push(resourcesPath);
-  let dir = dirname(process.execPath);
+  let dir = dirname2(process.execPath);
   for (let i = 0; i < 6; i++) {
     roots.push(join2(dir, "Resources"), join2(dir, "resources"));
-    const parent = dirname(dir);
+    const parent = dirname2(dir);
     if (parent === dir) break;
     dir = parent;
   }
@@ -355,7 +639,7 @@ function openedEditor(script, exec, result) {
 function ranScript(script, command, stop) {
   if (typeof stop !== "string") return command.includes(script);
   if (stop.includes(script)) return true;
-  const folder = basename2(dirname(dirname(script)));
+  const folder = basename2(dirname2(dirname2(script)));
   return new RegExp(`[/\\\\]${folder.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}[/\\\\]scripts[/\\\\]artifact\\.mjs`).test(stop);
 }
 var bound = (text) => text.length <= SUMMARY_MAX ? text : `${text.slice(0, SUMMARY_MAX - 1)}…`;
@@ -554,7 +838,7 @@ function apply(ctx, config = {}) {
       const skill = skills.get(candidate.name);
       if (skill === void 0) throw new Error(`${PLUGIN.name}: no skill named ${candidate.name}`);
       const raw = await readFile(candidate.path, { encoding: "utf8", signal: options?.signal });
-      const directory = dirname(candidate.path);
+      const directory = dirname2(candidate.path);
       return { ...summary, content: skillBody(raw, candidate.path) + runtimeSection(skill, directory, node) };
     }
   };

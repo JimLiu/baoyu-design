@@ -79,10 +79,17 @@ it.
    - **None**: this editor has no comments. Tell the agent in the chat what to change and where.
 
 To come back later, click **Artifacts** in the left sidebar. It lists every deck, design, design system, dashboard and film
-the agent has opened with these plugins, most recent first, with a search box and a tab for each type. Click one: the
+the agent has opened with these plugins. Click one: the
 app goes back to the conversation that made it and opens the editor in the right sidebar's browser. If that
 conversation was deleted or archived, the editor opens in a new window instead. You can also open a session in the same
 workspace and ask the agent to open it again; it starts the editor and gives you a new link.
+
+On that page you can also:
+
+- **Start something new.** Click a tile at the top (Slides, Design, Dashboard, …) or **+** at the top right. The app starts a new session with the input filled in (`/claude-slides Make me a slide deck about: `, say); finish the sentence and send it, and the agent uses that skill. Only plugins that are on have a tile.
+- **See thumbnails.** The desktop app opens each artifact's editor once to take its picture, and takes it again when you come back after its files changed. `dsh web` cannot take pictures, so its cards show a drawing of the type.
+- **Change the view, search, sort and filter.** The buttons at the top right switch between a grid and a list, search by title, conversation or path, sort by last opened, last edited, date created or name, and filter by type, date opened, sharing or pinned.
+- **Pin, rename, copy the link, delete.** Hover over an artifact and click **…** (while the menu is open, P, R and C work too). Rename changes the title in the editor. The link is the editor's address on this computer, and the editor stays running. Delete moves the folder to `baoyu-design/trash/` in the app's data folder (`~/.dsh` by default); the message that follows has an Undo, and you can delete it for good there. A folder that holds other files too is only taken off the page, and stays where it is.
 
 ## Update
 
