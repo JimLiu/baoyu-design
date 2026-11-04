@@ -4,6 +4,18 @@ English | [中文](./CHANGELOG.zh.md)
 
 All notable changes to `baoyu-design` are tracked in this file.
 
+## 2.9.0 - 2026-11-03
+
+### Features
+- **ChatGPT plugins.** The skills now also come as plugins for the ChatGPT desktop app and Codex: Baoyu Slides, Baoyu Canvas, Baoyu Design System, Baoyu Dashboard, Baoyu Motion (with `motion-director` and `dataviz`) and Baoyu Dataviz. This repository is their marketplace: run `codex plugin marketplace add JimLiu/baoyu-design --sparse .agents/plugins --sparse chatgpt-plugins`, then install the ones you want. [chatgpt-plugins/README.md](chatgpt-plugins/README.md) has the steps.
+- DeepSeek Harness: each deck, canvas, design system, dashboard and film on the **Artifacts** page now has a real thumbnail, taken from its own editor and retaken when its files change. This needs the desktop app; in `dsh web` a card keeps a drawn picture of its type.
+- The **Artifacts** page's tiles and **+** menu start a new session with the input filled in, such as `/claude-slides Make me a slide deck about: `, and sending it loads that skill. Only plugins that are on get a tile.
+- The **Artifacts** page has grid and list views, search, sorting (last opened, last edited, date created, name) and filters (type, date opened, sharing, pinned).
+- Each card on the **Artifacts** page has a menu to pin, rename, copy the link or delete. Rename changes the title in the artifact itself, so its editor shows the new name. Delete moves the folder to `baoyu-design/trash/` in the app's data folder, with an Undo; a folder that also holds other files stays where it is and only leaves the list.
+
+### Fixes
+- In a sandbox that blocks local network, such as Codex's default one, `open` said `PORT_IN_USE`, as if every port were taken. It now says `NETWORK_BLOCKED` and how to run the command, and the skills say which commands need local network.
+
 ## 2.8.2 - 2026-11-02
 
 ### Fixes

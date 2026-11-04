@@ -4,6 +4,18 @@
 
 本文档记录 `baoyu-design` 的重要变更。
 
+## 2.9.0 - 2026-11-03
+
+### 新功能
+- **ChatGPT 插件。** 这些技能也做成了 ChatGPT 桌面版和 Codex 的插件：Baoyu Slides、Baoyu Canvas、Baoyu Design System、Baoyu Dashboard、Baoyu Motion（带 `motion-director` 和 `dataviz`）和 Baoyu Dataviz。本仓库就是它们的 marketplace：运行 `codex plugin marketplace add JimLiu/baoyu-design --sparse .agents/plugins --sparse chatgpt-plugins`，再装你要的插件。步骤见 [chatgpt-plugins/README.zh-CN.md](chatgpt-plugins/README.zh-CN.md)。
+- DeepSeek Harness：**Artifacts** 页（中文界面是「作品」）上的幻灯片、画布、设计系统、仪表盘和影片现在都有真实的缩略图，从各自的编辑器里截取，文件改过后会重新截。这要在桌面版里；`dsh web` 的卡片仍然是画出来的类型示意图。
+- 作品页顶部的入口和 **+** 菜单会新开一个会话，并填好输入框，比如 `/claude-slides 帮我做一份幻灯片，主题是：`，发送时会加载对应的技能。只有开着的插件才有入口。
+- 作品页可以切换网格和列表，可以搜索、排序（最近打开、最近修改、创建时间、名称）和筛选（类型、打开时间、共享、已固定）。
+- 作品页的每张卡片都有菜单，可以固定、重命名、复制链接和删除。重命名改的是作品本身的标题，编辑器里也会显示新名字。删除会把文件夹移到应用数据目录的 `baoyu-design/trash/`，可以撤销；文件夹里还有别的文件时，文件夹留在原处，只从列表移除。
+
+### 修复
+- 在不允许访问本机网络的沙箱里（比如 Codex 的默认沙箱），`open` 会报 `PORT_IN_USE`，好像所有端口都被占了。现在它报 `NETWORK_BLOCKED`，并说明该怎么运行；技能说明里也写了哪些命令要访问本机网络。
+
 ## 2.8.2 - 2026-11-02
 
 ### 修复
