@@ -1,4 +1,4 @@
-// dsh-claude-design-system 2.9.0: built from baoyu-design.
+// dsh-claude-design-system 2.9.1: built from baoyu-design.
 window.__ModuleLoader__.load({
 	id: "dsh-claude-design-system",
 	factory: (require) => {

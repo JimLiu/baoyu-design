@@ -4,6 +4,11 @@
 
 本文档记录 `baoyu-design` 的重要变更。
 
+## 2.9.1 - 2026-11-04
+
+### 修复
+- Windows 上的 DeepSeek Harness：插件只认名叫 `bash` 的 shell 工具，而它在 Windows 上叫 `pwsh`，所以一直注意不到 `open`。文件夹不会出现在作品页，**Send to Agent** 不出现，评论也到不了 Agent。现在两个名字都认（by @leil894-collab，[#31](https://github.com/JimLiu/baoyu-design/pull/31)；@EmotionTowel 报告，[#30](https://github.com/JimLiu/baoyu-design/issues/30)）。
+
 ## 2.9.0 - 2026-11-03
 
 ### 新功能

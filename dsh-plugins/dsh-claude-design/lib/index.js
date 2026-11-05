@@ -1,4 +1,4 @@
-// dsh-claude-design 2.9.0: built from baoyu-design.
+// dsh-claude-design 2.9.1: built from baoyu-design.
 var define_PLUGIN_default = { name: "claude-design", provider: "dsh-claude-design", skills: [{ name: "claude-design", description: "Make and revise designs in the Design (canvas) artifact format (project/canvas.json plus one .dc.html Design Component file per artboard) as local files, then open them in a local canvas editor where the user can view the artboards side by side, retype copy and adjust tweaks. Use when the user asks for an editable canvas of artboards in this format, names claude-design or the Design (canvas) type, or wants to revise a folder that holds project/canvas.json. Not for a one-off HTML prototype or a design exploration outside this format.", comments: true }] };
 
 import { spawn as spawn2 } from "node:child_process";
@@ -625,7 +625,7 @@ function bashStdout(result) {
   return text || null;
 }
 function openedEditor(script, exec, result) {
-  if ((exec.name !== "bash" && exec.name !== "pwsh") || exec.agent === void 0 || result.isError) return null;
+  if (exec.name !== "bash" && exec.name !== "pwsh" || exec.agent === void 0 || result.isError) return null;
   const args = exec.arguments;
   const command = args?.command;
   if (typeof command !== "string" || args?.run_in_background === true) return null;

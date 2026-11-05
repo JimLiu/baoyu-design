@@ -1,4 +1,4 @@
-// dsh-claude-slides 2.9.0: built from baoyu-design.
+// dsh-claude-slides 2.9.1: built from baoyu-design.
 window.__ModuleLoader__.load({
 	id: "dsh-claude-slides",
 	factory: (require) => {
