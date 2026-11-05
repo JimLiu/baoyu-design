@@ -1,11 +1,11 @@
-// dsh-claude-design 2.9.1: built from baoyu-design.
+// dsh-claude-design 2.9.2: built from baoyu-design.
 var define_PLUGIN_default = { name: "claude-design", provider: "dsh-claude-design", skills: [{ name: "claude-design", description: "Make and revise designs in the Design (canvas) artifact format (project/canvas.json plus one .dc.html Design Component file per artboard) as local files, then open them in a local canvas editor where the user can view the artboards side by side, retype copy and adjust tweaks. Use when the user asks for an editable canvas of artboards in this format, names claude-design or the Design (canvas) type, or wants to revise a folder that holds project/canvas.json. Not for a one-off HTML prototype or a design exploration outside this format.", comments: true }] };
 
 import { spawn as spawn2 } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { statSync as statSync2 } from "node:fs";
 import { readFile } from "node:fs/promises";
-import { basename as basename2, delimiter, dirname as dirname2, isAbsolute, join as join2, sep } from "node:path";
+import { basename as basename2, delimiter, dirname as dirname2, isAbsolute, join as join2, posix, sep, win32 } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { spawn } from "node:child_process";
@@ -509,9 +509,18 @@ function resolveNode(config = {}) {
 function shellQuote(path) {
   return `"${path.replace(/(["\\$`])/g, "\\$1")}"`;
 }
-function runtimeSection(skill, skillDir, node) {
-  const script = join2(skillDir, "scripts", "artifact.mjs");
-  const run = (...args) => [node.env, shellQuote(node.path), shellQuote(script), ...args].filter(Boolean).join(" ");
+function powerShellQuote(path) {
+  return `'${path.replace(/['\u2018-\u201b]/g, "$&$&")}'`;
+}
+function scriptCommand(node, script, args, platform) {
+  if (platform !== "win32") return [node.env, shellQuote(node.path), shellQuote(script), ...args].filter(Boolean).join(" ");
+  const [name2, value] = node.env?.split("=") ?? [];
+  const env = name2 ? `$env:${name2} = ${powerShellQuote(value ?? "")};` : "";
+  return [env, "&", powerShellQuote(node.path), powerShellQuote(script), ...args].filter(Boolean).join(" ");
+}
+function runtimeSection(skill, skillDir, node, platform = process.platform) {
+  const windows = platform === "win32";
+  const script = (windows ? win32 : posix).join(skillDir, "scripts", "artifact.mjs");
   const written = skill.scriptAlias === void 0 ? "`node <this skill's folder>/scripts/artifact.mjs <command>`" : `\`node $${skill.scriptAlias} <command>\` (\`${skill.scriptAlias}\` being \`<this skill's folder>/scripts/artifact.mjs\`)`;
   const lines = [
     "",
@@ -519,12 +528,17 @@ function runtimeSection(skill, skillDir, node) {
     "## Running the calls in DeepSeek Harness",
     "",
     "Wherever these pages, or the script's own output (its `stop`, `next` and other hints), say",
-    `${written}, run this in the shell instead, with the quotes (the paths can contain spaces):`,
+    `${written}, run this in the shell instead, with the ${windows ? "`&` and the " : ""}quotes (the paths can contain spaces):`,
     "",
-    "```sh",
-    run("<command> …"),
+    windows ? "```powershell" : "```sh",
+    scriptCommand(node, script, ["<command> …"], platform),
     "```",
     "",
+    ...windows ? [
+      "The shell here is PowerShell. PowerShell has no heredoc (`<<'EOF'`): where a page offers one, write the text to",
+      "a file and pass its path.",
+      ""
+    ] : [],
     "`open` prints the editor's `url` (on 127.0.0.1): give it to the user as a Markdown link. In the DeepSeek Harness",
     "app a chat link opens in the right sidebar's Browser, next to this conversation."
   ];
