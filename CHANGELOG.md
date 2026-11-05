@@ -4,6 +4,13 @@ English | [中文](./CHANGELOG.zh.md)
 
 All notable changes to `baoyu-design` are tracked in this file.
 
+## 2.10.1 - 2026-11-05
+
+### Fixes
+- DeepSeek Harness 0.2.2 has its own plugin updates, so a plugin's page showed two update buttons and two tags, the app's and the plugin's. It now shows one: the app's for a plugin the card hasn't updated, the plugin's own for one it has.
+- The one-click update looks again at what there is to update before it starts, so a plugin the app's button just updated isn't tried again. When the reply to an update is lost, the card no longer says the plugin stayed on its version: it asks you to check on the Plugins page.
+- The [how-to](dsh-plugins/README.md#if-something-doesnt-work) says what to do when the app's own **Update to x** fails on the second of two plugins and switches it off, and that 2.9.2 and earlier can use that button on DeepSeek Harness 0.2.2 instead of updating by hand.
+
 ## 2.10.0 - 2026-11-05
 
 ### Features
