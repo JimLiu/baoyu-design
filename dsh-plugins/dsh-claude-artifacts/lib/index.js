@@ -14,6 +14,20 @@ import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, r
 import { homedir } from "node:os";
 import { basename, dirname, join, parse } from "node:path";
 
+function isNewer(a, b) {
+  const parts = (version) => {
+    const [core = "", pre] = version.split("+")[0].split(/-(.*)/s);
+    return { numbers: core.split(".").map((n) => Number.parseInt(n, 10) || 0), pre };
+  };
+  const left = parts(a);
+  const right = parts(b);
+  for (let i = 0; i < 3; i++) {
+    const difference = (left.numbers[i] ?? 0) - (right.numbers[i] ?? 0);
+    if (difference !== 0) return difference > 0;
+  }
+  if (left.pre === void 0 || right.pre === void 0) return left.pre === void 0 && right.pre !== void 0;
+  return left.pre.localeCompare(right.pre, "en", { numeric: true }) > 0;
+}
 var base = "/api/baoyu-design.artifacts";
 var listPath = base;
 var openPath = `${base}.open`;
@@ -23,6 +37,7 @@ var thumbnailPath = `${base}.thumbnail`;
 var updatePath = `${base}.update`;
 var deletePath = `${base}.delete`;
 var restorePath = `${base}.restore`;
+var updatesPath = `${base}.updates`;
 
 var TITLES = {
   "claude-slides": ["project/deck.json", "title"],
@@ -331,6 +346,12 @@ function registerRoutes(routes, host, opened) {
     }
   });
   routes.register({
+    path: updatesPath,
+    methods: ["GET"],
+    requestBody: "buffered",
+    fetch: async () => json(await host.updates())
+  });
+  routes.register({
     path: openPath,
     methods: ["POST"],
     requestBody: "buffered",
@@ -538,6 +559,71 @@ function resolveNode(plugin, config = {}) {
     if (isFile(candidate)) return { path: candidate, from: "PATH" };
   }
   return { path: process.execPath, env: "ELECTRON_RUN_AS_NODE=1", from: "electron" };
+}
+
+var NPM = "https://registry.npmjs.org/";
+var LOOKUP_MS = 8e3;
+var FRESH_MS = 60 * 6e4;
+var TARBALL = /^https?:\/\/.+\.tgz$/i;
+function fromRegistry(name2, source) {
+  return source !== void 0 && (source.startsWith(`${name2}@`) || TARBALL.test(source));
+}
+var withSlash = (url) => url.endsWith("/") ? url : `${url}/`;
+async function latestOn(registry, name2) {
+  try {
+    const response = await fetch(`${registry}${name2}`, {
+      headers: { accept: "application/vnd.npm.install-v1+json" },
+      signal: AbortSignal.timeout(LOOKUP_MS)
+    });
+    if (!response.ok) return null;
+    const doc = await response.json();
+    const version = doc["dist-tags"]?.latest;
+    if (typeof version !== "string") return null;
+    const tarball = doc.versions?.[version]?.dist?.tarball;
+    return typeof tarball === "string" && TARBALL.test(tarball) ? { version, tarball, registry } : null;
+  } catch {
+    return null;
+  }
+}
+function updateChecker(names, manager) {
+  const known = /* @__PURE__ */ new Map();
+  const releaseOf = (name2, asked) => {
+    const kept = known.get(name2);
+    if (kept !== void 0 && Date.now() - kept.at < FRESH_MS) return kept.release;
+    const release = (async () => {
+      for (const registry of await asked()) {
+        const found = await latestOn(registry, name2);
+        if (found !== null) return found;
+      }
+      return null;
+    })();
+    const entry = { at: Date.now(), release };
+    known.set(name2, entry);
+    void release.then((found) => {
+      if (found === null && known.get(name2) === entry) known.delete(name2);
+    });
+    return release;
+  };
+  return async () => {
+    const service = manager();
+    if (service === void 0) return { updates: [], failed: [] };
+    const ours = (await service.listBundles()).filter((b) => b.installed === true && names.includes(b.name) && typeof b.version === "string" && fromRegistry(b.name, b.source));
+    let plan;
+    const asked = () => plan ??= service.registries().then(({ registry, fallbackRegistries, resolved }) => [...new Set([registry ?? resolved ?? NPM, ...fallbackRegistries ?? []].map(withSlash))]);
+    const updates = [];
+    const failed = [];
+    await Promise.all(
+      ours.map(async (bundle) => {
+        const release = await releaseOf(bundle.name, asked);
+        if (release === null) failed.push(bundle.name);
+        else if (isNewer(release.version, bundle.version)) {
+          updates.push({ name: bundle.name, version: bundle.version, latest: release.version, spec: release.tarball, registry: release.registry, enabled: bundle.enabled !== false });
+        }
+      })
+    );
+    updates.sort((a, b) => ours.findIndex((o) => o.name === a.name) - ours.findIndex((o) => o.name === b.name));
+    return { updates, failed };
+  };
 }
 
 var SKILLS = define_SKILLS_default;
@@ -846,6 +932,7 @@ function start(ctx, node) {
       ctx.logger?.warn?.(`${PLUGIN}: could not note ${opened.root} for the Artifacts page: ${error.message}`);
     }
   });
+  const updates = updateChecker([PLUGIN, ...SKILLS.map((skill) => skill.plugin)], () => ctx.get("pluginManager"));
   ctx.inject?.(["connection"], (sub) => {
     registerRoutes(
       sub.connection.fetch,
@@ -855,7 +942,8 @@ function start(ctx, node) {
           const skill = SKILLS.find((s) => s.name === name2);
           return skill === void 0 ? null : find(skill)?.script ?? null;
         },
-        places: () => skillPlaces(ctx)
+        places: () => skillPlaces(ctx),
+        updates
       },
       (record, script) => {
         const skill = SKILLS.find((s) => s.name === record.skill);

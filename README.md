@@ -133,7 +133,7 @@ dsh plugin --profile web add dsh-claude-design
 https://jimliu.github.io/baoyu-design/dsh-plugins/index.json
 ```
 
-**Updating.** The app doesn't update plugins by itself; with the index added, Discover marks a plugin **Update available**. On the Plugins page, uninstall the plugin, install it again from Discover or by name, then quit and reopen the app. For a day after a release, adding by name still gets the previous version; Discover gets the new one right away, and so does entering the name with the version, such as `dsh-claude-design@2.4.0` (the versions are in the [changelog](CHANGELOG.md)).
+**Updating.** When a new version is out, the app offers it in a card, at the top of the Artifacts page and on each plugin's page: one click updates the plugins, with nothing to uninstall. Versions 2.9.2 and earlier need one update by hand: uninstall the plugin on the Plugins page, install it again, then quit and reopen the app. For a day after a release, adding by name still gets the previous version; Discover gets the new one right away, and so does entering the name with the version, such as `dsh-claude-design@2.4.0` (the versions are in the [changelog](CHANGELOG.md)).
 
 Each plugin brings along [`dsh-claude-artifacts`](https://www.npmjs.com/package/dsh-claude-artifacts), the part they share: the Artifacts page, and comments reaching the agent. To have a skill only in one agent preset, see [Keep a skill to one preset](dsh-plugins/README.md#keep-a-skill-to-one-preset).
 

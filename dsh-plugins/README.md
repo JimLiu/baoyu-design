@@ -145,8 +145,23 @@ still reach the agent.
 
 ## Update
 
-The app doesn't update these plugins by itself. If you added the index in [Discover](#install), a plugin's card there
-says **Update available** when a new version is out. To get it:
+When a new version is out, the app tells you: a card pops up at the bottom right, and an **Update** button shows at the top of
+the Artifacts page and on each plugin's page. One click updates these plugins together, with nothing to uninstall or install
+again.
+
+- **When it looks.** Once when the app opens, then every 6 hours while it stays open. It asks the npm registry you install
+  plugins from, and the npmmirror mirror when that can't be reached.
+- **Afterwards.** New sessions use the new version. If the card says to quit and reopen the app, do that.
+- **Not now.** Click **Later** on the card and it doesn't come back for this version. The buttons on the Artifacts page and the
+  plugin's page stay.
+- **If it fails.** A plugin that didn't update stays on the version it was. The card says why, and **Try again** updates what is
+  left.
+
+After an update, **Code source** on the plugin's page shows a `.tgz` address. That's expected. What changed in each version is in
+the [changelog](../CHANGELOG.md).
+
+**Updating by hand.** Versions 2.9.2 and earlier don't have this, so they need one update by hand. So does installing a particular
+version:
 
 1. On the Plugins page, open the plugin and click **Uninstall**. The decks, designs, dashboards and films you made stay in their
    workspace folders.
@@ -155,11 +170,10 @@ says **Update available** when a new version is out. To get it:
 
 Discover installs the new version right away. For a day after a release, adding a plugin by name still gets the
 previous version: the app's package manager (pnpm) holds new releases back for 24 hours. To get the new one sooner,
-enter the name with the version, such as `dsh-claude-slides@2.4.0`. The versions are in the
-[changelog](../CHANGELOG.md).
+enter the name with the version, such as `dsh-claude-slides@2.4.0`.
 
-A plugin added from a folder: get the new version into the same folder, with `git pull` in the repository or by
-unzipping the new ZIP over the old one, then quit and reopen the app and start a new session.
+**A plugin added from a folder** doesn't get told about new versions: get the new version into the same folder, with `git pull` in
+the repository or by unzipping the new ZIP over the old one, then quit and reopen the app and start a new session.
 
 ## Uninstall
 
@@ -182,8 +196,11 @@ workspace folders.
 - **There is no Artifacts in the sidebar, or Claude Artifacts says Not running.** For a plugin added from a folder, add the
   `dsh-claude-artifacts` folder too, and restart the app. Until then the skill works, and the agent waits for comments
   itself.
-- **The app says the plugin is already installed.** To install it again, for example to update it, uninstall it first.
-- **The link doesn't load, or Send to Agent is missing.** This happens after the app restarts, for example. Ask the
+- **The app says the plugin is already installed.** To install it again, uninstall it first. Updating doesn't need that: see
+  [Update](#update).
+- **No update is offered.** After a release reaches npm, the app finds it the next time it opens, or within 6 hours. It can't look
+  when neither npm nor npmmirror can be reached, and a plugin added from a folder isn't offered one.
+- **The link doesn't load, or Send to Agent is missing.** This happens after the app restarts or the plugins update, for example. Ask the
   agent to open the editor again, or click it in **Artifacts**. That starts the editor and the wait for comments again.
 - **Something you made is missing from Artifacts.** The page lists what the agent opened once the plugin (from the
   version that added Artifacts) was installed, and leaves out folders that were moved or deleted. Ask the agent to open

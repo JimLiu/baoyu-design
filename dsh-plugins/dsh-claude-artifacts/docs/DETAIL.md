@@ -9,6 +9,7 @@ share. It comes with each of them, so you normally never install it yourself.
   skills, each a click away from its conversation and editor.
 - **Comments.** After the agent opens an editor, it waits for comments, so **Send to Agent** is there on a comment. What
   you send wakes the agent and shows as a card in the chat.
+- **Updates.** When a new version of these plugins is out it tells you, and one click updates them.
 
 ## Keep it on
 
