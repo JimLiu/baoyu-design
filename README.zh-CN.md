@@ -132,7 +132,7 @@ dsh plugin --profile web add dsh-claude-design
 https://jimliu.github.io/baoyu-design/dsh-plugins/index.json
 ```
 
-**更新。** 发了新版本，应用会用卡片提示，「作品」页顶部和插件详情页也有 **Update**（更新）按钮：点一下就更新，不用卸载。2.9.2 和更早的版本要手动更新一次：在插件页卸载插件，再重新安装，然后退出应用再重新打开。新版本发布后的一天内，按包名装到的还是上一个版本；从「发现」安装能马上装到新版本，在包名后面加上版本号也可以，比如 `dsh-claude-design@2.4.0`（版本号见 [更新日志](CHANGELOG.zh.md)）。
+**更新。** 发了新版本，应用会用卡片提示，「作品」页顶部也有 **Update**（更新）按钮：点一下就更新，不用卸载。2.9.2 和更早的版本没有卡片：DeepSeek Harness 0.2.2 起，在插件详情页点 **更新到 x**；更老的应用要在插件页卸载插件，再重新安装，然后退出应用再重新打开。新版本发布后的一天内，按包名装到的还是上一个版本；从「发现」安装能马上装到新版本，在包名后面加上版本号也可以，比如 `dsh-claude-design@2.4.0`（版本号见 [更新日志](CHANGELOG.zh.md)）。
 
 每个插件都会带上 [`dsh-claude-artifacts`](https://www.npmjs.com/package/dsh-claude-artifacts)，也就是它们共用的部分：「作品」页，以及把评论送到 Agent。要让技能只在某个 Agent 预设里出现，见[只让某个预设用某个技能](dsh-plugins/README.zh-CN.md#只让某个预设用某个技能)。
 

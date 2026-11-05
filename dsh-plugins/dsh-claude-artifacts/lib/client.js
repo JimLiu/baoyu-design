@@ -1,4 +1,4 @@
-// dsh-claude-artifacts 2.10.0: built from baoyu-design.
+// dsh-claude-artifacts 2.10.1: built from baoyu-design.
 window.__ModuleLoader__.load({
 	id: "dsh-claude-artifacts",
 	factory: (require) => {
@@ -224,15 +224,21 @@ window.__ModuleLoader__.load({
 		var latestOf = (updates) => updates.reduce((best, u) => best === "" || isNewer(u.latest, best) ? u.latest : best, "");
 		var oldestOf = (updates) => updates.reduce((low, u) => low === "" || isNewer(low, u.version) ? u.version : low, "");
 		var route = (path) => path.slice(1);
-		async function look() {
+		async function readUpdates() {
 		  try {
 		    const response = await fetch(route(updatesPath), { cache: "no-store" });
-		    if (!response.ok) return;
+		    if (!response.ok) return null;
 		    const { updates } = await response.json();
-		    if (Array.isArray(updates) && hub().state.phase !== "running") set({ updates });
+		    return Array.isArray(updates) ? updates : null;
 		  } catch {
+		    return null;
 		  }
 		}
+		async function look() {
+		  const updates = await readUpdates();
+		  if (updates !== null && hub().state.phase !== "running") set({ updates });
+		}
+		var failedOutcome = (outcome) => outcome.application === "failed" || outcome.application === "cancelled";
 		function reasonOf(outcome) {
 		  const { error } = outcome;
 		  const refused = error?.incompatible?.[0];
@@ -243,33 +249,36 @@ window.__ModuleLoader__.load({
 		}
 		async function install(manager, plugin, requestId) {
 		  const answer = await manager.installBundle(plugin.spec, { enabled: plugin.enabled, registry: plugin.registry, requestId });
-		  if (answer.ok) return answer.value;
+		  if (answer.ok) return { outcome: answer.value, left: "kept" };
 		  const again = await manager.waitForInstall(requestId);
-		  if (again.ok && again.value !== null) return again.value;
-		  return { application: "failed", error: { diagnostic: answer.error.message ?? "the app did not answer" } };
+		  if (again.ok && again.value !== null) return { outcome: again.value, left: "kept" };
+		  return { outcome: { application: "failed", error: { diagnostic: answer.error.message ?? "the app did not answer" } }, left: "unknown" };
 		}
 		async function run(manager) {
-		  const plan = hub().state.updates;
+		  set({ phase: "running", restart: false, failure: null, step: null });
+		  const plan = await readUpdates() ?? hub().state.updates;
 		  const to = latestOf(plan);
+		  set({ updates: plan, to });
 		  let restart = false;
-		  set({ phase: "running", to, restart: false, failure: null });
 		  for (const [index, plugin] of plan.entries()) {
 		    set({ step: { name: plugin.name, index: index + 1, total: plan.length } });
 		    let outcome;
+		    let left;
 		    try {
-		      outcome = await install(manager, plugin, `baoyu-design-update-${Date.now()}-${index}`);
+		      ({ outcome, left } = await install(manager, plugin, `baoyu-design-update-${Date.now()}-${index}`));
 		    } catch (error) {
 		      outcome = { application: "failed", error: { diagnostic: error.message } };
+		      left = "unknown";
 		    }
 		    const already = outcome.application === "failed" && outcome.error?.code === "already-installed";
-		    if ((outcome.application === "failed" || outcome.application === "cancelled") && !already) {
-		      set({ phase: "failed", step: null, failure: { plugin: plugin.name, message: reasonOf(outcome) } });
+		    if (failedOutcome(outcome) && !already) {
+		      set({ phase: "failed", step: null, failure: { plugin: plugin.name, message: reasonOf(outcome), left } });
 		      return void look();
 		    }
 		    restart ||= outcome.application === "restart-required";
 		    set({ updates: hub().state.updates.filter((u) => u.name !== plugin.name) });
 		  }
-		  set({ phase: "done", step: null, restart });
+		  set({ phase: plan.length === 0 ? "idle" : "done", step: null, restart });
 		  void look();
 		}
 		var pluginManager;
@@ -305,6 +314,7 @@ window.__ModuleLoader__.load({
 		  "done.restart": "退出 DSH 再重新打开后生效。",
 		  "failed": "{plugin} 没有更新成功",
 		  "failed.kept": "它还是原来的版本。",
+		  "failed.unknown": "到插件页看一下它现在是哪个版本。",
 		  "retry": "重试",
 		  "close": "关闭",
 		  "tag": "有新版本 {version}"
@@ -324,6 +334,7 @@ window.__ModuleLoader__.load({
 		  "done.restart": "Quit DSH and open it again to finish.",
 		  "failed": "{plugin} did not update",
 		  "failed.kept": "It stays on the version it was.",
+		  "failed.unknown": "Check which version it is on, on the Plugins page.",
 		  "retry": "Try again",
 		  "close": "Close",
 		  "tag": "New version {version}"
@@ -358,7 +369,8 @@ window.__ModuleLoader__.load({
 		    actions = /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_dsh_client_ui_primitives.Button, { variant: "outline", size: "sm", onClick: dismiss, children: t("close") });
 		  } else if (phase === "failed" && failure) {
 		    title = t("failed", { plugin: pluginTitle(failure.plugin) });
-		    text = `${failure.message} ${t("failed.kept")}`;
+		    const left = failure.left ?? "kept";
+		    text = `${failure.message} ${t(`failed.${left}`)}`;
 		    actions = /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
 		      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_dsh_client_ui_primitives.Button, { variant: "outline", size: "sm", onClick: dismiss, children: t("close") }),
 		      updates.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_dsh_client_ui_primitives.Button, { variant: "primary", size: "sm", onClick: startUpdate, children: t("retry") })
@@ -402,7 +414,7 @@ window.__ModuleLoader__.load({
 		function DetailAction({ subject, t, startUpdate }) {
 		  const { phase, updates } = useUpdates();
 		  const update = updates.find((u) => u.name === subject?.pkg?.name);
-		  if (subject?.kind !== "bundle" || update === void 0) return null;
+		  if (subject?.kind !== "bundle" || update === void 0 || update.native) return null;
 		  const running = phase === "running";
 		  return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
 		    import_dsh_client_ui_primitives.Button,
@@ -421,7 +433,7 @@ window.__ModuleLoader__.load({
 		function DetailBadge({ subject, t }) {
 		  const { updates } = useUpdates();
 		  const update = updates.find((u) => u.name === subject?.pkg?.name);
-		  if (subject?.kind !== "bundle" || update === void 0) return null;
+		  if (subject?.kind !== "bundle" || update === void 0 || update.native) return null;
 		  return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_dsh_client_ui_primitives.Tag, { tone: "info", children: t("tag", { version: update.latest }) });
 		}
 		function pageUpdates(ctx) {
