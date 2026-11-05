@@ -1,0 +1,7 @@
+{
+  "meta": {
+    "title": "Claude 作品",
+    "description": "baoyu-design 各插件共用的部分：侧栏的「作品」页，以及把编辑器里的评论送到 Agent。它随每个插件一起安装；技能关掉或只留给某个 Agent 预设时，它照常运行。",
+    "detail": "docs/DETAIL.zh.md"
+  }
+}

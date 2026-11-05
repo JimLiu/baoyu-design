@@ -1,0 +1,6 @@
+# dsh-claude-artifacts bundle patch: its one row, which each baoyu-design plugin's bundle
+# mounts too. Installing this package by itself is for a plugin added from a folder,
+# whose dependencies the app does not install.
+- insert:
+    - id: claude-artifacts
+      name: dsh-claude-artifacts

@@ -12,6 +12,8 @@
 | [Claude 数据看板](dsh-claude-dashboard/)<br>`/claude-dashboard` | [`dsh-claude-dashboard`](https://www.npmjs.com/package/dsh-claude-dashboard) | Agent 根据你的数据文件做出数据看板（图表、数字和表格），并在本地看板编辑器里打开，来源面板会显示每个数字是从哪里来的，你也可以把评论发给 Agent 修改。 | Send to Agent |
 | [Claude 动画](dsh-claude-motion/)<br>`/claude-motion` | [`dsh-claude-motion`](https://www.npmjs.com/package/dsh-claude-motion) | Agent 用代码一幕一幕地写出短动画（讲解视频、产品演示、片头等），在本地 Motion 播放器里播放。你可以看着它一点点成形，在某个时刻留评论，再导出 MP4 或 GIF。 | Send to Agent |
 
+每个插件都会带上 [`dsh-claude-artifacts`](dsh-claude-artifacts/)，也就是它们共用的部分：「作品」页，以及把评论送到 Agent。它会自动安装，装几个插件都只有一份。
+
 只需要 DeepSeek Harness 桌面版。插件用的是桌面版自带的 Node.js，不用另外安装任何东西。
 
 ## 安装
@@ -44,7 +46,7 @@ dsh plugin --profile web add dsh-claude-slides
 
 桌面版自己的 profile 只接受从插件页添加的插件。
 
-**从文件夹安装。** 也可以从本仓库的副本安装：克隆仓库（或者下载 ZIP 解压），第 2 步填插件自己文件夹（里面有 `package.json` 的那个）的完整路径，比如 `/Users/you/baoyu-design/dsh-plugins/dsh-claude-slides`。应用直接使用这个文件夹，不会复制，所以文件夹不要挪走或删掉。
+**从文件夹安装。** 也可以从本仓库的副本安装：克隆仓库（或者下载 ZIP 解压），第 2 步填插件自己文件夹（里面有 `package.json` 的那个）的完整路径，比如 `/Users/you/baoyu-design/dsh-plugins/dsh-claude-slides`。应用直接使用这个文件夹，不会复制，所以文件夹不要挪走或删掉。应用不会替文件夹里的插件安装依赖，所以还要添加 `dsh-claude-artifacts` 这个文件夹，而且要先于第一个插件添加。
 
 ## 使用
 
@@ -64,6 +66,48 @@ dsh plugin --profile web add dsh-claude-slides
 - **看缩略图。** 桌面版会打开一次编辑器给每个作品截图，文件改过以后再回到这一页会重新截。`dsh web` 里截不了图，卡片上是一张示意图。
 - **换视图、搜索、排序和筛选。** 右上角可以切换网格和列表，可以按标题、对话或路径搜索，可以按最近打开、最近修改、创建时间、名称排序，按类型、打开时间、是否共享、是否固定筛选。
 - **固定、重命名、复制链接、删除。** 鼠标移到作品上，点 **…**（菜单打开时也可以按 P、R、C）。重命名会改编辑器里的标题。复制的是本机的编辑器地址，编辑器会一直开着。删除会把文件夹移到应用数据目录（默认 `~/.dsh`）的 `baoyu-design/trash/`，提示条上可以撤销，要彻底删除就到那里删；文件夹里还有别的文件时只从这一页移除，文件夹留在原处。
+
+## 只让某个预设用某个技能
+
+插件的技能默认在所有 [Agent 预设](https://github.com/deepseek-ai/deepseek-harness)里都能用。要让技能只在某个预设的会话里出现：
+
+1. **关掉它自己那一行。** 在插件页打开这个插件，在 **包含的组件**（英文界面是 **Components**）下面关掉它自己那一行（比如 **Claude 幻灯片**）。插件的总开关保持打开，**Claude 作品** 也保持打开。
+2. **在预设里声明它。** 在这个 profile 的 `cordis.patch.yml` 末尾加一个预设（桌面版是 `~/.dsh/profiles/desktop/cordis.patch.yml`），用包名写插件：
+
+   ```yaml
+   - insert:
+       - id: preset-slides-dashboard
+         name: '@deepseek-ai/dsh-agent-preset'
+         config:
+           id: slides-dashboard
+           name: Slides and dashboards
+           description: Only the claude-slides and claude-dashboard skills.
+           order: 10
+           plugins:
+             - id: persona
+               name: '@deepseek-ai/dsh-persona'
+               config:
+                 prefix: You are an agent powered by the {{model}} model.
+             - id: tool-bash
+               name: '@deepseek-ai/dsh-tool-bash'
+               disabled: !!js process.platform === 'win32'
+             - id: tool-pwsh
+               name: '@deepseek-ai/dsh-tool-pwsh'
+               disabled: !!js process.platform !== 'win32'
+             - id: tool-fs
+               name: '@deepseek-ai/dsh-tool-fs'
+             - id: tool-skill
+               name: '@deepseek-ai/dsh-tool-skill'
+             - id: claude-slides
+               name: dsh-claude-slides
+             - id: claude-dashboard
+               name: dsh-claude-dashboard
+   ```
+
+   预设里写了什么，它的会话就只有什么，所以这个例子列出了技能要用的工具：命令行、读写文件、加载技能。**设置** → **Agent 预设** 能看到内置预设的内容，预设加载失败时也会在那里说明原因。
+3. **退出应用再重新打开**，新开一个会话，在输入框上方的模式菜单里选这个预设。输入 `/` 时这里有这些技能，其他预设里没有。
+
+「作品」页照常工作：做过的东西都还在，也都打得开，哪怕它的技能已经不在任何预设里，只要插件还装着。页面上的入口会在含有这个技能的预设里新开会话，评论也照样能送到 Agent。
 
 ## 更新
 
@@ -87,6 +131,7 @@ dsh plugin --profile web add dsh-claude-slides
 - **Agent 的做法和插件说的不一样。** 如果工作区里有同名技能的副本（在 `.agents/skills/` 或 `.dsh/skills/` 下），Agent 会用那一份，而不是插件里的。
 - **安装失败。** 对照上面表格的"npm 包名"一列检查插件名。安装对话框里会显示错误，以及应用问过哪个源；npm 和 npmmirror 都连不上时，检查网络或代理。从文件夹安装的，检查路径是不是完整的（以 `/` 开头，Windows 上以盘符开头），是不是指向插件自己的文件夹，也就是里面有 `package.json` 的那个。
 - **「发现」读不到索引。** 在「发现」里打开市场菜单，选 **Manage index sources…**（管理索引源…），地址下面会写原因。索引放在 GitHub Pages（`github.io`）上，你的网络连不上的话，就改用插件名添加。
+- **侧栏没有「作品」，或者 Claude 作品显示「未运行」。** 如果插件是从文件夹添加的，把 `dsh-claude-artifacts` 文件夹也添加上，再重启应用。在这之前技能照常能用，只是由 Agent 自己等评论。
 - **提示插件已经安装。** 要重新安装（比如为了更新），先卸载。
 - **链接打不开，或者没有 Send to Agent。** 比如重启应用以后就会这样。让 Agent 再打开一次编辑器，或者在「作品」里点它，编辑器和等评论都会重新启动。
 - **「作品」里找不到做过的东西。** 这里只列装上插件（加了「作品」的那一版起）以后 Agent 打开过的，挪走或删掉的文件夹不列。让 Agent 打开它一次，就会出现。

@@ -1,0 +1,7 @@
+{
+  "meta": {
+    "title": "Claude Artifacts",
+    "description": "What the baoyu-design plugins share: the Artifacts page in the sidebar, and comments from their editors reaching the agent. Installed with each of them; it stays on when a skill is turned off or kept to one agent preset.",
+    "detail": "docs/DETAIL.md"
+  }
+}

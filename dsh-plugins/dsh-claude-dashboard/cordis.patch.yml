@@ -1,7 +1,12 @@
 # dsh-claude-dashboard bundle patch: installing the package (the Plugins page, or
 # `dsh plugin --profile <name> add <spec>`) adds it to the profile's bundles,
-# and this layer mounts its one plugin row, which registers the claude-dashboard
-# skill with the profile's skill registry.
+# and this layer mounts two rows. claude-dashboard registers the skill with the
+# profile's skill registry, for every preset; to give it to one preset, turn this
+# row off and declare dsh-claude-dashboard among that preset's plugins. claude-artifacts
+# is what the baoyu-design plugins share (the Artifacts page, comments reaching the
+# agent). It stays on whichever that is, and however many plugins mount it it is one row.
 - insert:
+    - id: claude-artifacts
+      name: dsh-claude-artifacts
     - id: claude-dashboard
       name: dsh-claude-dashboard

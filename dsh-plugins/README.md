@@ -15,6 +15,9 @@ sidebar, next to the chat.
 | [Claude Dashboard](dsh-claude-dashboard/)<br>`/claude-dashboard` | [`dsh-claude-dashboard`](https://www.npmjs.com/package/dsh-claude-dashboard) | The agent builds data-backed dashboards (charts, numbers and tables over your data files) and opens them in a local dashboard editor whose Sources panel shows where every number comes from, and where you can send comments to the agent. | Send to Agent |
 | [Claude Motion](dsh-claude-motion/)<br>`/claude-motion` | [`dsh-claude-motion`](https://www.npmjs.com/package/dsh-claude-motion) | The agent writes short animated films (explainers, product demos, title sequences) as code, scene by scene, and plays them in a local Motion player where you watch them fill in, comment on a moment, and export MP4 or GIF. | Send to Agent |
 
+Each of them brings along [`dsh-claude-artifacts`](dsh-claude-artifacts/), the part they share: the **Artifacts** page, and
+comments reaching the agent. It installs by itself, and there is one of it however many plugins you add.
+
 All you need is the DeepSeek Harness desktop app. The plugins run on the Node.js the app ships with, so there is nothing
 else to install.
 
@@ -57,7 +60,7 @@ The desktop app's own profile only accepts plugins added from its Plugins page.
 **From a folder.** You can also install from a copy of this repository: clone it (or download the ZIP and unzip it),
 and in step 2 enter the full path of the plugin's own folder, the one with `package.json` in it, such as
 `/Users/you/baoyu-design/dsh-plugins/dsh-claude-slides`. The app uses that folder where it is, so don't move or delete
-it.
+it. The app installs no dependencies for a folder, so add the `dsh-claude-artifacts` folder too, before the first plugin.
 
 ## Use
 
@@ -90,6 +93,55 @@ On that page you can also:
 - **See thumbnails.** The desktop app opens each artifact's editor once to take its picture, and takes it again when you come back after its files changed. `dsh web` cannot take pictures, so its cards show a drawing of the type.
 - **Change the view, search, sort and filter.** The buttons at the top right switch between a grid and a list, search by title, conversation or path, sort by last opened, last edited, date created or name, and filter by type, date opened, sharing or pinned.
 - **Pin, rename, copy the link, delete.** Hover over an artifact and click **…** (while the menu is open, P, R and C work too). Rename changes the title in the editor. The link is the editor's address on this computer, and the editor stays running. Delete moves the folder to `baoyu-design/trash/` in the app's data folder (`~/.dsh` by default); the message that follows has an Undo, and you can delete it for good there. A folder that holds other files too is only taken off the page, and stays where it is.
+
+## Keep a skill to one preset
+
+A plugin's skill is there in every [agent preset](https://github.com/deepseek-ai/deepseek-harness) until you say otherwise.
+To have a skill only in the sessions of one preset:
+
+1. **Turn its row off.** On the Plugins page, open the plugin and, under **Components**, switch off its own row (**Claude
+   Slides**, say). Leave the plugin's main switch on, and leave **Claude Artifacts** on.
+2. **Declare it in a preset.** Add a preset to the end of the profile's `cordis.patch.yml` (for the desktop app,
+   `~/.dsh/profiles/desktop/cordis.patch.yml`), naming the plugins by their package names:
+
+   ```yaml
+   - insert:
+       - id: preset-slides-dashboard
+         name: '@deepseek-ai/dsh-agent-preset'
+         config:
+           id: slides-dashboard
+           name: Slides and dashboards
+           description: Only the claude-slides and claude-dashboard skills.
+           order: 10
+           plugins:
+             - id: persona
+               name: '@deepseek-ai/dsh-persona'
+               config:
+                 prefix: You are an agent powered by the {{model}} model.
+             - id: tool-bash
+               name: '@deepseek-ai/dsh-tool-bash'
+               disabled: !!js process.platform === 'win32'
+             - id: tool-pwsh
+               name: '@deepseek-ai/dsh-tool-pwsh'
+               disabled: !!js process.platform !== 'win32'
+             - id: tool-fs
+               name: '@deepseek-ai/dsh-tool-fs'
+             - id: tool-skill
+               name: '@deepseek-ai/dsh-tool-skill'
+             - id: claude-slides
+               name: dsh-claude-slides
+             - id: claude-dashboard
+               name: dsh-claude-dashboard
+   ```
+
+   A preset holds everything its sessions get, so this one lists the tools the skills need: the shell, files, and loading
+   skills. **Settings** → **Agent presets** shows what the built-in presets hold, and says why a preset failed to load.
+3. **Quit and reopen the app**, start a new session, and pick the preset from the mode menu above the input. `/` offers
+   these skills there, and not in the other presets.
+
+**Artifacts** goes on working: everything you made is still listed and still opens, even when its skill is in no preset,
+as long as its plugin is installed. A tile on that page starts its session in a preset that has the skill, and comments
+still reach the agent.
 
 ## Update
 
@@ -127,6 +179,9 @@ workspace folders.
 - **Discover can't read the index.** In **Discover**, open the market menu and pick **Manage index sources…**: the
   reason shows under the address. The index is on GitHub Pages (`github.io`); if your network can't reach it, add the
   plugins by name instead.
+- **There is no Artifacts in the sidebar, or Claude Artifacts says Not running.** For a plugin added from a folder, add the
+  `dsh-claude-artifacts` folder too, and restart the app. Until then the skill works, and the agent waits for comments
+  itself.
 - **The app says the plugin is already installed.** To install it again, for example to update it, uninstall it first.
 - **The link doesn't load, or Send to Agent is missing.** This happens after the app restarts, for example. Ask the
   agent to open the editor again, or click it in **Artifacts**. That starts the editor and the wait for comments again.

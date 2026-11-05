@@ -26,14 +26,15 @@ such as `dsh-claude-slides@2.4.0`.
   prebuilt `scripts/`: the editor page, `artifact.mjs`, and its server).
 - `lib/index.js`: the plugin. It registers the skill with the Harness skill registry and, when the skill loads, tells
   the agent which Node executable runs `scripts/artifact.mjs`: the Host's own Node, the Node runtime the desktop app
-  ships, or `node` on PATH. Set `node` in the `claude-slides` row's config to choose another. Whenever the agent opens
-  the editor, the plugin also waits for comments, so a comment's **Send to Agent** box is there: send one and the agent
-  wakes up, changes the slide, and replies in the comment.
-- `lib/client.js`: the part that runs in the app's window. It shows a comment sent to the agent as a card in the chat;
-  **View thread** on the card opens it in the editor. It also adds **Artifacts** to the left
-  sidebar, one entry for all the baoyu-design plugins: the decks and everything else the agent has opened, each a
-  click away from its conversation and editor.
-- `cordis.patch.yml`: the bundle layer that mounts the plugin row.
+  ships, or `node` on PATH. Set `node` in the `claude-slides` row's config to choose another. That is all this row does,
+  so you can turn it off and [keep the skill to one agent preset](https://github.com/JimLiu/baoyu-design/blob/main/dsh-plugins/README.md#keep-a-skill-to-one-preset).
+- `cordis.patch.yml`: the bundle layer that mounts two rows: this plugin's, and `claude-artifacts`.
+
+[`dsh-claude-artifacts`](https://www.npmjs.com/package/dsh-claude-artifacts) installs with this plugin and does the rest,
+whichever way the skill is set up: whenever the agent opens the editor it waits for comments, so a comment's **Send to Agent** box is there: send one and
+the agent wakes up, changes the slide, and replies in the comment. It shows what is sent as a card in the chat, and adds **Artifacts**
+to the left sidebar, one entry for all the baoyu-design plugins: the decks and everything else the agent has opened,
+each a click away from its conversation and editor.
 
 The editor server listens on 127.0.0.1 only and reads and writes only the deck's folder.
 

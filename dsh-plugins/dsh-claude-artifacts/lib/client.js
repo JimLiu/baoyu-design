@@ -1,6 +1,6 @@
-// dsh-claude-design-system 2.9.2: built from baoyu-design.
+// dsh-claude-artifacts 2.9.2: built from baoyu-design.
 window.__ModuleLoader__.load({
-	id: "dsh-claude-design-system",
+	id: "dsh-claude-artifacts",
 	factory: (require) => {
 		var module = { exports: {} };
 		var exports = module.exports;
@@ -29,22 +29,19 @@ window.__ModuleLoader__.load({
 		  inject: () => inject
 		});
 		module.exports = __toCommonJS(client_exports);
-
-		var define_CLIENT_default = { plugin: "dsh-claude-design-system", skill: "claude-design-system", key: "dsh-claude-design-system", simple: false };
-
 		var import_react2 = require("react");
 
 		var import_react = require("react");
 
-		var base = (skill) => `/api/baoyu-design.${skill}.artifacts`;
+		var base = "/api/baoyu-design.artifacts";
 		var listPath = base;
-		var openPath = (skill) => `${base(skill)}.open`;
-		var previewPath = (skill) => `${base(skill)}.preview`;
-		var releasePath = (skill) => `${base(skill)}.release`;
-		var thumbnailPath = (skill) => `${base(skill)}.thumbnail`;
-		var updatePath = (skill) => `${base(skill)}.update`;
-		var deletePath = (skill) => `${base(skill)}.delete`;
-		var restorePath = (skill) => `${base(skill)}.restore`;
+		var openPath = `${base}.open`;
+		var previewPath = `${base}.preview`;
+		var releasePath = `${base}.release`;
+		var thumbnailPath = `${base}.thumbnail`;
+		var updatePath = `${base}.update`;
+		var deletePath = `${base}.delete`;
+		var restorePath = `${base}.restore`;
 
 		function desktopBrowser() {
 		  const carrier = globalThis.dshDesktop;
@@ -174,7 +171,7 @@ window.__ModuleLoader__.load({
 		}
 
 		var import_jsx_runtime = require("react/jsx-runtime");
-		var PAGE_VERSION = 2;
+		var PAGE_VERSION = 3;
 		var PANEL_ID = "baoyu-design.artifacts";
 		var NS = "baoyu-design-artifacts";
 		var VIEW_KEY = "baoyu-design.artifacts.view";
@@ -312,7 +309,7 @@ window.__ModuleLoader__.load({
 		  "empty.noMatches": "没有符合条件的作品",
 		  "load.error": "读取作品列表失败：{message}",
 		  "load.retry": "重试",
-		  "open.pluginOff": "{plugin} 插件没有开启，打不开这个作品。",
+		  "open.pluginOff": "没有安装 {plugin} 插件，打不开这个作品。",
 		  "open.failed": "打不开：{message}",
 		  "open.noSession": "原来的对话已不在，编辑器在新窗口里打开了。",
 		  "action.failed": "没有做成：{message}"
@@ -388,7 +385,7 @@ window.__ModuleLoader__.load({
 		  "empty.noMatches": "No artifacts match",
 		  "load.error": "Could not read the artifacts: {message}",
 		  "load.retry": "Try again",
-		  "open.pluginOff": "The {plugin} plugin is off, so this artifact cannot open.",
+		  "open.pluginOff": "The {plugin} plugin is not installed, so this artifact cannot open.",
 		  "open.failed": "Could not open it: {message}",
 		  "open.noSession": "The conversation is gone, so the editor opened in a new window.",
 		  "action.failed": "That did not work: {message}"
@@ -1308,7 +1305,7 @@ window.__ModuleLoader__.load({
 		  }
 		}
 		var route = (path) => path.slice(1);
-		function mountPage(ctx, h, self) {
+		function mountPage(ctx) {
 		  const disposers = [];
 		  const style = typeof document === "undefined" ? null : document.createElement("style");
 		  if (style) {
@@ -1319,11 +1316,9 @@ window.__ModuleLoader__.load({
 		  }
 		  disposers.push(ctx.locale.register(NS, { zh, en }));
 		  const t = ctx.locale.bind?.(NS) ?? ((key) => en[key] ?? key);
-		  const skillsOn = () => [...new Set([...h.members.values()].map((m) => m.skill))];
-		  const store = createStore({ status: "loading", artifacts: [], error: "", skills: skillsOn(), opening: null, toast: null });
-		  const onMembers = () => store.set({ skills: skillsOn() });
-		  h.listeners.add(onMembers);
-		  disposers.push(() => h.listeners.delete(onMembers));
+		  const store = createStore({ status: "loading", artifacts: [], error: "", skills: [], opening: null, toast: null });
+		  let places = /* @__PURE__ */ new Map();
+		  let defaultPreset;
 		  let toastId = 0;
 		  const toast = (message, kind = "info", undo2) => store.set({ toast: { id: ++toastId, message, kind, ...undo2 ? { undo: undo2 } : {} } });
 		  const failed = (error) => toast(t("action.failed", { message: error.message }), "error");
@@ -1334,8 +1329,8 @@ window.__ModuleLoader__.load({
 		    if (!response.ok) throw new Error(typeof body.error === "string" ? body.error : `HTTP ${response.status}`);
 		    return body;
 		  };
-		  const ownPluginOn = (view) => {
-		    if (skillsOn().includes(view.skill)) return true;
+		  const ownPluginThere = (view) => {
+		    if (view.openable) return true;
 		    toast(t("open.pluginOff", { plugin: view.plugin }), "error");
 		    return false;
 		  };
@@ -1345,34 +1340,31 @@ window.__ModuleLoader__.load({
 		  const reload = () => {
 		    if (loading) return;
 		    if (store.getSnapshot().artifacts.length === 0) store.set({ status: "loading" });
-		    const order = [self, ...skillsOn().filter((s) => s !== self)];
 		    loading = (async () => {
-		      let message = "";
-		      for (const skill of order) {
-		        try {
-		          const response = await fetch(route(listPath(skill)), { cache: "no-store" });
-		          if (!response.ok) throw new Error(`HTTP ${response.status}`);
-		          const body = await response.json();
-		          const artifacts = Array.isArray(body.artifacts) ? body.artifacts.filter((a) => a && typeof a.root === "string") : [];
-		          store.set({ status: "ready", artifacts, error: "" });
-		          pump();
-		          return;
-		        } catch (error) {
-		          message ||= error.message;
-		        }
+		      try {
+		        const response = await fetch(route(listPath), { cache: "no-store" });
+		        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+		        const body = await response.json();
+		        const artifacts = Array.isArray(body.artifacts) ? body.artifacts.filter((a) => a && typeof a.root === "string") : [];
+		        const usable = (Array.isArray(body.skills) ? body.skills : []).filter((s) => s.everywhere || s.presets.length > 0);
+		        places = new Map(usable.map((s) => [s.skill, s]));
+		        defaultPreset = typeof body.defaultPreset === "string" ? body.defaultPreset : void 0;
+		        store.set({ status: "ready", artifacts, skills: [...places.keys()], error: "" });
+		        pump();
+		      } catch (error) {
+		        store.set({ status: "error", error: error.message });
 		      }
-		      store.set({ status: "error", error: message });
 		    })().finally(() => {
 		      loading = null;
 		    });
 		  };
 		  const open = (view) => {
 		    if (store.getSnapshot().opening !== null) return;
-		    if (!ownPluginOn(view)) return;
+		    if (!ownPluginThere(view)) return;
 		    store.set({ opening: view.root, toast: null });
 		    void (async () => {
 		      try {
-		        const response = await fetch(`${route(openPath(view.skill))}?${new URLSearchParams({ root: view.root })}`, { method: "POST" });
+		        const response = await fetch(`${route(openPath)}?${new URLSearchParams({ root: view.root })}`, { method: "POST" });
 		        const body = await response.json().catch(() => ({}));
 		        if (!response.ok || typeof body.url !== "string") throw new Error(typeof body.error === "string" ? body.error : `HTTP ${response.status}`);
 		        const url = body.url;
@@ -1402,25 +1394,27 @@ window.__ModuleLoader__.load({
 		  };
 		  const workspaceNav = () => ctx.get("uiWorkspace");
 		  const canCreate = () => typeof workspaceNav()?.startSession === "function";
-		  const createOptions = () => canCreate() ? creatable(skillsOn()) : [];
+		  const createOptions = () => canCreate() ? creatable(store.getSnapshot().skills) : [];
 		  const create = (skill) => {
 		    const nav = workspaceNav();
 		    if (typeof nav?.startSession !== "function") return;
 		    if (skill === void 0 || !isSkill(skill)) return nav.startSession();
-		    nav.startSession(void 0, { prompt: promptFor(skill, t), whenDraftExists: "append" });
+		    const place = places.get(skill);
+		    const agentPreset = place !== void 0 && !place.everywhere && !(defaultPreset !== void 0 && place.presets.includes(defaultPreset)) ? place.presets[0] : void 0;
+		    nav.startSession(void 0, { prompt: promptFor(skill, t), whenDraftExists: "append", ...agentPreset === void 0 ? {} : { agentPreset } });
 		  };
 		  const pin = (view, pinned) => {
-		    if (!ownPluginOn(view)) return;
+		    if (!ownPluginThere(view)) return;
 		    patchView(view.root, { pinned });
-		    call(updatePath(view.skill), { root: view.root }, { method: "POST", body: JSON.stringify({ pinned }) }).catch((error) => {
+		    call(updatePath, { root: view.root }, { method: "POST", body: JSON.stringify({ pinned }) }).catch((error) => {
 		      patchView(view.root, { pinned: view.pinned });
 		      failed(error);
 		    });
 		  };
 		  const rename = (view, title) => {
-		    if (!ownPluginOn(view)) return;
+		    if (!ownPluginThere(view)) return;
 		    patchView(view.root, { title });
-		    call(updatePath(view.skill), { root: view.root }, { method: "POST", body: JSON.stringify({ title }) }).then(reload, (error) => {
+		    call(updatePath, { root: view.root }, { method: "POST", body: JSON.stringify({ title }) }).then(reload, (error) => {
 		      patchView(view.root, { title: view.title });
 		      failed(error);
 		    });
@@ -1440,11 +1434,11 @@ window.__ModuleLoader__.load({
 		    }
 		  };
 		  const copyLink = (view) => {
-		    if (!ownPluginOn(view)) return;
+		    if (!ownPluginThere(view)) return;
 		    void (async () => {
 		      try {
-		        const { url } = await call(previewPath(view.skill), { root: view.root });
-		        await call(releasePath(view.skill), { root: view.root, keep: "1" });
+		        const { url } = await call(previewPath, { root: view.root });
+		        await call(releasePath, { root: view.root, keep: "1" });
 		        if (typeof url !== "string") throw new Error("no address");
 		        await copyText(url);
 		        toast(t("toast.copied"));
@@ -1454,37 +1448,35 @@ window.__ModuleLoader__.load({
 		    })();
 		  };
 		  const remove = (view) => {
-		    if (!ownPluginOn(view)) return;
+		    if (!ownPluginThere(view)) return;
 		    void (async () => {
 		      try {
-		        const { trash, moved } = await call(deletePath(view.skill), { root: view.root });
+		        const { trash, moved } = await call(deletePath, { root: view.root });
 		        store.set({ artifacts: store.getSnapshot().artifacts.filter((a) => a.root !== view.root) });
-		        undoVia.set(String(trash), view.skill);
 		        toast(t(moved === true ? "toast.deleted" : "toast.removed", { title: view.title }), "info", String(trash));
 		      } catch (error) {
 		        failed(error);
 		      }
 		    })();
 		  };
-		  const undoVia = /* @__PURE__ */ new Map();
 		  const undo = (id) => {
 		    store.set({ toast: null });
-		    call(restorePath(undoVia.get(id) ?? self), { trash: id }).then(reload, failed);
+		    call(restorePath, { trash: id }).then(reload, failed);
 		  };
-		  const thumbnailUrl = (view) => view.thumbnail === null ? null : `${route(thumbnailPath(self))}?${new URLSearchParams({ root: view.root, v: view.thumbnail })}`;
+		  const thumbnailUrl = (view) => view.thumbnail === null ? null : `${route(thumbnailPath)}?${new URLSearchParams({ root: view.root, v: view.thumbnail })}`;
 		  const browser = desktopBrowser();
 		  const tried = /* @__PURE__ */ new Set();
 		  let watching = null;
 		  let taking = false;
 		  const takeOne = async (view, signal) => {
-		    const { url } = await call(previewPath(view.skill), { root: view.root });
+		    const { url } = await call(previewPath, { root: view.root });
 		    if (typeof url !== "string") throw new Error("no address");
 		    try {
 		      const bytes = await captureThumbnail(browser, url, view.skill, signal);
-		      const saved = await call(thumbnailPath(view.skill), { root: view.root }, { method: "POST", headers: { "content-type": "image/jpeg" }, body: new Uint8Array(bytes) });
+		      const saved = await call(thumbnailPath, { root: view.root }, { method: "POST", headers: { "content-type": "image/jpeg" }, body: new Uint8Array(bytes) });
 		      if (typeof saved.thumbnail === "string") patchView(view.root, { thumbnail: saved.thumbnail, updatedAt: saved.thumbnail });
 		    } finally {
-		      await call(releasePath(view.skill), { root: view.root }).catch(() => null);
+		      await call(releasePath, { root: view.root }).catch(() => null);
 		    }
 		  };
 		  pump = () => {
@@ -1496,8 +1488,7 @@ window.__ModuleLoader__.load({
 		        for (; ; ) {
 		          if (signal.aborted) return;
 		          if (document.visibilityState !== "visible") return;
-		          const on = skillsOn();
-		          const next = store.getSnapshot().artifacts.find((a) => a.thumbnail !== a.updatedAt && on.includes(a.skill) && !tried.has(`${a.root}\0${a.updatedAt}`));
+		          const next = store.getSnapshot().artifacts.find((a) => a.thumbnail !== a.updatedAt && a.openable && !tried.has(`${a.root}\0${a.updatedAt}`));
 		          if (next === void 0) return;
 		          tried.add(`${next.root}\0${next.updatedAt}`);
 		          try {
@@ -1574,9 +1565,12 @@ window.__ModuleLoader__.load({
 		  return typeof value === "function" ? value : () => {
 		  };
 		}
-		function joinArtifactsPage(ctx, plugin, skill) {
+		function drawsOwnCards(plugin, self) {
+		  return plugin !== self && hub().members.has(plugin);
+		}
+		function joinArtifactsPage(ctx, plugin) {
 		  const h = hub();
-		  h.members.set(plugin, { plugin, skill, version: PAGE_VERSION, mount: () => mountPage(ctx, h, skill) });
+		  h.members.set(plugin, { plugin, skill: "", version: PAGE_VERSION, mount: () => mountPage(ctx) });
 		  settle(h);
 		  changed(h);
 		  ctx.effect(() => () => {
@@ -1592,10 +1586,11 @@ window.__ModuleLoader__.load({
 		}
 
 		var import_jsx_runtime2 = require("react/jsx-runtime");
-		var CLIENT = define_CLIENT_default;
+		var PLUGIN = "dsh-claude-artifacts";
 		var COMMENT_SOURCE = "baoyu-design-comment";
-		var KIND = `${CLIENT.key}:comment`;
-		var NS2 = CLIENT.key;
+		var KIND = `${PLUGIN}:comment`;
+		var NS2 = PLUGIN;
+		var SIMPLE_CARD = "dsh-claude-docs";
 		var zh2 = {
 		  "card.title": "已将对“{title}”的评论发给 Agent",
 		  "card.request": "已将“{title}”上的 {label} 发给 Agent",
@@ -1614,13 +1609,14 @@ window.__ModuleLoader__.load({
 		function ours(event) {
 		  if (event.type !== "user/message" || event.surfaceOp !== "append") return false;
 		  const source = event.data?.source;
-		  return source?.kind === COMMENT_SOURCE && source.plugin === CLIENT.plugin;
+		  return source?.kind === COMMENT_SOURCE && !drawsOwnCards(str(source.plugin), PLUGIN);
 		}
 		function cardData(event) {
 		  const source = event.data?.source ?? {};
 		  const threads = Array.isArray(source.threads) ? source.threads : [];
 		  const requests = Array.isArray(source.requests) ? source.requests : [];
 		  return {
+		    simple: str(source.plugin) === SIMPLE_CARD,
 		    title: str(source.title),
 		    url: str(source.url),
 		    threads: threads.map((t) => ({ id: str(t.id), where: str(t.where), text: str(t.text) })).filter((t) => t.id),
@@ -1702,10 +1698,10 @@ window.__ModuleLoader__.load({
 		function ChevronRight() {
 		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("svg", { width: "12", height: "12", viewBox: "0 0 12 12", fill: "none", "aria-hidden": "true", style: iconStyle, children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("path", { d: "M4.5 3 7.5 6l-3 3", stroke: "currentColor", strokeWidth: "1.3", strokeLinecap: "round", strokeLinejoin: "round" }) });
 		}
-		function Card2({ title, thread, url, t, openThread }) {
+		function Card2({ simple, title, thread, url, t, openThread }) {
 		  const [open, setOpen] = (0, import_react2.useState)(true);
 		  const heading = t("card.title", { title });
-		  const meta = !CLIENT.simple && (thread.where || url);
+		  const meta = !simple && (thread.where || url);
 		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "bdc-card", "data-comment-id": thread.id, children: [
 		    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "bdc-head", children: [
 		      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(CommentIcon, {}),
@@ -1741,9 +1737,9 @@ window.__ModuleLoader__.load({
 		  ] });
 		}
 		function CommentCards({ node, t, openThread }) {
-		  const { title, url, threads, requests } = node.data;
+		  const { simple, title, url, threads, requests } = node.data;
 		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "bdc-row", children: [
-		    threads.map((thread) => /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Card2, { title, thread, url, t, openThread }, thread.id)),
+		    threads.map((thread) => /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Card2, { simple: simple === true, title, thread, url, t, openThread }, thread.id)),
 		    (requests ?? []).map((request) => /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(RequestCardView, { title, request, t }, request.id))
 		  ] });
 		}
@@ -1761,17 +1757,17 @@ window.__ModuleLoader__.load({
 		  ctx.effect(() => {
 		    if (typeof document === "undefined") return () => {
 		    };
-		    const id = `${CLIENT.plugin}/comment-card.css`;
+		    const id = `${PLUGIN}/comment-card.css`;
 		    if (document.querySelector(`style[data-plugin-css=${JSON.stringify(id)}]`)) return () => {
 		    };
 		    const tag = document.createElement("style");
-		    tag.dataset.plugin = CLIENT.plugin;
+		    tag.dataset.plugin = PLUGIN;
 		    tag.dataset.pluginCss = id;
 		    tag.textContent = CSS2;
 		    document.head.appendChild(tag);
 		    return () => tag.remove();
-		  }, `${CLIENT.plugin}: comment card styles`);
-		  ctx.effect(() => ctx.locale.register(NS2, { zh: zh2, en: en2 }), `${CLIENT.plugin}: dictionaries`);
+		  }, `${PLUGIN}: comment card styles`);
+		  ctx.effect(() => ctx.locale.register(NS2, { zh: zh2, en: en2 }), `${PLUGIN}: dictionaries`);
 		  ctx.uiConversation.events.register(definition);
 		  ctx.slots.inject(
 		    "conversation.chat.node",
@@ -1793,7 +1789,7 @@ window.__ModuleLoader__.load({
 		      CommentCards
 		    )
 		  );
-		  joinArtifactsPage(ctx, CLIENT.plugin, CLIENT.skill);
+		  joinArtifactsPage(ctx, PLUGIN);
 		}
 		return module.exports;
 	}
