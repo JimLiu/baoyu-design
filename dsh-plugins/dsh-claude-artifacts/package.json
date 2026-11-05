@@ -1,6 +1,6 @@
 {
   "name": "dsh-claude-artifacts",
-  "version": "2.11.0",
+  "version": "2.11.1",
   "description": "DeepSeek Harness plugin: What the baoyu-design plugins share: the Artifacts page in the sidebar, and comments from their editors reaching the agent.",
   "keywords": [
     "dsh",
@@ -21,6 +21,12 @@
   "icon": "./icon.svg",
   "baoyuDesign": {
     "releaseNotes": [
+      {
+        "version": "2.11.1",
+        "date": "2026-11-05",
+        "en": "### Features\n- **DeepSeek Harness: the Artifacts page offers the plugins you haven't installed.** Beside the tiles for the skills you have, each other baoyu-design plugin gets a dimmed tile marked **Not installed**. Click it to see what the plugin makes and install it from there, at the same version as the ones you have, usually without a restart. Once it's in, **Start** opens a session with the skill. In an app that can't install from the page, the tile points you to the Plugins page. A plugin you installed and switched off still gets no tile.\n\n### Fixes\n- With `--agent-hook`, a comment could reach the agent twice: a second send could start the hook again after the first run had finished but before the comment was marked sent.",
+        "zh": "### 新功能\n- **DeepSeek Harness：「作品」页会列出你还没装的插件。** 已装技能的入口旁边，其他 baoyu-design 插件也各有一个入口，颜色淡一些，标着 **未安装**。点开会说明这个插件做什么，可以直接在这里安装，版本和你已装的一致，多数情况不用重启。装好后点 **新建** 就用这个技能开一个会话。应用不支持在页面里安装时，会引导你去插件页。装了但被你关掉的插件，仍然没有入口。\n\n### 修复\n- 用 `--agent-hook` 时，一条评论可能发给 agent 两次：第一次运行已经结束、评论还没标成已发送时，第二次发送会再启动一次 hook。"
+      },
       {
         "version": "2.11.0",
         "date": "2026-11-05",
@@ -62,12 +68,6 @@
         "date": "2026-11-02",
         "en": "### Fixes\n- `claude-slides`: in a PowerPoint export, Chinese, Japanese or Korean text could show as boxes when its East Asian font was missing on the reader's computer or held none of those characters: Arial in the basic-fonts export, a Latin family, or an embedded subset that left characters out of a long deck. That text now names a font Windows and Office have instead (Microsoft YaHei, Microsoft JhengHei, Yu Gothic or Malgun Gothic). Text the embedded font holds, text without these characters and the Google Slides export are unchanged ([#29](https://github.com/JimLiu/baoyu-design/issues/29)).",
         "zh": "### 修复\n- `claude-slides`：导出 PowerPoint 时，如果中日韩文字用的东亚字体在对方电脑上没有，或者这个字体本身不含这些字（basic 字体导出里的 Arial、拉丁字体、长 deck 里漏了字的内嵌子集），文字可能显示成方块。这类文字现在改用 Windows 和 Office 常见的字体（Microsoft YaHei、Microsoft JhengHei、Yu Gothic 或 Malgun Gothic）。内嵌字体装得下的文字、不含这些字的文字和 Google Slides 导出都不变（[#29](https://github.com/JimLiu/baoyu-design/issues/29)）。"
-      },
-      {
-        "version": "2.8.1",
-        "date": "2026-11-02",
-        "en": "### Fixes\n- `claude-slides`, `claude-design`, `claude-design-system`, `claude-dashboard`: their descriptions no longer send one-off HTML work to the `baoyu-design` skill, which is archived and no longer installed. They now only say what each skill is not for. The DeepSeek Harness plugins carry the same descriptions.",
-        "zh": "### 修复\n- `claude-slides`、`claude-design`、`claude-design-system`、`claude-dashboard`：说明里不再把一次性的 HTML 产出交给 `baoyu-design` 技能。这个技能已经归档，不再随仓库安装。现在只写各技能不适用于什么。DeepSeek Harness 插件里的说明也一样。"
       }
     ]
   },

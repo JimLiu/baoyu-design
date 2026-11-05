@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "baoyu-canvas",
-  "version": "2.11.0",
+  "version": "2.11.1",
   "description": "Writes design canvases, artboards side by side, as files in your workspace and opens them in a canvas editor that runs on your computer. Compare options, retype copy, adjust tweaks and comment for the agent. Runs locally on Node.js 20 or later; nothing leaves your computer unless you share it.",
   "author": {
     "name": "Jim Liu 宝玉",

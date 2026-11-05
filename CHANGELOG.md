@@ -4,6 +4,14 @@ English | [中文](./CHANGELOG.zh.md)
 
 All notable changes to `baoyu-design` are tracked in this file.
 
+## 2.11.1 - 2026-11-05
+
+### Features
+- **DeepSeek Harness: the Artifacts page offers the plugins you haven't installed.** Beside the tiles for the skills you have, each other baoyu-design plugin gets a dimmed tile marked **Not installed**. Click it to see what the plugin makes and install it from there, at the same version as the ones you have, usually without a restart. Once it's in, **Start** opens a session with the skill. In an app that can't install from the page, the tile points you to the Plugins page. A plugin you installed and switched off still gets no tile.
+
+### Fixes
+- With `--agent-hook`, a comment could reach the agent twice: a second send could start the hook again after the first run had finished but before the comment was marked sent.
+
 ## 2.11.0 - 2026-11-05
 
 ### Features
