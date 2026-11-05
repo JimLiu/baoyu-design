@@ -1,4 +1,4 @@
-// dsh-claude-artifacts 2.9.2: built from baoyu-design.
+// dsh-claude-artifacts 2.10.0: built from baoyu-design.
 var define_SKILLS_default = [{ name: "claude-slides", plugin: "dsh-claude-slides", comments: true }, { name: "claude-design", plugin: "dsh-claude-design", comments: true }, { name: "claude-design-system", plugin: "dsh-claude-design-system", comments: true }, { name: "claude-dashboard", plugin: "dsh-claude-dashboard", comments: true }, { name: "claude-docs", plugin: "dsh-claude-docs", comments: true, commentsBy: "mention", requests: true }, { name: "claude-motion", plugin: "dsh-claude-motion", comments: true, requests: true }];
 
 import { spawn as spawn2 } from "node:child_process";

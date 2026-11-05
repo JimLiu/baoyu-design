@@ -4,6 +4,18 @@ English | [中文](./CHANGELOG.zh.md)
 
 All notable changes to `baoyu-design` are tracked in this file.
 
+## 2.10.0 - 2026-11-05
+
+### Features
+- **The DeepSeek Harness plugins update in one click.** When a new version is out, the app offers it: a card at the bottom right, a line at the top of the **Artifacts** page, and an **Update** button on each plugin's page. One click updates the plugins together, with nothing to uninstall, and most updates need no restart. If an update fails, the plugin stays on the version it was. A plugin added from a folder isn't offered one. This starts with 2.10.0, so 2.9.2 and earlier need [one last update by hand](dsh-plugins/README.md#update).
+- **DeepSeek Harness: a skill can be kept to one agent preset.** Turn off the plugin's own row and declare the plugin in the preset, and `/` lists the skill only in that preset's sessions. The **Artifacts** page and comments keep working, through a new package, `dsh-claude-artifacts`, that each plugin installs with it. See [how to set it up](dsh-plugins/README.md#keep-a-skill-to-one-preset).
+
+### Fixes
+- `archive` and the **Whole folder** export zipped `.git`, including the remote's address and any token in it, and that zip is what gets sent to other people. `.git` now stays out, at any depth.
+- An artifact folder's default `.gitignore` took `exports/` (a film's MP4 too) and two of the three temp file shapes into git, and its `history/` rule also matched a project's own folder of that name, which git then dropped. `history/` and `exports/` now match only at the top of the folder.
+- `share` could give out a TUN proxy's address, such as sing-box's `172.19.0.1`, first when the system lists it first. It now skips an address that answers at every port, and lists tunnels after the local network.
+- Design's Standalone export: a `#id` link did nothing when the file was opened directly, and over `http://` it also scrolled the page around the frame. A click now scrolls inside the frame only, as Play does.
+
 ## 2.9.2 - 2026-11-04
 
 ### Fixes

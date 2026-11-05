@@ -1,6 +1,6 @@
 {
   "name": "dsh-claude-artifacts",
-  "version": "2.9.2",
+  "version": "2.10.0",
   "description": "DeepSeek Harness plugin: What the baoyu-design plugins share: the Artifacts page in the sidebar, and comments from their editors reaching the agent.",
   "keywords": [
     "dsh",

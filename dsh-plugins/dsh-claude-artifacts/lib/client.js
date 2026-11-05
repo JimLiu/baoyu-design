@@ -1,4 +1,4 @@
-// dsh-claude-artifacts 2.9.2: built from baoyu-design.
+// dsh-claude-artifacts 2.10.0: built from baoyu-design.
 window.__ModuleLoader__.load({
 	id: "dsh-claude-artifacts",
 	factory: (require) => {
