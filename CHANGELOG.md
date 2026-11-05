@@ -4,6 +4,13 @@ English | [中文](./CHANGELOG.zh.md)
 
 All notable changes to `baoyu-design` are tracked in this file.
 
+## 2.11.0 - 2026-11-05
+
+### Features
+- **DeepSeek Harness: a new version no longer pops up over the app.** The **Artifacts** row in the left sidebar gets an **Update** label instead (a dot on the icon, where a collapsed sidebar keeps its icons), and a panel at the top of the Artifacts page shows the versions, each plugin and what the release changes. **Update all** updates them together; **Update** on a plugin's line takes just that one. **Later** folds the panel to one line and removes the label until the next version.
+- While an update runs you can leave the Artifacts page: the label says **Updating**, **Failed** or **Restart**. **Try again** picks up where it stopped: the rest after **Update all**, that plugin after its own **Update**.
+- The **Update** button on a plugin's page now updates only that plugin, and a page that was open when its plugin was replaced comes back by itself.
+
 ## 2.10.1 - 2026-11-05
 
 ### Fixes

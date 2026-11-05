@@ -1,6 +1,6 @@
 {
   "name": "dsh-claude-dashboard",
-  "version": "2.10.1",
+  "version": "2.11.0",
   "description": "DeepSeek Harness plugin: the claude-dashboard skill from baoyu-design. The agent builds data-backed dashboards as files and opens them in a local dashboard editor.",
   "keywords": [
     "dsh",
@@ -22,6 +22,58 @@
   "type": "module",
   "main": "lib/index.js",
   "icon": "./icon.svg",
+  "baoyuDesign": {
+    "releaseNotes": [
+      {
+        "version": "2.11.0",
+        "date": "2026-11-05",
+        "en": "### Features\n- **DeepSeek Harness: a new version no longer pops up over the app.** The **Artifacts** row in the left sidebar gets an **Update** label instead (a dot on the icon, where a collapsed sidebar keeps its icons), and a panel at the top of the Artifacts page shows the versions, each plugin and what the release changes. **Update all** updates them together; **Update** on a plugin's line takes just that one. **Later** folds the panel to one line and removes the label until the next version.\n- While an update runs you can leave the Artifacts page: the label says **Updating**, **Failed** or **Restart**. **Try again** picks up where it stopped: the rest after **Update all**, that plugin after its own **Update**.\n- The **Update** button on a plugin's page now updates only that plugin, and a page that was open when its plugin was replaced comes back by itself.",
+        "zh": "### 新功能\n- **DeepSeek Harness：新版本不再弹出来打断你。** 左侧栏的 **Artifacts**（「作品」）这一行会多一个 **更新** 标签（侧栏收起后还留着图标的话，是图标上的小圆点），「作品」页顶部的面板写着版本、每个插件和这次改了什么。**全部更新** 一起更新；每个插件那一行的 **更新** 只更新它自己。**稍后** 把面板收成一行，标签也消失，等下一个版本再提示。\n- 更新时可以离开「作品」页：标签会显示 **更新中**、**更新失败** 或 **待重启**。**重试** 从停下的地方接着来：**全部更新** 失败就接着更新剩下的，单独更新失败就再试这一个。\n- 插件详情页的 **更新** 按钮现在只更新这一个插件；更新时开着的页面被替换后，会自己回来。"
+      },
+      {
+        "version": "2.10.1",
+        "date": "2026-11-05",
+        "en": "### Fixes\n- DeepSeek Harness 0.2.2 has its own plugin updates, so a plugin's page showed two update buttons and two tags, the app's and the plugin's. It now shows one: the app's for a plugin the card hasn't updated, the plugin's own for one it has.\n- The one-click update looks again at what there is to update before it starts, so a plugin the app's button just updated isn't tried again. When the reply to an update is lost, the card no longer says the plugin stayed on its version: it asks you to check on the Plugins page.\n- The [how-to](dsh-plugins/README.md#if-something-doesnt-work) says what to do when the app's own **Update to x** fails on the second of two plugins and switches it off, and that 2.9.2 and earlier can use that button on DeepSeek Harness 0.2.2 instead of updating by hand.",
+        "zh": "### 修复\n- DeepSeek Harness 0.2.2 自带了插件更新，插件详情页因此出现两个更新按钮和两个标签，应用的和插件的各一套。现在只有一个：没用卡片更新过的插件显示应用的按钮，更新过的显示插件自己的。\n- 一键更新开始前会重新确认要更新什么，刚用应用自带按钮更新过的插件不会再更新一次。更新的回复丢失时，卡片不再说插件还是原来的版本，而是请你到插件页确认。\n- [使用说明](dsh-plugins/README.zh-CN.md#遇到问题)写明了应用自带的 **更新到 x** 更新第二个插件失败、插件被关掉时怎么办；也说明了在 DeepSeek Harness 0.2.2 上，2.9.2 和更早的版本可以直接用这个按钮更新，不用手动。"
+      },
+      {
+        "version": "2.10.0",
+        "date": "2026-11-05",
+        "en": "### Features\n- **The DeepSeek Harness plugins update in one click.** When a new version is out, the app offers it: a card at the bottom right, a line at the top of the **Artifacts** page, and an **Update** button on each plugin's page. One click updates the plugins together, with nothing to uninstall, and most updates need no restart. If an update fails, the plugin stays on the version it was. A plugin added from a folder isn't offered one. This starts with 2.10.0, so 2.9.2 and earlier need [one last update by hand](dsh-plugins/README.md#update).\n- **DeepSeek Harness: a skill can be kept to one agent preset.** Turn off the plugin's own row and declare the plugin in the preset, and `/` lists the skill only in that preset's sessions. The **Artifacts** page and comments keep working, through a new package, `dsh-claude-artifacts`, that each plugin installs with it. See [how to set it up](dsh-plugins/README.md#keep-a-skill-to-one-preset).\n\n### Fixes\n- `archive` and the **Whole folder** export zipped `.git`, including the remote's address and any token in it, and that zip is what gets sent to other people. `.git` now stays out, at any depth.\n- An artifact folder's default `.gitignore` took `exports/` (a film's MP4 too) and two of the three temp file shapes into git, and its `history/` rule also matched a project's own folder of that name, which git then dropped. `history/` and `exports/` now match only at the top of the folder.\n- `share` could give out a TUN proxy's address, such as sing-box's `172.19.0.1`, first when the system lists it first. It now skips an address that answers at every port, and lists tunnels after the local network.\n- Design's Standalone export: a `#id` link did nothing when the file was opened directly, and over `http://` it also scrolled the page around the frame. A click now scrolls inside the frame only, as Play does.",
+        "zh": "### 新功能\n- **DeepSeek Harness 插件可以一键更新。** 出了新版本，应用会提示你：右下角弹出卡片，**Artifacts** 页（中文界面是「作品」）顶部和每个插件的详情页也有 **Update**（更新）按钮。点一下，这些插件一起更新，不用卸载，多数情况也不用重启。更新失败时插件还是原来的版本。从文件夹安装的插件不会收到提示。这个功能从 2.10.0 开始，所以 2.9.2 和更早的版本要[最后手动更新一次](dsh-plugins/README.zh-CN.md#更新)。\n- **DeepSeek Harness：技能可以只留给某个 Agent 预设。** 关掉插件自己那一行，再在预设里声明这个插件，`/` 就只在这个预设的会话里列出这个技能。作品页和评论照常工作，它们现在由新包 `dsh-claude-artifacts` 负责，每个插件都会带上它。[设置方法](dsh-plugins/README.zh-CN.md#只让某个预设用某个技能)。\n\n### 修复\n- `archive` 和导出的 **Whole folder**（整个文件夹）会把 `.git` 打进 zip，里面有远程仓库地址和可能带着的 token，而这个 zip 正是要发给别人的。现在任何层级的 `.git` 都不会打进去。\n- 作品文件夹默认的 `.gitignore` 会把 `exports/`（包括影片的 MP4）和三种临时文件里的两种提交进 git；它的 `history/` 规则还会匹配项目自己的同名文件夹，导致 git 把那个文件夹漏掉。现在 `history/` 和 `exports/` 只匹配文件夹顶层。\n- 系统把 TUN 代理的网卡排在前面时，`share` 可能先给出代理的地址，比如 sing-box 的 `172.19.0.1`。现在会跳过在所有端口都有应答的地址，并把隧道网卡排在局域网后面。\n- 设计稿的 Standalone 导出：直接打开文件时，`#id` 链接点了没反应；通过 `http://` 打开时，还会连带滚动框架外的页面。现在点击只在框架内滚动，和 Play 一样。"
+      },
+      {
+        "version": "2.9.2",
+        "date": "2026-11-04",
+        "en": "### Fixes\n- DeepSeek Harness on Windows: the command the skills told the agent to run was written for a POSIX shell, and PowerShell reads a quoted path at the start of a line as a string, not a command. On Windows they now give `& '<node>' '<script>' <command>`, and say that PowerShell has no heredoc.",
+        "zh": "### 修复\n- Windows 上的 DeepSeek Harness：技能告诉 agent 运行的命令是按 POSIX shell 写的，而 PowerShell 会把行首带引号的路径当成字符串，不当成命令。现在 Windows 上给的是 `& '<node>' '<script>' <command>`，并说明 PowerShell 没有 heredoc。"
+      },
+      {
+        "version": "2.9.1",
+        "date": "2026-11-04",
+        "en": "### Fixes\n- DeepSeek Harness on Windows: the plugins only recognized a shell tool named `bash`, and on Windows it is named `pwsh`, so they never noticed an `open`. The folder stayed off the **Artifacts** page, **Send to Agent** never appeared, and comments did not reach the agent. They now recognize both names (by @leil894-collab, [#31](https://github.com/JimLiu/baoyu-design/pull/31); reported by @EmotionTowel, [#30](https://github.com/JimLiu/baoyu-design/issues/30)).",
+        "zh": "### 修复\n- Windows 上的 DeepSeek Harness：插件只认名叫 `bash` 的 shell 工具，而它在 Windows 上叫 `pwsh`，所以一直注意不到 `open`。文件夹不会出现在作品页，**Send to Agent** 不出现，评论也到不了 Agent。现在两个名字都认（by @leil894-collab，[#31](https://github.com/JimLiu/baoyu-design/pull/31)；@EmotionTowel 报告，[#30](https://github.com/JimLiu/baoyu-design/issues/30)）。"
+      },
+      {
+        "version": "2.9.0",
+        "date": "2026-11-03",
+        "en": "### Features\n- **ChatGPT plugins.** The skills now also come as plugins for the ChatGPT desktop app and Codex: Baoyu Slides, Baoyu Canvas, Baoyu Design System, Baoyu Dashboard, Baoyu Motion (with `motion-director` and `dataviz`) and Baoyu Dataviz. This repository is their marketplace: run `codex plugin marketplace add JimLiu/baoyu-design --sparse .agents/plugins --sparse chatgpt-plugins`, then install the ones you want. [chatgpt-plugins/README.md](chatgpt-plugins/README.md) has the steps.\n- DeepSeek Harness: each deck, canvas, design system, dashboard and film on the **Artifacts** page now has a real thumbnail, taken from its own editor and retaken when its files change. This needs the desktop app; in `dsh web` a card keeps a drawn picture of its type.\n- The **Artifacts** page's tiles and **+** menu start a new session with the input filled in, such as `/claude-slides Make me a slide deck about: `, and sending it loads that skill. Only plugins that are on get a tile.\n- The **Artifacts** page has grid and list views, search, sorting (last opened, last edited, date created, name) and filters (type, date opened, sharing, pinned).\n- Each card on the **Artifacts** page has a menu to pin, rename, copy the link or delete. Rename changes the title in the artifact itself, so its editor shows the new name. Delete moves the folder to `baoyu-design/trash/` in the app's data folder, with an Undo; a folder that also holds other files stays where it is and only leaves the list.\n\n### Fixes\n- In a sandbox that blocks local network, such as Codex's default one, `open` said `PORT_IN_USE`, as if every port were taken. It now says `NETWORK_BLOCKED` and how to run the command, and the skills say which commands need local network.",
+        "zh": "### 新功能\n- **ChatGPT 插件。** 这些技能也做成了 ChatGPT 桌面版和 Codex 的插件：Baoyu Slides、Baoyu Canvas、Baoyu Design System、Baoyu Dashboard、Baoyu Motion（带 `motion-director` 和 `dataviz`）和 Baoyu Dataviz。本仓库就是它们的 marketplace：运行 `codex plugin marketplace add JimLiu/baoyu-design --sparse .agents/plugins --sparse chatgpt-plugins`，再装你要的插件。步骤见 [chatgpt-plugins/README.zh-CN.md](chatgpt-plugins/README.zh-CN.md)。\n- DeepSeek Harness：**Artifacts** 页（中文界面是「作品」）上的幻灯片、画布、设计系统、仪表盘和影片现在都有真实的缩略图，从各自的编辑器里截取，文件改过后会重新截。这要在桌面版里；`dsh web` 的卡片仍然是画出来的类型示意图。\n- 作品页顶部的入口和 **+** 菜单会新开一个会话，并填好输入框，比如 `/claude-slides 帮我做一份幻灯片，主题是：`，发送时会加载对应的技能。只有开着的插件才有入口。\n- 作品页可以切换网格和列表，可以搜索、排序（最近打开、最近修改、创建时间、名称）和筛选（类型、打开时间、共享、已固定）。\n- 作品页的每张卡片都有菜单，可以固定、重命名、复制链接和删除。重命名改的是作品本身的标题，编辑器里也会显示新名字。删除会把文件夹移到应用数据目录的 `baoyu-design/trash/`，可以撤销；文件夹里还有别的文件时，文件夹留在原处，只从列表移除。\n\n### 修复\n- 在不允许访问本机网络的沙箱里（比如 Codex 的默认沙箱），`open` 会报 `PORT_IN_USE`，好像所有端口都被占了。现在它报 `NETWORK_BLOCKED`，并说明该怎么运行；技能说明里也写了哪些命令要访问本机网络。"
+      },
+      {
+        "version": "2.8.2",
+        "date": "2026-11-02",
+        "en": "### Fixes\n- `claude-slides`: in a PowerPoint export, Chinese, Japanese or Korean text could show as boxes when its East Asian font was missing on the reader's computer or held none of those characters: Arial in the basic-fonts export, a Latin family, or an embedded subset that left characters out of a long deck. That text now names a font Windows and Office have instead (Microsoft YaHei, Microsoft JhengHei, Yu Gothic or Malgun Gothic). Text the embedded font holds, text without these characters and the Google Slides export are unchanged ([#29](https://github.com/JimLiu/baoyu-design/issues/29)).",
+        "zh": "### 修复\n- `claude-slides`：导出 PowerPoint 时，如果中日韩文字用的东亚字体在对方电脑上没有，或者这个字体本身不含这些字（basic 字体导出里的 Arial、拉丁字体、长 deck 里漏了字的内嵌子集），文字可能显示成方块。这类文字现在改用 Windows 和 Office 常见的字体（Microsoft YaHei、Microsoft JhengHei、Yu Gothic 或 Malgun Gothic）。内嵌字体装得下的文字、不含这些字的文字和 Google Slides 导出都不变（[#29](https://github.com/JimLiu/baoyu-design/issues/29)）。"
+      },
+      {
+        "version": "2.8.1",
+        "date": "2026-11-02",
+        "en": "### Fixes\n- `claude-slides`, `claude-design`, `claude-design-system`, `claude-dashboard`: their descriptions no longer send one-off HTML work to the `baoyu-design` skill, which is archived and no longer installed. They now only say what each skill is not for. The DeepSeek Harness plugins carry the same descriptions.",
+        "zh": "### 修复\n- `claude-slides`、`claude-design`、`claude-design-system`、`claude-dashboard`：说明里不再把一次性的 HTML 产出交给 `baoyu-design` 技能。这个技能已经归档，不再随仓库安装。现在只写各技能不适用于什么。DeepSeek Harness 插件里的说明也一样。"
+      }
+    ]
+  },
   "exports": {
     ".": "./lib/index.js",
     "./cordis.patch.yml": "./cordis.patch.yml",
@@ -44,7 +96,7 @@
     "dsh": ">=0.2.0-0"
   },
   "dependencies": {
-    "dsh-claude-artifacts": "^2.10.1"
+    "dsh-claude-artifacts": "^2.11.0"
   },
   "dsh": {
     "bundle": {
