@@ -450,6 +450,7 @@ data: ${JSON.stringify(snap)}
     if (agentHook) await runHook(agentHook);
   }
   async function runHook(command) {
+    if (typeof command !== "string") return runHandler(command);
     const doc = await readComments(root);
     for (const thread of pendingForAgent(doc)) {
       if (hookRunning.has(thread.id)) continue;
@@ -474,15 +475,15 @@ data: ${JSON.stringify(snap)}
         log(`comments: the agent hook failed to start: ${error.message}`);
       });
       child.on("exit", (code) => {
-        hookRunning.delete(thread.id);
         if (code !== 0) {
+          hookRunning.delete(thread.id);
           log(`comments: the agent hook exited with ${code} for ${thread.id}; the comment stays waiting${stderr ? `: ${stderr.trim()}` : ""}`);
           return;
         }
         void updateComments(root, (d) => {
           const t = d.threads.find((x) => x.id === thread.id);
           if (t) markDelivered(t, now(), "hook");
-        }).then(() => {
+        }).finally(() => hookRunning.delete(thread.id)).then(() => {
           log(`comments: sent to the agent (hook): ${thread.id}`);
           return broadcast();
         }).catch((error) => log(`comments: ${error.message}`));
@@ -522,6 +523,44 @@ data: ${JSON.stringify(snap)}
         log(`comments: sent to the agent (hook): ${request.id}`);
       });
     }
+  }
+  async function runHandler(handler) {
+    for (const { id } of pendingForAgent(await readComments(root))) {
+      if (hookRunning.has(id)) continue;
+      hookRunning.add(id);
+      try {
+        const doc = await readComments(root);
+        const thread = pendingForAgent(doc).find((t) => t.id === id);
+        if (!thread) continue;
+        try {
+          await handler.thread(agentViews(doc, [thread])[0]);
+        } catch (error) {
+          log(`comments: the agent handler failed for ${id}; the comment stays waiting: ${error.message}`);
+          continue;
+        }
+        await updateComments(root, (d) => {
+          const t = d.threads.find((x) => x.id === id);
+          if (t) markDelivered(t, now(), "hook");
+        });
+        log(`comments: sent to the agent (handler): ${id}`);
+        await broadcast();
+      } finally {
+        hookRunning.delete(id);
+      }
+    }
+    const failed = [];
+    for (const request of requests.splice(0)) {
+      setRequestState(request.id, "working");
+      try {
+        await handler.request(request);
+        log(`comments: sent to the agent (handler): ${request.id}`);
+      } catch (error) {
+        failed.push(request);
+        setRequestState(request.id, "queued");
+        log(`comments: the agent handler failed for ${request.id}; the request stays waiting: ${error.message}`);
+      }
+    }
+    requests.unshift(...failed);
   }
   let debounce;
   const changed = () => {
@@ -3234,8 +3273,11 @@ var ShareHost = class {
    * their own artifact; a guest comes over a LAN address (this computer's own included: that is how the owner sees
    * what a role sees).
    */
+  isLocal(request) {
+    return this.options.local ? this.options.local(request) : isLoopback(request.socket.remoteAddress);
+  }
   viewerOf(request) {
-    if (isLoopback(request.socket.remoteAddress)) return { role: "owner", user: this.options.owner };
+    if (this.isLocal(request)) return { role: "owner", user: this.options.owner };
     const guest = this.on ? this.sharing.guest(this.cookie(request)) : null;
     if (!guest) return null;
     this.sharing.seen(guest);
@@ -3367,7 +3409,7 @@ var ShareHost = class {
   async join(request, response, method, token2) {
     const t = this.words(request);
     const role = this.sharing.linkRole(token2);
-    const local = isLoopback(request.socket.remoteAddress);
+    const local = this.isLocal(request);
     const form = method === "POST" ? await readBody(request, 8 << 10).then((body) => body.toString("utf8"), () => "") : "";
     const title = this.options.title();
     if (!role || !local && !this.on) return this.sendPage(response, 404, t.linkGoneTitle, `<h1>${esc2(t.linkGoneTitle)}</h1><p>${esc2(t.linkGone)}</p>`);
@@ -4514,7 +4556,7 @@ function watchArtifact(store, onChange, onError) {
   };
 }
 var publishError = (response, status, code, message) => sendJson2(response, status, { code, message });
-async function mountSite(root, { log: stamp2, network, agentHook }) {
+async function mountSite(root, { log: stamp2, network, agentHook, local }) {
   const project = path12.join(root, "project");
   const editorPath = pagePathOf(KIND, root);
   const projectDir = await fsp4.realpath(project);
@@ -4531,6 +4573,7 @@ async function mountSite(root, { log: stamp2, network, agentHook }) {
     title: () => artifactTitle(root, projectDir),
     log: stamp2,
     uiFile: path12.join(EDITOR_DIR, "share-ui.js"),
+    ...local ? { local } : {},
     // The History panel's address and what this person may do there; on a version's page (?at=n), which version.
     globals: (viewer, query) => {
       const at = Number(query.get("at") ?? "");

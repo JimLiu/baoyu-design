@@ -1415,8 +1415,11 @@ var ShareHost = class {
    * their own artifact; a guest comes over a LAN address (this computer's own included: that is how the owner sees
    * what a role sees).
    */
+  isLocal(request) {
+    return this.options.local ? this.options.local(request) : isLoopback(request.socket.remoteAddress);
+  }
   viewerOf(request) {
-    if (isLoopback(request.socket.remoteAddress)) return { role: "owner", user: this.options.owner };
+    if (this.isLocal(request)) return { role: "owner", user: this.options.owner };
     const guest = this.on ? this.sharing.guest(this.cookie(request)) : null;
     if (!guest) return null;
     this.sharing.seen(guest);
@@ -1548,7 +1551,7 @@ var ShareHost = class {
   async join(request, response, method, token2) {
     const t = this.words(request);
     const role = this.sharing.linkRole(token2);
-    const local = isLoopback(request.socket.remoteAddress);
+    const local = this.isLocal(request);
     const form = method === "POST" ? await readBody(request, 8 << 10).then((body) => body.toString("utf8"), () => "") : "";
     const title = this.options.title();
     if (!role || !local && !this.on) return this.sendPage(response, 404, t.linkGoneTitle, `<h1>${esc(t.linkGoneTitle)}</h1><p>${esc(t.linkGone)}</p>`);
@@ -3412,6 +3415,7 @@ data: ${JSON.stringify(snap)}
     if (agentHook) await runHook(agentHook);
   }
   async function runHook(command2) {
+    if (typeof command2 !== "string") return runHandler(command2);
     const doc = await readComments(root);
     for (const thread of pendingForAgent(doc)) {
       if (hookRunning.has(thread.id)) continue;
@@ -3436,15 +3440,15 @@ data: ${JSON.stringify(snap)}
         log3(`comments: the agent hook failed to start: ${error.message}`);
       });
       child.on("exit", (code) => {
-        hookRunning.delete(thread.id);
         if (code !== 0) {
+          hookRunning.delete(thread.id);
           log3(`comments: the agent hook exited with ${code} for ${thread.id}; the comment stays waiting${stderr ? `: ${stderr.trim()}` : ""}`);
           return;
         }
         void updateComments(root, (d) => {
           const t = d.threads.find((x) => x.id === thread.id);
           if (t) markDelivered(t, now(), "hook");
-        }).then(() => {
+        }).finally(() => hookRunning.delete(thread.id)).then(() => {
           log3(`comments: sent to the agent (hook): ${thread.id}`);
           return broadcast();
         }).catch((error) => log3(`comments: ${error.message}`));
@@ -3484,6 +3488,44 @@ data: ${JSON.stringify(snap)}
         log3(`comments: sent to the agent (hook): ${request.id}`);
       });
     }
+  }
+  async function runHandler(handler) {
+    for (const { id } of pendingForAgent(await readComments(root))) {
+      if (hookRunning.has(id)) continue;
+      hookRunning.add(id);
+      try {
+        const doc = await readComments(root);
+        const thread = pendingForAgent(doc).find((t) => t.id === id);
+        if (!thread) continue;
+        try {
+          await handler.thread(agentViews(doc, [thread])[0]);
+        } catch (error) {
+          log3(`comments: the agent handler failed for ${id}; the comment stays waiting: ${error.message}`);
+          continue;
+        }
+        await updateComments(root, (d) => {
+          const t = d.threads.find((x) => x.id === id);
+          if (t) markDelivered(t, now(), "hook");
+        });
+        log3(`comments: sent to the agent (handler): ${id}`);
+        await broadcast();
+      } finally {
+        hookRunning.delete(id);
+      }
+    }
+    const failed = [];
+    for (const request of requests.splice(0)) {
+      setRequestState(request.id, "working");
+      try {
+        await handler.request(request);
+        log3(`comments: sent to the agent (handler): ${request.id}`);
+      } catch (error) {
+        failed.push(request);
+        setRequestState(request.id, "queued");
+        log3(`comments: the agent handler failed for ${request.id}; the request stays waiting: ${error.message}`);
+      }
+    }
+    requests.unshift(...failed);
   }
   let debounce;
   const changed = () => {
