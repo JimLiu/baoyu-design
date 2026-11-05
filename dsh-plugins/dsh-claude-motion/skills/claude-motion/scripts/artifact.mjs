@@ -1092,7 +1092,7 @@ async function writeZip(entries, write) {
   for (const entry of entries) {
     let data;
     try {
-      data = await fsp.readFile(entry.file);
+      data = entry.data ?? await fsp.readFile(entry.file);
     } catch (error) {
       if (error.code === "ENOENT") continue;
       throw error;
@@ -4826,7 +4826,7 @@ function findChrome() {
 }
 var sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 async function launchChrome(chrome, args = []) {
-  const profile = fs13.mkdtempSync(path12.join(os8.tmpdir(), "claude-motion-chrome-"));
+  const profile = fs13.mkdtempSync(path12.join(os8.tmpdir(), "baoyu-chrome-"));
   const child = spawn5(
     chrome,
     [

@@ -1092,7 +1092,7 @@ async function writeZip(entries, write) {
   for (const entry of entries) {
     let data;
     try {
-      data = await fsp.readFile(entry.file);
+      data = entry.data ?? await fsp.readFile(entry.file);
     } catch (error) {
       if (error.code === "ENOENT") continue;
       throw error;
