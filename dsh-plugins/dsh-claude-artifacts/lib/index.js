@@ -1,5 +1,5 @@
-// dsh-claude-artifacts 2.11.0: built from baoyu-design.
-var define_SKILLS_default = [{ name: "claude-slides", plugin: "dsh-claude-slides", comments: true }, { name: "claude-design", plugin: "dsh-claude-design", comments: true }, { name: "claude-design-system", plugin: "dsh-claude-design-system", comments: true }, { name: "claude-dashboard", plugin: "dsh-claude-dashboard", comments: true }, { name: "claude-docs", plugin: "dsh-claude-docs", comments: true, commentsBy: "mention", requests: true }, { name: "claude-motion", plugin: "dsh-claude-motion", comments: true, requests: true }];
+// dsh-claude-artifacts 2.11.1: built from baoyu-design.
+var define_SKILLS_default = [{ name: "claude-slides", plugin: "dsh-claude-slides", comments: true, published: true }, { name: "claude-design", plugin: "dsh-claude-design", comments: true, published: true }, { name: "claude-design-system", plugin: "dsh-claude-design-system", comments: true, published: true }, { name: "claude-dashboard", plugin: "dsh-claude-dashboard", comments: true, published: true }, { name: "claude-docs", plugin: "dsh-claude-docs", comments: true, commentsBy: "mention", requests: true, published: false }, { name: "claude-motion", plugin: "dsh-claude-motion", comments: true, requests: true, published: true }];
 
 import { spawn as spawn2 } from "node:child_process";
 import { randomUUID } from "node:crypto";
@@ -38,6 +38,7 @@ var updatePath = `${base}.update`;
 var deletePath = `${base}.delete`;
 var restorePath = `${base}.restore`;
 var updatesPath = `${base}.updates`;
+var installPath = `${base}.install`;
 
 var TITLES = {
   "claude-slides": ["project/deck.json", "title"],
@@ -352,6 +353,15 @@ function registerRoutes(routes, host, opened) {
     fetch: async () => json(await host.updates())
   });
   routes.register({
+    path: installPath,
+    methods: ["GET"],
+    requestBody: "buffered",
+    fetch: async (request) => {
+      const answer = await host.installTarget(new URL(request.url).searchParams.get("plugin") ?? "");
+      return "error" in answer ? json({ error: answer.error }, answer.status) : json(answer);
+    }
+  });
+  routes.register({
     path: openPath,
     methods: ["POST"],
     requestBody: "buffered",
@@ -569,7 +579,8 @@ function fromRegistry(name2, source) {
   return source !== void 0 && (source.startsWith(`${name2}@`) || TARBALL.test(source));
 }
 var withSlash = (url) => url.endsWith("/") ? url : `${url}/`;
-async function latestOn(registry, name2) {
+var registryPlan = (manager) => manager.registries().then(({ registry, fallbackRegistries, resolved }) => [...new Set([registry ?? resolved ?? NPM, ...fallbackRegistries ?? []].map(withSlash))]);
+async function releaseOn(registry, name2, want) {
   try {
     const response = await fetch(`${registry}${name2}`, {
       headers: { accept: "application/vnd.npm.install-v1+json" },
@@ -577,13 +588,23 @@ async function latestOn(registry, name2) {
     });
     if (!response.ok) return null;
     const doc = await response.json();
-    const version = doc["dist-tags"]?.latest;
-    if (typeof version !== "string") return null;
-    const tarball = doc.versions?.[version]?.dist?.tarball;
-    return typeof tarball === "string" && TARBALL.test(tarball) ? { version, tarball, registry } : null;
+    const tarballOf = (version) => {
+      const tarball = typeof version === "string" ? doc.versions?.[version]?.dist?.tarball : void 0;
+      return typeof tarball === "string" && TARBALL.test(tarball) ? { version, tarball, registry } : null;
+    };
+    return (want === void 0 ? null : tarballOf(want)) ?? tarballOf(doc["dist-tags"]?.latest);
   } catch {
     return null;
   }
+}
+async function installTarget(manager, name2, want) {
+  let latest = null;
+  for (const registry of await registryPlan(manager)) {
+    const found = await releaseOn(registry, name2, want || void 0);
+    if (found !== null && found.version === want) return { name: name2, version: found.version, spec: found.tarball, registry: found.registry };
+    latest ??= found;
+  }
+  return latest === null ? null : { name: name2, version: latest.version, spec: latest.tarball, registry: latest.registry };
 }
 var isNotes = (value) => {
   const note = value;
@@ -617,7 +638,7 @@ function updateChecker(names, manager) {
     if (kept !== void 0 && Date.now() - kept.at < FRESH_MS) return kept.release;
     const release = (async () => {
       for (const registry of await asked()) {
-        const found = await latestOn(registry, name2);
+        const found = await releaseOn(registry, name2);
         if (found !== null) return found;
       }
       return null;
@@ -634,7 +655,7 @@ function updateChecker(names, manager) {
     if (service === void 0) return { updates: [], failed: [], notes: [] };
     const ours = (await service.listBundles()).filter((b) => b.installed === true && names.includes(b.name) && typeof b.version === "string" && fromRegistry(b.name, b.source));
     let plan;
-    const asked = () => plan ??= service.registries().then(({ registry, fallbackRegistries, resolved }) => [...new Set([registry ?? resolved ?? NPM, ...fallbackRegistries ?? []].map(withSlash))]);
+    const asked = () => plan ??= registryPlan(service);
     const updates = [];
     const failed = [];
     await Promise.all(
@@ -654,6 +675,14 @@ function updateChecker(names, manager) {
 var SKILLS = define_SKILLS_default;
 var PLUGIN = "dsh-claude-artifacts";
 var packageRoot = fileURLToPath(new URL("../", import.meta.url));
+function ownVersion() {
+  try {
+    const { version } = JSON.parse(readFileSync2(join3(packageRoot, "package.json"), "utf8"));
+    return typeof version === "string" ? version : "";
+  } catch {
+    return "";
+  }
+}
 var name = "claude-artifacts";
 var COMMENT_SOURCE = "baoyu-design-comment";
 var SUMMARY_MAX = 120;
@@ -925,7 +954,7 @@ function pluginFinder(ctx) {
     return null;
   };
 }
-function skillPlaces(ctx) {
+function skillPlaces(ctx, find) {
   const loader = ctx.get("loader");
   const presets = ctx.get("agentPresets");
   const rows = /* @__PURE__ */ new Set();
@@ -936,7 +965,8 @@ function skillPlaces(ctx) {
       skill: skill.name,
       plugin: skill.plugin,
       everywhere: rows.has(skill.plugin),
-      presets: [...new Set(compositions.filter((c) => c.modules.some((m) => m.moduleName === skill.plugin)).map((c) => c.id))]
+      presets: [...new Set(compositions.filter((c) => c.modules.some((m) => m.moduleName === skill.plugin)).map((c) => c.id))],
+      missing: skill.published && find(skill) === null
     })),
     ...typeof presets?.defaultId === "string" ? { defaultPreset: presets.defaultId } : {}
   };
@@ -957,7 +987,20 @@ function start(ctx, node) {
       ctx.logger?.warn?.(`${PLUGIN}: could not note ${opened.root} for the Artifacts page: ${error.message}`);
     }
   });
-  const updates = updateChecker([PLUGIN, ...SKILLS.map((skill) => skill.plugin)], () => ctx.get("pluginManager"));
+  const manager = () => ctx.get("pluginManager");
+  const updates = updateChecker([PLUGIN, ...SKILLS.map((skill) => skill.plugin)], manager);
+  const install = async (plugin) => {
+    const skill = SKILLS.find((s) => s.plugin === plugin);
+    if (skill === void 0 || !skill.published) return { error: `${plugin || "that"} is not a plugin baoyu-design publishes`, status: 404 };
+    if (find(skill) !== null) return { error: `${plugin} is installed already`, status: 409 };
+    const service = manager();
+    if (service === void 0) return { error: "this app has no plugin manager", status: 503 };
+    try {
+      return await installTarget(service, plugin, ownVersion()) ?? { error: `no registry has ${plugin}`, status: 502 };
+    } catch (error) {
+      return { error: error.message, status: 502 };
+    }
+  };
   ctx.inject?.(["connection"], (sub) => {
     registerRoutes(
       sub.connection.fetch,
@@ -967,8 +1010,9 @@ function start(ctx, node) {
           const skill = SKILLS.find((s) => s.name === name2);
           return skill === void 0 ? null : find(skill)?.script ?? null;
         },
-        places: () => skillPlaces(ctx),
-        updates
+        places: () => skillPlaces(ctx, find),
+        updates,
+        installTarget: install
       },
       (record, script) => {
         const skill = SKILLS.find((s) => s.name === record.skill);

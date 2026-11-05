@@ -1,4 +1,4 @@
-// dsh-claude-artifacts 2.11.0: built from baoyu-design.
+// dsh-claude-artifacts 2.11.1: built from baoyu-design.
 window.__ModuleLoader__.load({
 	id: "dsh-claude-artifacts",
 	factory: (require) => {
@@ -57,6 +57,7 @@ window.__ModuleLoader__.load({
 		var deletePath = `${base}.delete`;
 		var restorePath = `${base}.restore`;
 		var updatesPath = `${base}.updates`;
+		var installPath = `${base}.install`;
 
 		function desktopBrowser() {
 		  const carrier = globalThis.dshDesktop;
@@ -221,6 +222,7 @@ window.__ModuleLoader__.load({
 		};
 		var snapshot = () => hub().state;
 		var useUpdates = () => (0, import_react.useSyncExternalStore)(subscribe, snapshot);
+		var useUpdateState = useUpdates;
 		var latestOf = (updates) => updates.reduce((best, u) => best === "" || isNewer(u.latest, best) ? u.latest : best, "");
 		var route = (path) => path.slice(1);
 		async function readUpdates() {
@@ -290,10 +292,41 @@ window.__ModuleLoader__.load({
 		}
 		var pluginManager;
 		function start(only = null) {
-		  const { phase, updates } = hub().state;
-		  if (phase === "running" || updates.length === 0) return;
+		  const { phase, updates, install: adding } = hub().state;
+		  if (phase === "running" || adding?.phase === "running" || updates.length === 0) return;
 		  if (pluginManager === void 0) return set({ phase: "failed", only, failure: { plugin: only ?? updates[0].name, message: "this app has no plugin manager" } });
 		  void run(pluginManager, only);
+		}
+		async function targetOf(plugin) {
+		  const response = await fetch(`${route(installPath)}?${new URLSearchParams({ plugin })}`, { cache: "no-store" });
+		  const body = await response.json().catch(() => ({}));
+		  if (response.status === 409) return "there";
+		  if (!response.ok || typeof body.spec !== "string" || typeof body.registry !== "string") throw new Error(typeof body.error === "string" ? body.error : `HTTP ${response.status}`);
+		  return { name: plugin, version: typeof body.version === "string" ? body.version : "", spec: body.spec, registry: body.registry };
+		}
+		function installMissing(plugin) {
+		  const { phase, install: adding } = hub().state;
+		  if (phase === "running" || adding?.phase === "running") return;
+		  const manager = pluginManager;
+		  if (manager === void 0) return set({ install: { plugin, phase: "failed", message: "this app has no plugin manager" } });
+		  set({ install: { plugin, phase: "running" } });
+		  void (async () => {
+		    let outcome;
+		    let version = "";
+		    try {
+		      const target = await targetOf(plugin);
+		      if (target === "there") return set({ install: { plugin, phase: "done" } });
+		      version = target.version;
+		      ({ outcome } = await install(manager, { spec: target.spec, enabled: true, registry: target.registry }, `baoyu-design-install-${Date.now()}`));
+		    } catch (error) {
+		      outcome = { application: "failed", error: { diagnostic: error.message } };
+		    }
+		    const already = outcome.application === "failed" && outcome.error?.code === "already-installed";
+		    if (failedOutcome(outcome) && !already) return set({ install: { plugin, phase: "failed", message: reasonOf(outcome) } });
+		    const restart = outcome.application === "restart-required";
+		    set({ install: { plugin, phase: "done", ...version ? { version } : {}, ...restart ? { restart } : {} }, restart: hub().state.restart || restart });
+		    void look();
+		  })();
 		}
 		function later() {
 		  const version = latestOf(hub().state.updates);
@@ -594,7 +627,7 @@ window.__ModuleLoader__.load({
 		  return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_dsh_client_ui_primitives.Tag, { tone: "info", children: t("tag", { version: update.latest }) });
 		}
 		function pageUpdates(ctx) {
-		  return { t: ctx.locale.bind?.(NS) ?? ((key) => en[key] ?? key), start };
+		  return { t: ctx.locale.bind?.(NS) ?? ((key) => en[key] ?? key), start, install: installMissing, canInstall: () => pluginManager !== void 0 };
 		}
 		function joinUpdates(ctx, plugin) {
 		  ctx.effect(() => {
@@ -628,7 +661,8 @@ window.__ModuleLoader__.load({
 		}
 
 		var import_jsx_runtime2 = require("react/jsx-runtime");
-		var PAGE_VERSION = 5;
+		var PAGE_VERSION = 6;
+		var PLUGINS_PANEL_ID = "plugins";
 		var PANEL_ID = "baoyu-design.artifacts";
 		var NS2 = "baoyu-design-artifacts";
 		var VIEW_KEY = "baoyu-design.artifacts.view";
@@ -682,7 +716,8 @@ window.__ModuleLoader__.load({
 		    }
 		  };
 		}
-		var EMPTY_SESSIONS = { getSnapshot: () => ({}), subscribe: () => () => {
+		var NO_SESSIONS = {};
+		var EMPTY_SESSIONS = { getSnapshot: () => NO_SESSIONS, subscribe: () => () => {
 		} };
 		function isStore(value) {
 		  const v = value;
@@ -770,7 +805,34 @@ window.__ModuleLoader__.load({
 		  "open.pluginOff": "没有安装 {plugin} 插件，打不开这个作品。",
 		  "open.failed": "打不开：{message}",
 		  "open.noSession": "原来的对话已不在，编辑器在新窗口里打开了。",
-		  "action.failed": "没有做成：{message}"
+		  "action.failed": "没有做成：{message}",
+		  "tile.missing": "未安装",
+		  "tile.installing": "正在安装…",
+		  "tile.failed": "没有装上",
+		  "tile.restart": "重启后可用",
+		  "tile.installed": "已安装",
+		  "tile.hint": "{type}：还没安装，点一下安装",
+		  "about.claude-slides": "做可以编辑的幻灯片，能直接演示，也能导出 PDF、HTML 或 PowerPoint。",
+		  "about.claude-design": "在一张画布上并排做几版设计稿，每一版都能直接改。",
+		  "about.claude-design-system": "做一套设计系统：颜色、字体、组件、素材，加一本品牌手册。",
+		  "about.claude-dashboard": "用你的数据文件做看板：图表、数字和表格，数据变了就跟着更新。",
+		  "about.claude-docs": "写可以编辑、评论和分享的文档。",
+		  "about.claude-motion": "做短动画，导出 MP4 或 GIF。",
+		  "install.title": "安装「{type}」插件？",
+		  "install.body": "点「安装」会装上 {plugin} 插件，装好后点这个入口就能新建。",
+		  "install.manual": "到「插件」页搜索 {plugin} 并安装，装好后点这个入口就能新建。",
+		  "install.busy": "插件正在更新，等更新完成再安装。",
+		  "install.confirm": "安装",
+		  "install.openPlugins": "打开插件页",
+		  "install.running": "正在安装「{type}」…",
+		  "install.runningBody": "可以先关掉这个窗口，装好后这个入口就能用了。",
+		  "install.done": "「{type}」已安装",
+		  "install.doneBody": "现在就新开一个会话用它，以后也可以点这个入口。",
+		  "install.restart": "退出 DSH 再重新打开后生效。",
+		  "install.failed": "「{type}」没有装上",
+		  "install.retry": "重试",
+		  "install.start": "新建",
+		  "dialog.close": "关闭"
 		};
 		var en2 = {
 		  panel: "Artifacts",
@@ -846,7 +908,34 @@ window.__ModuleLoader__.load({
 		  "open.pluginOff": "The {plugin} plugin is not installed, so this artifact cannot open.",
 		  "open.failed": "Could not open it: {message}",
 		  "open.noSession": "The conversation is gone, so the editor opened in a new window.",
-		  "action.failed": "That did not work: {message}"
+		  "action.failed": "That did not work: {message}",
+		  "tile.missing": "Not installed",
+		  "tile.installing": "Installing…",
+		  "tile.failed": "Did not install",
+		  "tile.restart": "Restart to use",
+		  "tile.installed": "Installed",
+		  "tile.hint": "{type}: not installed yet. Click to install it.",
+		  "about.claude-slides": "Editable slide decks you can present, or export as PDF, HTML or PowerPoint.",
+		  "about.claude-design": "Design canvases with versions side by side, each one editable.",
+		  "about.claude-design-system": "Design systems: colors, type, components, assets and a brand book.",
+		  "about.claude-dashboard": "Dashboards over your data files: charts, numbers and tables that follow the data.",
+		  "about.claude-docs": "Docs you can edit, comment on and share.",
+		  "about.claude-motion": "Short animated films you can export as MP4 or GIF.",
+		  "install.title": "Install the {type} plugin?",
+		  "install.body": "Install adds the {plugin} plugin. Then this tile starts one.",
+		  "install.manual": "Find {plugin} on the Plugins page and install it. Then this tile starts one.",
+		  "install.busy": "The plugins are updating. Install this once that is done.",
+		  "install.confirm": "Install",
+		  "install.openPlugins": "Open Plugins",
+		  "install.running": "Installing {type}…",
+		  "install.runningBody": "You can close this. The tile works once it is in.",
+		  "install.done": "{type} is installed",
+		  "install.doneBody": "Start a session with it now, or from its tile any time.",
+		  "install.restart": "Quit DSH and open it again to finish.",
+		  "install.failed": "{type} did not install",
+		  "install.retry": "Try again",
+		  "install.start": "Start",
+		  "dialog.close": "Close"
 		};
 		var SKILLS = ["claude-docs", "claude-slides", "claude-design", "claude-dashboard", "claude-design-system", "claude-motion"];
 		var isSkill = (s) => SKILLS.includes(s);
@@ -907,6 +996,19 @@ window.__ModuleLoader__.load({
 		.bda-tile:focus-visible .bda-tile-art{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:2px}
 		.bda-tile-squiggle{position:absolute;inset:0;width:100%;height:100%;opacity:.28}
 		.bda-tile-label{padding-left:2px;font-size:14px;line-height:20px}
+		.bda-tile[data-missing=true] .bda-tile-art{background:color-mix(in srgb,var(--bda-tint) 8%,var(--dsw-alias-bg-base));color:color-mix(in srgb,var(--bda-tint) 40%,var(--dsw-alias-label-caption));box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--bda-tint) 22%,var(--dsw-alias-border-l2))}
+		.bda-tile[data-missing=true]:hover .bda-tile-art{background:color-mix(in srgb,var(--bda-tint) 16%,var(--dsw-alias-bg-base))}
+		.bda-tile[data-missing=true] .bda-tile-squiggle{opacity:.14}
+		.bda-tile[data-missing=true] .bda-tile-label{color:var(--dsw-alias-label-secondary)}
+		.bda-tile-badge{position:absolute;top:8px;right:8px;display:inline-flex;align-items:center;gap:5px;max-width:calc(100% - 16px);padding:0 7px;border-radius:9px;background:var(--dsw-alias-bg-base);box-shadow:0 0 0 .5px var(--dsw-alias-border-l2);color:var(--dsw-alias-label-secondary);font-size:11px;line-height:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+		.bda-tile-badge[data-state=failed]{color:var(--dsw-alias-state-error-primary)}
+		.bda-tile-badge .bda-spinner{width:9px;height:9px;border-width:1.2px}
+		.bda-dialog-head{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+		.bda-dialog-head h2{margin:0}
+		.bda-dialog .bda-glyph{width:40px;height:40px}
+		.bda-dialog p+p{margin-top:8px}
+		.bda-dialog p[data-kind=error]{color:var(--dsw-alias-state-error-primary)}
+		.bda-dialog-status{display:flex;align-items:center;gap:8px}
 		.bda-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:20px;margin:0;padding:0;list-style:none}
 		.bda-item{position:relative;min-width:0}
 		.bda-card{display:flex;flex-direction:column;width:100%;padding:0;border:.5px solid var(--dsw-alias-border-l2);border-radius:14px;overflow:hidden;background:var(--dsw-alias-bg-base);color:inherit;font:inherit;text-align:left;cursor:pointer;transition:background-color .15s}
@@ -1471,6 +1573,52 @@ window.__ModuleLoader__.load({
 		    ] })
 		  ] });
 		}
+		function InstallDialog({ skill, plugin, run: run2, updating, canInstall, canOpenPlugins, ready, t, onClose, onInstall, onOpenPlugins, onStart }) {
+		  const primary = (0, import_react2.useRef)(null);
+		  const phase = run2?.phase ?? "ask";
+		  (0, import_react2.useEffect)(() => primary.current?.focus(), [phase]);
+		  const type = t(`type.${skill}`);
+		  let title = t("install.title", { type });
+		  let body = /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(import_jsx_runtime2.Fragment, { children: [
+		    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("p", { children: t(`about.${skill}`) }),
+		    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("p", { children: t(canInstall ? updating ? "install.busy" : "install.body" : "install.manual", { plugin }) })
+		  ] });
+		  let actions = /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(import_jsx_runtime2.Fragment, { children: [
+		    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", className: "bda-btn", onClick: onClose, children: t("dialog.cancel") }),
+		    canInstall ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { ref: primary, type: "button", className: "bda-btn", "data-primary": "true", disabled: updating, onClick: onInstall, children: t("install.confirm") }) : canOpenPlugins ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { ref: primary, type: "button", className: "bda-btn", "data-primary": "true", onClick: onOpenPlugins, children: t("install.openPlugins") }) : null
+		  ] });
+		  if (phase === "running") {
+		    title = t("install.running", { type });
+		    body = /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("p", { className: "bda-dialog-status", children: [
+		      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { className: "bda-spinner" }),
+		      t("install.runningBody")
+		    ] });
+		    actions = /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { ref: primary, type: "button", className: "bda-btn", onClick: onClose, children: t("dialog.close") });
+		  } else if (phase === "done") {
+		    title = t("install.done", { type });
+		    body = /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("p", { children: t(run2?.restart ? "install.restart" : "install.doneBody") });
+		    actions = /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(import_jsx_runtime2.Fragment, { children: [
+		      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { ref: ready ? void 0 : primary, type: "button", className: "bda-btn", onClick: onClose, children: t("dialog.close") }),
+		      ready && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { ref: primary, type: "button", className: "bda-btn", "data-primary": "true", onClick: onStart, children: t("install.start") })
+		    ] });
+		  } else if (phase === "failed") {
+		    title = t("install.failed", { type });
+		    body = /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("p", { "data-kind": "error", children: run2?.message });
+		    actions = /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(import_jsx_runtime2.Fragment, { children: [
+		      canOpenPlugins && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", className: "bda-btn", onClick: onOpenPlugins, children: t("install.openPlugins") }),
+		      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", className: "bda-btn", onClick: onClose, children: t("dialog.close") }),
+		      canInstall && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { ref: primary, type: "button", className: "bda-btn", "data-primary": "true", disabled: updating, onClick: onInstall, children: t("install.retry") })
+		    ] });
+		  }
+		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Dialog, { label: title, onClose, children: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { "data-testid": "baoyu-design-install", "data-skill": skill, "data-phase": phase, style: { "--bda-tint": tintOf(skill) }, children: [
+		    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "bda-dialog-head", children: [
+		      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { className: "bda-glyph", children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(TypeIcon, { skill, size: 22 }) }),
+		      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("h2", { children: title })
+		    ] }),
+		    body,
+		    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { className: "bda-dialog-actions", children: actions })
+		  ] }) });
+		}
 		function ToastBar({ toast, t, onClose, onUndo }) {
 		  (0, import_react2.useEffect)(() => {
 		    const timer = setTimeout(onClose, toast.undo || toast.kind === "error" ? 1e4 : 4e3);
@@ -1545,8 +1693,11 @@ window.__ModuleLoader__.load({
 		  }
 		}
 		function ArtifactsPage(props) {
-		  const { t, updates, artifactsStore, sessionsStore, reloadArtifacts, openArtifact, create, canCreate, createOptions, pin, rename, copyLink, remove, undo, thumbnailUrl, watchThumbnails, dismissToast } = props;
+		  const { t, updates, artifactsStore, sessionsStore, reloadArtifacts, openArtifact, create, canCreate, createOptions, installOptions, pluginOf, install: install2, canInstall, openPlugins, canOpenPlugins, pin, rename, copyLink, remove, undo, thumbnailUrl, watchThumbnails, dismissToast } = props;
 		  const state = (0, import_react2.useSyncExternalStore)(artifactsStore.subscribe, artifactsStore.getSnapshot);
+		  const updateState = useUpdateState();
+		  const run2 = updateState.install ?? null;
+		  const [installing, setInstalling] = (0, import_react2.useState)(null);
 		  const sessions = (0, import_react2.useSyncExternalStore)(sessionsStore.subscribe, sessionsStore.getSnapshot);
 		  const [query, setQuery] = (0, import_react2.useState)("");
 		  const [searching, setSearching] = (0, import_react2.useState)(false);
@@ -1574,7 +1725,24 @@ window.__ModuleLoader__.load({
 		    return by;
 		  }, [state.artifacts]);
 		  const types = (0, import_react2.useMemo)(() => SKILLS.filter((s) => state.skills.includes(s) || counts.has(s)), [state.skills, counts]);
-		  const tiles = (0, import_react2.useMemo)(() => createOptions(), [state.skills, createOptions]);
+		  const usable = (0, import_react2.useMemo)(() => createOptions(), [state.skills, createOptions]);
+		  const ranFor = run2 === null ? void 0 : SKILLS.find((s) => pluginOf(s) === run2.plugin);
+		  const offered = (0, import_react2.useMemo)(() => installOptions(), [state.missing, state.skills, installOptions]);
+		  const tiles = (0, import_react2.useMemo)(
+		    () => SKILLS.filter((s) => usable.includes(s) || offered.includes(s) || s === ranFor && canCreate()),
+		    [usable, offered, ranFor, canCreate]
+		  );
+		  const ranReady = ranFor !== void 0 && state.skills.includes(ranFor);
+		  (0, import_react2.useEffect)(() => {
+		    if (run2?.phase !== "done" || run2.restart || ranReady) return;
+		    reloadArtifacts();
+		    const every = setInterval(reloadArtifacts, 1e3);
+		    const stop = setTimeout(() => clearInterval(every), 15e3);
+		    return () => {
+		      clearInterval(every);
+		      clearTimeout(stop);
+		    };
+		  }, [run2, ranReady, reloadArtifacts]);
 		  const shown = (0, import_react2.useMemo)(() => {
 		    const q = query.trim().toLowerCase();
 		    const kept = state.artifacts.filter((a) => {
@@ -1666,17 +1834,37 @@ window.__ModuleLoader__.load({
 		      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(UpdatePanel, { updates }),
 		      tiles.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(import_jsx_runtime2.Fragment, { children: [
 		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("h2", { className: "bda-section-title", children: t("create.heading") }),
-		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("ul", { className: "bda-tiles", children: tiles.map((skill) => /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("li", { children: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("button", { type: "button", className: "bda-tile", "data-skill": skill, style: { "--bda-tint": tintOf(skill) }, onClick: () => create(skill), children: [
-		          /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("span", { className: "bda-tile-art", children: [
-		            /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("svg", { className: "bda-tile-squiggle", viewBox: "0 0 140 100", preserveAspectRatio: "xMidYMid slice", fill: "none", stroke: "currentColor", strokeWidth: "1.1", strokeDasharray: "0 3.2", strokeLinecap: "round", "aria-hidden": "true", children: [
-		              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("path", { d: "M4 84C20 16 42 98 62 42s38 58 74-28" }),
-		              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("path", { d: "M6 88C24 22 44 104 66 46s36 56 72-26" }),
-		              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("path", { d: "M2 80C18 12 40 92 58 38s40 58 76-28" })
-		            ] }),
-		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(TypeIcon, { skill, size: 40 })
-		          ] }),
-		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { className: "bda-tile-label", children: t(`type.${skill}`) })
-		        ] }) }, skill)) })
+		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("ul", { className: "bda-tiles", children: tiles.map((skill) => {
+		          const ready = usable.includes(skill);
+		          const own = run2 !== null && skill === ranFor ? run2 : null;
+		          const badge = ready ? null : own?.phase === "running" ? { key: "tile.installing", state: "running" } : own?.phase === "failed" ? { key: "tile.failed", state: "failed" } : own?.phase === "done" ? { key: own.restart ? "tile.restart" : "tile.installed", state: "done" } : { key: "tile.missing", state: "missing" };
+		          return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("li", { children: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(
+		            "button",
+		            {
+		              type: "button",
+		              className: "bda-tile",
+		              "data-skill": skill,
+		              ...ready ? {} : { "data-missing": "true", "aria-haspopup": "dialog", title: t("tile.hint", { type: t(`type.${skill}`) }) },
+		              style: { "--bda-tint": tintOf(skill) },
+		              onClick: () => ready ? create(skill) : setInstalling(skill),
+		              children: [
+		                /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("span", { className: "bda-tile-art", children: [
+		                  /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("svg", { className: "bda-tile-squiggle", viewBox: "0 0 140 100", preserveAspectRatio: "xMidYMid slice", fill: "none", stroke: "currentColor", strokeWidth: "1.1", strokeDasharray: "0 3.2", strokeLinecap: "round", "aria-hidden": "true", children: [
+		                    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("path", { d: "M4 84C20 16 42 98 62 42s38 58 74-28" }),
+		                    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("path", { d: "M6 88C24 22 44 104 66 46s36 56 72-26" }),
+		                    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("path", { d: "M2 80C18 12 40 92 58 38s40 58 76-28" })
+		                  ] }),
+		                  /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(TypeIcon, { skill, size: 40 }),
+		                  badge !== null && /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("span", { className: "bda-tile-badge", "data-state": badge.state, children: [
+		                    badge.state === "running" && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { className: "bda-spinner" }),
+		                    t(badge.key)
+		                  ] })
+		                ] }),
+		                /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { className: "bda-tile-label", children: t(`type.${skill}`) })
+		              ]
+		            }
+		          ) }, skill);
+		        }) })
 		      ] }),
 		      state.status === "loading" && state.artifacts.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("ul", { className: "bda-grid bda-skeleton", "aria-hidden": "true", children: [0, 1, 2].map((i) => /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("li", { className: "bda-item", children: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "bda-card", children: [
 		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { className: "bda-preview" }),
@@ -1698,7 +1886,7 @@ window.__ModuleLoader__.load({
 		      CreateMenu,
 		      {
 		        anchor: popup.anchor,
-		        skills: tiles,
+		        skills: usable,
 		        canCreate: canCreate(),
 		        t,
 		        onClose: closePopup,
@@ -1747,6 +1935,29 @@ window.__ModuleLoader__.load({
 		        }
 		      }
 		    ),
+		    installing !== null && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+		      InstallDialog,
+		      {
+		        skill: installing,
+		        plugin: pluginOf(installing),
+		        run: run2 !== null && run2.plugin === pluginOf(installing) ? run2 : null,
+		        updating: updateState.phase === "running" || run2?.phase === "running" && run2.plugin !== pluginOf(installing),
+		        canInstall: canInstall(),
+		        canOpenPlugins: canOpenPlugins(),
+		        ready: usable.includes(installing),
+		        t,
+		        onClose: () => setInstalling(null),
+		        onInstall: () => install2(installing),
+		        onOpenPlugins: () => {
+		          setInstalling(null);
+		          openPlugins();
+		        },
+		        onStart: () => {
+		          setInstalling(null);
+		          create(installing);
+		        }
+		      }
+		    ),
 		    state.toast && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(ToastBar, { toast: state.toast, t, onClose: dismissToast, onUndo: undo }, state.toast.id)
 		  ] });
 		}
@@ -1778,10 +1989,11 @@ window.__ModuleLoader__.load({
 		  }
 		  disposers.push(ctx.locale.register(NS2, { zh: zh2, en: en2 }));
 		  const t = ctx.locale.bind?.(NS2) ?? ((key) => en2[key] ?? key);
-		  const store = createStore({ status: "loading", artifacts: [], error: "", skills: [], opening: null, toast: null });
+		  const store = createStore({ status: "loading", artifacts: [], error: "", skills: [], missing: [], opening: null, toast: null });
 		  const updates = pageUpdates(ctx);
 		  let places = /* @__PURE__ */ new Map();
 		  let defaultPreset;
+		  let plugins = /* @__PURE__ */ new Map();
 		  let toastId = 0;
 		  const toast = (message, kind = "info", undo2) => store.set({ toast: { id: ++toastId, message, kind, ...undo2 ? { undo: undo2 } : {} } });
 		  const failed = (error) => toast(t("action.failed", { message: error.message }), "error");
@@ -1809,10 +2021,13 @@ window.__ModuleLoader__.load({
 		        if (!response.ok) throw new Error(`HTTP ${response.status}`);
 		        const body = await response.json();
 		        const artifacts = Array.isArray(body.artifacts) ? body.artifacts.filter((a) => a && typeof a.root === "string") : [];
-		        const usable = (Array.isArray(body.skills) ? body.skills : []).filter((s) => s.everywhere || s.presets.length > 0);
+		        const all = (Array.isArray(body.skills) ? body.skills : []).filter((s) => s && typeof s.skill === "string" && typeof s.plugin === "string");
+		        const usable = all.filter((s) => s.everywhere || s.presets.length > 0);
 		        places = new Map(usable.map((s) => [s.skill, s]));
+		        plugins = new Map(all.map((s) => [s.skill, s.plugin]));
 		        defaultPreset = typeof body.defaultPreset === "string" ? body.defaultPreset : void 0;
-		        store.set({ status: "ready", artifacts, skills: [...places.keys()], error: "" });
+		        const missing = all.filter((s) => s.missing === true && !places.has(s.skill)).map((s) => s.skill);
+		        store.set({ status: "ready", artifacts, skills: [...places.keys()], missing, error: "" });
 		        pump();
 		      } catch (error) {
 		        store.set({ status: "error", error: error.message });
@@ -1858,6 +2073,17 @@ window.__ModuleLoader__.load({
 		  const workspaceNav = () => ctx.get("uiWorkspace");
 		  const canCreate = () => typeof workspaceNav()?.startSession === "function";
 		  const createOptions = () => canCreate() ? creatable(store.getSnapshot().skills) : [];
+		  const installOptions = () => canCreate() ? creatable(store.getSnapshot().missing) : [];
+		  const pluginOf = (skill) => plugins.get(skill) ?? `dsh-${skill}`;
+		  const installSkill = (skill) => updates.install(pluginOf(skill));
+		  const canOpenPlugins = () => typeof ctx.get("layout")?.selectPanel === "function";
+		  const openPlugins = () => {
+		    try {
+		      ctx.get("layout")?.selectPanel(PLUGINS_PANEL_ID);
+		    } catch (error) {
+		      failed(error);
+		    }
+		  };
 		  const create = (skill) => {
 		    const nav = workspaceNav();
 		    if (typeof nav?.startSession !== "function") return;
@@ -1995,6 +2221,12 @@ window.__ModuleLoader__.load({
 		          create,
 		          canCreate,
 		          createOptions,
+		          installOptions,
+		          pluginOf,
+		          install: installSkill,
+		          canInstall: updates.canInstall,
+		          openPlugins,
+		          canOpenPlugins,
 		          pin,
 		          rename,
 		          copyLink,
