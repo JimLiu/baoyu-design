@@ -29,7 +29,7 @@ such as `dsh-claude-dashboard@2.4.0`.
   the agent which Node executable runs `scripts/artifact.mjs`: the Host's own Node, the Node runtime the desktop app
   ships, or `node` on PATH. Set `node` in the `claude-dashboard` row's config to choose another. That is all this row does,
   so you can turn it off and [keep the skill to one agent preset](https://github.com/JimLiu/baoyu-design/blob/main/dsh-plugins/README.md#keep-a-skill-to-one-preset).
-- `cordis.patch.yml`: the bundle layer that mounts two rows: this plugin's, and `claude-artifacts`.
+- `cordis.patch.yml`: the bundle layer that mounts two rows: this plugin's, and its row of `dsh-claude-artifacts`.
 
 [`dsh-claude-artifacts`](https://www.npmjs.com/package/dsh-claude-artifacts) installs with this plugin and does the rest,
 whichever way the skill is set up: whenever the agent opens the editor it waits for comments, so a comment's **Send to Agent** box is there: send one and

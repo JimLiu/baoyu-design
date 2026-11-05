@@ -2,11 +2,12 @@
 # `dsh plugin --profile <name> add <spec>`) adds it to the profile's bundles,
 # and this layer mounts two rows. claude-motion registers the skill with the
 # profile's skill registry, for every preset; to give it to one preset, turn this
-# row off and declare dsh-claude-motion among that preset's plugins. claude-artifacts
-# is what the baoyu-design plugins share (the Artifacts page, comments reaching the
-# agent). It stays on whichever that is, and however many plugins mount it it is one row.
+# row off and declare dsh-claude-motion among that preset's plugins. claude-artifacts-motion
+# is dsh-claude-artifacts, what the baoyu-design plugins share (the Artifacts page, comments
+# reaching the agent). It stays on whichever that is. Each plugin mounts it under its own id, so
+# that the plugin can be removed while another one is installed; one of the rows does the work.
 - insert:
-    - id: claude-artifacts
+    - id: claude-artifacts-motion
       name: dsh-claude-artifacts
     - id: claude-motion
       name: dsh-claude-motion
