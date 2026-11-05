@@ -625,7 +625,7 @@ function bashStdout(result) {
   return text || null;
 }
 function openedEditor(script, exec, result) {
-  if (exec.name !== "bash" || exec.agent === void 0 || result.isError) return null;
+  if ((exec.name !== "bash" && exec.name !== "pwsh") || exec.agent === void 0 || result.isError) return null;
   const args = exec.arguments;
   const command = args?.command;
   if (typeof command !== "string" || args?.run_in_background === true) return null;
