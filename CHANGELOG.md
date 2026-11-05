@@ -4,6 +4,11 @@ English | [中文](./CHANGELOG.zh.md)
 
 All notable changes to `baoyu-design` are tracked in this file.
 
+## 2.9.2 - 2026-11-04
+
+### Fixes
+- DeepSeek Harness on Windows: the command the skills told the agent to run was written for a POSIX shell, and PowerShell reads a quoted path at the start of a line as a string, not a command. On Windows they now give `& '<node>' '<script>' <command>`, and say that PowerShell has no heredoc.
+
 ## 2.9.1 - 2026-11-04
 
 ### Fixes

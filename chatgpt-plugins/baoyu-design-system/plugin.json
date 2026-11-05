@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "baoyu-design-system",
-  "version": "2.9.1",
+  "version": "2.9.2",
   "description": "Builds a design system from a code repository, a design tool or scratch: tokens, type, components, assets and a brand book, as files in your workspace, in a page that runs on your computer where you can browse and edit them. Baoyu Slides and Baoyu Canvas can install what it makes. Runs locally on Node.js 20 or later.",
   "author": {
     "name": "Jim Liu 宝玉",

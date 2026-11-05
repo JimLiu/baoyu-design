@@ -4,6 +4,11 @@
 
 本文档记录 `baoyu-design` 的重要变更。
 
+## 2.9.2 - 2026-11-04
+
+### 修复
+- Windows 上的 DeepSeek Harness：技能告诉 agent 运行的命令是按 POSIX shell 写的，而 PowerShell 会把行首带引号的路径当成字符串，不当成命令。现在 Windows 上给的是 `& '<node>' '<script>' <command>`，并说明 PowerShell 没有 heredoc。
+
 ## 2.9.1 - 2026-11-04
 
 ### 修复
