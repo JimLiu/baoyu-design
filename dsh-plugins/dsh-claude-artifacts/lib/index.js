@@ -1,4 +1,4 @@
-// dsh-claude-artifacts 2.10.1: built from baoyu-design.
+// dsh-claude-artifacts 2.11.0: built from baoyu-design.
 var define_SKILLS_default = [{ name: "claude-slides", plugin: "dsh-claude-slides", comments: true }, { name: "claude-design", plugin: "dsh-claude-design", comments: true }, { name: "claude-design-system", plugin: "dsh-claude-design-system", comments: true }, { name: "claude-dashboard", plugin: "dsh-claude-dashboard", comments: true }, { name: "claude-docs", plugin: "dsh-claude-docs", comments: true, commentsBy: "mention", requests: true }, { name: "claude-motion", plugin: "dsh-claude-motion", comments: true, requests: true }];
 
 import { spawn as spawn2 } from "node:child_process";
@@ -585,8 +585,33 @@ async function latestOn(registry, name2) {
     return null;
   }
 }
+var isNotes = (value) => {
+  const note = value;
+  return typeof note?.version === "string" && typeof note.date === "string" && typeof note.en === "string" && typeof note.zh === "string";
+};
+async function notesOn(registry, name2, version) {
+  try {
+    const response = await fetch(`${registry}${name2}/${version}`, { signal: AbortSignal.timeout(LOOKUP_MS) });
+    if (!response.ok) return null;
+    const notes = (await response.json()).baoyuDesign?.releaseNotes;
+    return Array.isArray(notes) ? notes.filter(isNotes) : [];
+  } catch {
+    return null;
+  }
+}
 function updateChecker(names, manager) {
   const known = /* @__PURE__ */ new Map();
+  const notesKnown = /* @__PURE__ */ new Map();
+  const notesFor = async (updates) => {
+    if (updates.length === 0) return [];
+    const newest = updates.reduce((best, u) => isNewer(u.latest, best.latest) ? u : best);
+    const oldest = updates.reduce((low, u) => isNewer(low, u.version) ? u.version : low, newest.version);
+    const url = `${newest.registry}${newest.name}/${newest.latest}`;
+    const notes = notesKnown.get(url) ?? await notesOn(newest.registry, newest.name, newest.latest);
+    if (notes === null) return [];
+    notesKnown.set(url, notes);
+    return notes.filter((note) => isNewer(note.version, oldest) && !isNewer(note.version, newest.latest));
+  };
   const releaseOf = (name2, asked) => {
     const kept = known.get(name2);
     if (kept !== void 0 && Date.now() - kept.at < FRESH_MS) return kept.release;
@@ -606,7 +631,7 @@ function updateChecker(names, manager) {
   };
   return async () => {
     const service = manager();
-    if (service === void 0) return { updates: [], failed: [] };
+    if (service === void 0) return { updates: [], failed: [], notes: [] };
     const ours = (await service.listBundles()).filter((b) => b.installed === true && names.includes(b.name) && typeof b.version === "string" && fromRegistry(b.name, b.source));
     let plan;
     const asked = () => plan ??= service.registries().then(({ registry, fallbackRegistries, resolved }) => [...new Set([registry ?? resolved ?? NPM, ...fallbackRegistries ?? []].map(withSlash))]);
@@ -622,7 +647,7 @@ function updateChecker(names, manager) {
       })
     );
     updates.sort((a, b) => ours.findIndex((o) => o.name === a.name) - ours.findIndex((o) => o.name === b.name));
-    return { updates, failed };
+    return { updates, failed, notes: await notesFor(updates) };
   };
 }
 

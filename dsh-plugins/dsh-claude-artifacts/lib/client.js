@@ -1,4 +1,4 @@
-// dsh-claude-artifacts 2.10.1: built from baoyu-design.
+// dsh-claude-artifacts 2.11.0: built from baoyu-design.
 window.__ModuleLoader__.load({
 	id: "dsh-claude-artifacts",
 	factory: (require) => {
@@ -191,7 +191,7 @@ window.__ModuleLoader__.load({
 		var NS = "baoyu-design-updates";
 		var HUB = Symbol.for("baoyu-design/dsh-updates");
 		var DISMISSED_KEY = "baoyu-design.update.dismissed";
-		var CARD_ID = "baoyu-design.update";
+		var SLOT_ID = "baoyu-design.update";
 		var FIRST_CHECK_MS = 3e3;
 		var CHECK_EVERY_MS = 6 * 60 * 6e4;
 		var REASON_MAX = 240;
@@ -222,21 +222,21 @@ window.__ModuleLoader__.load({
 		var snapshot = () => hub().state;
 		var useUpdates = () => (0, import_react.useSyncExternalStore)(subscribe, snapshot);
 		var latestOf = (updates) => updates.reduce((best, u) => best === "" || isNewer(u.latest, best) ? u.latest : best, "");
-		var oldestOf = (updates) => updates.reduce((low, u) => low === "" || isNewer(low, u.version) ? u.version : low, "");
 		var route = (path) => path.slice(1);
 		async function readUpdates() {
 		  try {
 		    const response = await fetch(route(updatesPath), { cache: "no-store" });
 		    if (!response.ok) return null;
-		    const { updates } = await response.json();
-		    return Array.isArray(updates) ? updates : null;
+		    const { updates, notes } = await response.json();
+		    return Array.isArray(updates) ? { updates, notes: Array.isArray(notes) ? notes : [] } : null;
 		  } catch {
 		    return null;
 		  }
 		}
+		var fromAnswer = ({ updates, notes }) => updates.length > 0 ? { updates, notes } : { updates };
 		async function look() {
-		  const updates = await readUpdates();
-		  if (updates !== null && hub().state.phase !== "running") set({ updates });
+		  const answer = await readUpdates();
+		  if (answer !== null && hub().state.phase !== "running") set(fromAnswer(answer));
 		}
 		var failedOutcome = (outcome) => outcome.application === "failed" || outcome.application === "cancelled";
 		function reasonOf(outcome) {
@@ -254,12 +254,13 @@ window.__ModuleLoader__.load({
 		  if (again.ok && again.value !== null) return { outcome: again.value, left: "kept" };
 		  return { outcome: { application: "failed", error: { diagnostic: answer.error.message ?? "the app did not answer" } }, left: "unknown" };
 		}
-		async function run(manager) {
-		  set({ phase: "running", restart: false, failure: null, step: null });
-		  const plan = await readUpdates() ?? hub().state.updates;
-		  const to = latestOf(plan);
-		  set({ updates: plan, to });
-		  let restart = false;
+		async function run(manager, only) {
+		  set({ phase: "running", failure: null, step: null, only });
+		  const answer = await readUpdates();
+		  if (answer !== null) set(fromAnswer(answer));
+		  const { updates } = hub().state;
+		  const plan = only === null ? updates : updates.filter((u) => u.name === only);
+		  set({ to: latestOf(plan) });
 		  for (const [index, plugin] of plan.entries()) {
 		    set({ step: { name: plugin.name, index: index + 1, total: plan.length } });
 		    let outcome;
@@ -275,140 +276,294 @@ window.__ModuleLoader__.load({
 		      set({ phase: "failed", step: null, failure: { plugin: plugin.name, message: reasonOf(outcome), left } });
 		      return void look();
 		    }
-		    restart ||= outcome.application === "restart-required";
-		    set({ updates: hub().state.updates.filter((u) => u.name !== plugin.name) });
+		    const now = hub().state;
+		    set({
+		      updates: now.updates.filter((u) => u.name !== plugin.name),
+		      updated: [...(now.updated ?? []).filter((u) => u.name !== plugin.name), plugin],
+		      restart: now.restart || outcome.application === "restart-required"
+		    });
 		  }
-		  set({ phase: plan.length === 0 ? "idle" : "done", step: null, restart });
+		  set({ step: null });
+		  if (plan.length === 0) close();
+		  else set({ phase: "done" });
 		  void look();
 		}
 		var pluginManager;
-		function start() {
+		function start(only = null) {
 		  const { phase, updates } = hub().state;
 		  if (phase === "running" || updates.length === 0) return;
-		  if (pluginManager === void 0) return set({ phase: "failed", failure: { plugin: updates[0].name, message: "this app has no plugin manager" } });
-		  void run(pluginManager);
+		  if (pluginManager === void 0) return set({ phase: "failed", only, failure: { plugin: only ?? updates[0].name, message: "this app has no plugin manager" } });
+		  void run(pluginManager, only);
 		}
-		function dismiss() {
-		  const { phase, updates } = hub().state;
-		  const version = latestOf(updates);
-		  if (version !== "") {
-		    try {
-		      localStorage.setItem(DISMISSED_KEY, version);
-		    } catch {
-		    }
+		function later() {
+		  const version = latestOf(hub().state.updates);
+		  try {
+		    localStorage.setItem(DISMISSED_KEY, version);
+		  } catch {
 		  }
-		  set({ phase: phase === "running" ? phase : "idle", failure: null, ...version === "" ? {} : { dismissed: version } });
+		  set({ dismissed: version });
+		}
+		function close() {
+		  set({ phase: "idle", failure: null, only: null, updated: [] });
+		}
+		function reopen() {
+		  try {
+		    localStorage.removeItem(DISMISSED_KEY);
+		  } catch {
+		  }
+		  set({ dismissed: "" });
 		}
 		var zh = {
 		  "available": "baoyu-design 插件有新版本 {version}",
-		  "current": "当前是 {version}。",
-		  "changelog": "更新内容",
+		  "current": "{plugin} 当前是 {version}。",
+		  "changelog": "更新日志",
 		  "changelog.url": "https://github.com/JimLiu/baoyu-design/blob/main/CHANGELOG.zh.md",
 		  "update": "更新",
-		  "update.label": "更新 baoyu-design 插件到 {version}",
+		  "update.all": "全部更新",
+		  "update.one": "更新 {plugin} 到 {version}",
 		  "later": "稍后",
 		  "running": "正在更新 {plugin}（{index}/{total}）…",
+		  "running.one": "正在更新 {plugin}…",
 		  "busy": "正在更新…",
 		  "done": "已更新到 {version}。",
+		  "done.one": "{plugin} 已更新到 {version}。",
 		  "done.session": "新开的会话会用新版本。",
 		  "done.restart": "退出 DSH 再重新打开后生效。",
 		  "failed": "{plugin} 没有更新成功",
 		  "failed.kept": "它还是原来的版本。",
 		  "failed.unknown": "到插件页看一下它现在是哪个版本。",
+		  "row.done": "已更新到 {version}",
+		  "row.running": "正在更新…",
+		  "row.waiting": "等待中",
+		  "row.failed": "没有更新成功",
 		  "retry": "重试",
 		  "close": "关闭",
-		  "tag": "有新版本 {version}"
+		  "tag": "有新版本 {version}",
+		  "show": "查看",
+		  "notes.lang": "zh",
+		  "mark.update": "更新",
+		  "mark.running": "更新中",
+		  "mark.failed": "更新失败",
+		  "mark.restart": "待重启",
+		  "failed.tag": "更新失败，详情见「作品」页"
 		};
 		var en = {
 		  "available": "baoyu-design plugins {version} is available",
-		  "current": "You have {version}.",
-		  "changelog": "What's new",
+		  "current": "{plugin} is on {version}.",
+		  "changelog": "Changelog",
 		  "changelog.url": "https://github.com/JimLiu/baoyu-design/blob/main/CHANGELOG.md",
 		  "update": "Update",
-		  "update.label": "Update the baoyu-design plugins to {version}",
+		  "update.all": "Update all",
+		  "update.one": "Update {plugin} to {version}",
 		  "later": "Later",
 		  "running": "Updating {plugin} ({index}/{total})…",
+		  "running.one": "Updating {plugin}…",
 		  "busy": "Updating…",
 		  "done": "Updated to {version}.",
+		  "done.one": "Updated {plugin} to {version}.",
 		  "done.session": "New sessions use it.",
 		  "done.restart": "Quit DSH and open it again to finish.",
 		  "failed": "{plugin} did not update",
 		  "failed.kept": "It stays on the version it was.",
 		  "failed.unknown": "Check which version it is on, on the Plugins page.",
+		  "row.done": "Updated to {version}",
+		  "row.running": "Updating…",
+		  "row.waiting": "Waiting",
+		  "row.failed": "Did not update",
 		  "retry": "Try again",
 		  "close": "Close",
-		  "tag": "New version {version}"
+		  "tag": "New version {version}",
+		  "show": "Show",
+		  "notes.lang": "en",
+		  "mark.update": "Update",
+		  "mark.running": "Updating",
+		  "mark.failed": "Failed",
+		  "mark.restart": "Restart",
+		  "failed.tag": "Update failed: see Artifacts"
 		};
 		var CSS = `
-		.bdu-card{position:fixed;right:20px;bottom:20px;z-index:950;box-sizing:border-box;width:min(360px,calc(100vw - 40px));padding:14px 16px;
-		  border:.5px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-xl,12px);background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);
-		  box-shadow:0 8px 28px rgba(0,0,0,.14);font-size:13px;line-height:20px;display:flex;flex-direction:column;gap:6px;pointer-events:auto}
+		.bdu-panel{margin:-8px 0 24px;padding:14px 16px;border-radius:12px;background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary);font-size:13px;line-height:20px}
+		.bdu-head{display:flex;flex-wrap:wrap;align-items:flex-start;gap:8px 16px}
+		.bdu-head-text{flex:1;min-width:200px}
 		.bdu-title{font-weight:500;overflow-wrap:anywhere}
 		.bdu-text{color:var(--dsw-alias-label-secondary);overflow-wrap:anywhere}
-		.bdu-text a,.bdu-bar a{color:var(--dsw-alias-state-business-primary);text-decoration:none}
-		.bdu-text a:hover,.bdu-bar a:hover{text-decoration:underline}
-		.bdu-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:6px}
-		.bdu-bar{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;margin:-8px 0 20px;padding:10px 14px;border-radius:10px;background:var(--dsw-alias-interactive-bg-hover);font-size:13px;line-height:20px}
-		.bdu-bar-text{flex:1;min-width:200px;overflow-wrap:anywhere}
-		.bdu-bar-note{color:var(--dsw-alias-label-secondary);margin-left:6px}
+		.bdu-text a,.bdu-note a{color:var(--dsw-alias-state-business-primary);text-decoration:none}
+		.bdu-text a:hover,.bdu-note a:hover{text-decoration:underline}
+		.bdu-actions{flex:none;display:flex;gap:8px}
+		.bdu-plugins{list-style:none;margin:12px 0 0;padding:8px 0 0;border-top:.5px solid var(--dsw-alias-border-l2)}
+		.bdu-plugin{display:flex;flex-wrap:wrap;align-items:center;gap:0 12px;min-height:32px}
+		.bdu-plugin-name{flex:1;min-width:120px;overflow-wrap:anywhere}
+		.bdu-plugin-status{color:var(--dsw-alias-label-secondary);font-size:12px;font-variant-numeric:tabular-nums}
+		.bdu-plugin-status[data-failed]{color:var(--dsw-alias-state-error-primary)}
+		.bdu-notes{margin-top:12px;padding-top:12px;border-top:.5px solid var(--dsw-alias-border-l2);max-height:240px;overflow-y:auto}
+		.bdu-note+.bdu-note{margin-top:16px}
+		.bdu-note-head{font-weight:500}
+		.bdu-note-date{margin-left:8px;font-weight:400;color:var(--dsw-alias-label-tertiary)}
+		.bdu-note h4{margin:8px 0 2px;font-size:12px;line-height:18px;font-weight:500;color:var(--dsw-alias-label-secondary)}
+		.bdu-note p{margin:4px 0 0}
+		.bdu-note ul{margin:0;padding-left:18px}
+		.bdu-note li+li{margin-top:2px}
+		.bdu-note strong{font-weight:500}
+		.bdu-note code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px}
+		.bdu-line{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;margin:-8px 0 20px;color:var(--dsw-alias-label-secondary);font-size:13px;line-height:20px}
+		.bdu-show{padding:0;border:0;background:none;color:var(--dsw-alias-state-business-primary);font:inherit;cursor:pointer}
+		.bdu-show:hover{text-decoration:underline}
+		.bdu-rail-icon{position:relative;display:inline-flex}
+		.bdu-mark-dot{position:absolute;top:-2px;right:-3px;width:7px;height:7px;border-radius:50%;background:var(--dsw-alias-state-business-primary)}
+		.bdu-mark-dot[data-mark="mark.failed"]{background:var(--dsw-alias-state-error-primary)}
+		button:has(.bdu-mark-pill){position:relative}
+		.bdu-mark-pill{position:absolute;top:50%;right:8px;transform:translateY(-50%);padding:0 7px;border-radius:9px;background:color-mix(in srgb,var(--dsw-alias-state-business-primary) 12%,transparent);color:var(--dsw-alias-state-business-primary);font-size:11px;line-height:18px;white-space:nowrap}
+		.bdu-mark-pill[data-mark="mark.failed"]{background:color-mix(in srgb,var(--dsw-alias-state-error-primary) 12%,transparent);color:var(--dsw-alias-state-error-primary)}
 		`;
 		var pluginTitle = (name) => name.replace(/^dsh-/, "");
-		function UpdateCard({ t, startUpdate }) {
-		  const { phase, updates, step, to, restart, failure, dismissed } = useUpdates();
+		var updateKey = (updates) => updates.length > 1 ? "update.all" : "update";
+		function noteLink(label, href, base2, key) {
+		  try {
+		    const url = new URL(href, base2);
+		    if (url.protocol === "https:" || url.protocol === "http:") return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("a", { href: url.href, target: "_blank", rel: "noreferrer", children: label }, key);
+		  } catch {
+		  }
+		  return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: label }, key);
+		}
+		function inline(text, base2) {
+		  const nodes = [];
+		  let at = 0;
+		  for (const match of text.matchAll(/\*\*(.+?)\*\*|`([^`]+)`|\[([^\]]+)\]\(([^)\s]+)\)/g)) {
+		    const index = match.index ?? 0;
+		    if (index > at) nodes.push(text.slice(at, index));
+		    if (match[1] !== void 0) nodes.push(/* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", { children: inline(match[1], base2) }, index));
+		    else if (match[2] !== void 0) nodes.push(/* @__PURE__ */ (0, import_jsx_runtime.jsx)("code", { children: match[2] }, index));
+		    else nodes.push(noteLink(inline(match[3], base2), match[4], base2, index));
+		    at = index + match[0].length;
+		  }
+		  if (at < text.length) nodes.push(text.slice(at));
+		  return nodes;
+		}
+		function noteBlocks(body, base2) {
+		  const blocks = [];
+		  let items = [];
+		  const flush = () => {
+		    if (items.length > 0) blocks.push(/* @__PURE__ */ (0, import_jsx_runtime.jsx)("ul", { children: items.map((item, index) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("li", { children: inline(item, base2) }, index)) }, blocks.length));
+		    items = [];
+		  };
+		  for (const line of body.split("\n")) {
+		    const item = /^\s*[-*]\s+(.*)$/.exec(line);
+		    if (item) {
+		      items.push(item[1]);
+		      continue;
+		    }
+		    flush();
+		    const heading = /^#{1,6}\s+(.*)$/.exec(line);
+		    if (heading) blocks.push(/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h4", { children: inline(heading[1], base2) }, blocks.length));
+		    else if (line.trim() !== "") blocks.push(/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { children: inline(line.trim(), base2) }, blocks.length));
+		  }
+		  flush();
+		  return blocks;
+		}
+		function PluginRow({ plugin, done, state: { phase, step, failure, only }, offer: { t, start: startUpdate } }) {
+		  const running = phase === "running";
+		  const failed = phase === "failed" && failure?.plugin === plugin.name;
+		  const title = pluginTitle(plugin.name);
+		  let status = `${plugin.version} → ${plugin.latest}`;
+		  if (done) status = t("row.done", { version: plugin.latest });
+		  else if (running && step?.name === plugin.name) status = t("row.running");
+		  else if (running && (only ?? null) === null) status = t("row.waiting");
+		  else if (failed) status = t("row.failed");
+		  return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", { className: "bdu-plugin", "data-plugin": plugin.name, children: [
+		    /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "bdu-plugin-name", children: title }),
+		    /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "bdu-plugin-status", ...failed ? { "data-failed": "" } : {}, children: status }),
+		    !done && !running && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_dsh_client_ui_primitives.Button, { variant: "outline", size: "sm", "aria-label": t("update.one", { plugin: title, version: plugin.latest }), onClick: () => startUpdate(plugin.name), children: t(failed ? "retry" : "update") })
+		  ] });
+		}
+		function UpdatePanel({ updates: offer }) {
+		  const state = useUpdates();
+		  const { phase, updates, updated, step, to, restart, failure, dismissed, notes, only } = state;
+		  const { t, start: startUpdate } = offer;
 		  const latest = latestOf(updates);
-		  const offer = phase === "idle" && latest !== "" && latest !== dismissed;
-		  if (phase === "idle" && !offer) return null;
+		  if (phase === "idle" && latest === "") return null;
+		  if (phase === "idle" && latest === dismissed) {
+		    return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "bdu-line", "data-testid": "baoyu-design-update-line", children: [
+		      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: t("available", { version: latest }) }),
+		      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { type: "button", className: "bdu-show", onClick: reopen, children: t("show") })
+		    ] });
+		  }
+		  const base2 = t("changelog.url");
+		  const rows = [
+		    ...(updated ?? []).filter((u) => !updates.some((o) => o.name === u.name)).map((plugin) => ({ plugin, done: true })),
+		    ...updates.map((plugin) => ({ plugin, done: false }))
+		  ].sort((a, b) => a.plugin.name.localeCompare(b.plugin.name));
 		  let title;
 		  let text = null;
 		  let actions = null;
 		  if (phase === "running") {
-		    title = step ? t("running", { plugin: pluginTitle(step.name), index: String(step.index), total: String(step.total) }) : t("busy");
+		    title = !step ? t("busy") : step.total > 1 ? t("running", { plugin: pluginTitle(step.name), index: String(step.index), total: String(step.total) }) : t("running.one", { plugin: pluginTitle(step.name) });
 		  } else if (phase === "done") {
-		    title = t("done", { version: to });
+		    const last = updates.length > 0 ? updated?.at(-1) : void 0;
+		    title = last ? t("done.one", { plugin: pluginTitle(last.name), version: last.latest }) : t("done", { version: to });
 		    text = t(restart ? "done.restart" : "done.session");
-		    actions = /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_dsh_client_ui_primitives.Button, { variant: "outline", size: "sm", onClick: dismiss, children: t("close") });
+		    actions = /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+		      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_dsh_client_ui_primitives.Button, { variant: "outline", size: "sm", onClick: close, children: t("close") }),
+		      updates.length > 1 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_dsh_client_ui_primitives.Button, { variant: "primary", size: "sm", onClick: () => startUpdate(), children: t("update.all") })
+		    ] });
 		  } else if (phase === "failed" && failure) {
 		    title = t("failed", { plugin: pluginTitle(failure.plugin) });
 		    const left = failure.left ?? "kept";
 		    text = `${failure.message} ${t(`failed.${left}`)}`;
+		    const retry = (only ?? null) === null ? updates.length > 0 : rows.length <= 1 && updates.some((u) => u.name === only);
 		    actions = /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
-		      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_dsh_client_ui_primitives.Button, { variant: "outline", size: "sm", onClick: dismiss, children: t("close") }),
-		      updates.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_dsh_client_ui_primitives.Button, { variant: "primary", size: "sm", onClick: startUpdate, children: t("retry") })
+		      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_dsh_client_ui_primitives.Button, { variant: "outline", size: "sm", onClick: close, children: t("close") }),
+		      retry && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_dsh_client_ui_primitives.Button, { variant: "primary", size: "sm", onClick: () => startUpdate(only), children: t("retry") })
 		    ] });
 		  } else {
 		    title = t("available", { version: latest });
 		    text = /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
-		      t("current", { version: oldestOf(updates) }),
-		      " ",
-		      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("a", { href: t("changelog.url"), target: "_blank", rel: "noreferrer", children: t("changelog") })
+		      rows.length > 1 ? "" : `${t("current", { plugin: pluginTitle(updates[0].name), version: updates[0].version })} `,
+		      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("a", { href: base2, target: "_blank", rel: "noreferrer", children: t("changelog") })
 		    ] });
 		    actions = /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
-		      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_dsh_client_ui_primitives.Button, { variant: "outline", size: "sm", onClick: dismiss, children: t("later") }),
-		      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_dsh_client_ui_primitives.Button, { variant: "primary", size: "sm", onClick: startUpdate, children: t("update") })
+		      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_dsh_client_ui_primitives.Button, { variant: "outline", size: "sm", onClick: later, children: t("later") }),
+		      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_dsh_client_ui_primitives.Button, { variant: "primary", size: "sm", onClick: () => startUpdate(), children: t(updateKey(updates)) })
 		    ] });
 		  }
-		  return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "bdu-card", role: phase === "failed" ? "alert" : "status", "data-testid": "baoyu-design-update", "data-phase": phase, children: [
-		    /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "bdu-title", children: title }),
-		    text !== null && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "bdu-text", children: text }),
-		    actions !== null && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "bdu-actions", children: actions })
+		  const language = t("notes.lang") === "zh" ? "zh" : "en";
+		  return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", { className: "bdu-panel", role: phase === "failed" ? "alert" : "status", "data-testid": "baoyu-design-update", "data-phase": phase, children: [
+		    /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "bdu-head", children: [
+		      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "bdu-head-text", children: [
+		        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "bdu-title", children: title }),
+		        text !== null && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "bdu-text", children: text })
+		      ] }),
+		      actions !== null && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "bdu-actions", children: actions })
+		    ] }),
+		    rows.length > 1 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("ul", { className: "bdu-plugins", "data-testid": "baoyu-design-update-plugins", children: rows.map(({ plugin, done }) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PluginRow, { plugin, done, state, offer }, plugin.name)) }),
+		    notes !== void 0 && notes.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "bdu-notes", "data-testid": "baoyu-design-update-notes", tabIndex: 0, children: notes.map((note) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "bdu-note", children: [
+		      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "bdu-note-head", children: [
+		        note.version,
+		        note.date !== "" && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "bdu-note-date", children: note.date })
+		      ] }),
+		      noteBlocks(note[language], base2)
+		    ] }, note.version)) })
 		  ] });
 		}
-		function UpdateBar({ updates: offer }) {
-		  const { phase, updates } = useUpdates();
+		function markOf({ phase, updates, restart, dismissed }) {
+		  if (phase === "running") return "mark.running";
+		  if (phase === "failed") return "mark.failed";
+		  if (phase === "done" && restart) return "mark.restart";
 		  const latest = latestOf(updates);
-		  if (phase !== "running" && latest === "") return null;
-		  const { t, start: startUpdate } = offer;
-		  return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "bdu-bar", "data-testid": "baoyu-design-update-bar", children: phase === "running" ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "bdu-bar-text", children: t("busy") }) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
-		    /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: "bdu-bar-text", children: [
-		      t("available", { version: latest }),
-		      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: "bdu-bar-note", children: [
-		        t("current", { version: oldestOf(updates) }),
-		        " ",
-		        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("a", { href: t("changelog.url"), target: "_blank", rel: "noreferrer", children: t("changelog") })
-		      ] })
-		    ] }),
-		    /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_dsh_client_ui_primitives.Button, { variant: "primary", size: "sm", onClick: startUpdate, children: t("update") })
-		  ] }) });
+		  return latest !== "" && latest !== dismissed ? "mark.update" : null;
+		}
+		function UpdateMark({ updates: { t }, wide, children }) {
+		  const mark = markOf(useUpdates());
+		  if (mark === null) return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_jsx_runtime.Fragment, { children });
+		  if (wide) {
+		    return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+		      children,
+		      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "bdu-mark-pill", "data-testid": "baoyu-design-update-mark", "data-mark": mark, children: t(mark) })
+		    ] });
+		  }
+		  return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: "bdu-rail-icon", children: [
+		    children,
+		    /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "bdu-mark-dot", "data-testid": "baoyu-design-update-mark", "data-mark": mark })
+		  ] });
 		}
 		var Refresh = import_dsh_client_ui_primitives.IconRefreshOutlineRegular;
 		function DetailAction({ subject, t, startUpdate }) {
@@ -423,17 +578,19 @@ window.__ModuleLoader__.load({
 		      size: "sm",
 		      ...Refresh ? { icon: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Refresh, { size: 13 }) } : {},
 		      disabled: running,
-		      "aria-label": t("update.label", { version: latestOf(updates) }),
+		      "aria-label": t("update.one", { plugin: pluginTitle(update.name), version: update.latest }),
 		      "data-testid": "baoyu-design-update-action",
-		      onClick: startUpdate,
+		      onClick: () => startUpdate(update.name),
 		      children: t(running ? "busy" : "update")
 		    }
 		  );
 		}
 		function DetailBadge({ subject, t }) {
-		  const { updates } = useUpdates();
-		  const update = updates.find((u) => u.name === subject?.pkg?.name);
-		  if (subject?.kind !== "bundle" || update === void 0 || update.native) return null;
+		  const { phase, updates, failure } = useUpdates();
+		  if (subject?.kind !== "bundle") return null;
+		  if (phase === "failed" && failure?.plugin === subject.pkg?.name) return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_dsh_client_ui_primitives.Tag, { tone: "neutral", children: t("failed.tag") });
+		  const update = updates.find((u) => u.name === subject.pkg?.name);
+		  if (update === void 0 || update.native) return null;
 		  return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_dsh_client_ui_primitives.Tag, { tone: "info", children: t("tag", { version: update.latest }) });
 		}
 		function pageUpdates(ctx) {
@@ -466,17 +623,17 @@ window.__ModuleLoader__.load({
 		    }, `${plugin}: the plugin manager`);
 		  });
 		  const inject2 = () => ({ startUpdate: start });
-		  ctx.slots.inject("shell.overlay", () => ctx.slots.register({ name: "shell.overlay", id: CARD_ID, locale: NS, inject: inject2 }, UpdateCard));
-		  ctx.slots.inject("plugins.detail.actions", () => ctx.slots.register({ name: "plugins.detail.actions", id: CARD_ID, locale: NS, inject: inject2 }, DetailAction));
-		  ctx.slots.inject("plugins.detail.badge", () => ctx.slots.register({ name: "plugins.detail.badge", id: CARD_ID, locale: NS, inject: inject2 }, DetailBadge));
+		  ctx.slots.inject("plugins.detail.actions", () => ctx.slots.register({ name: "plugins.detail.actions", id: SLOT_ID, locale: NS, inject: inject2 }, DetailAction));
+		  ctx.slots.inject("plugins.detail.badge", () => ctx.slots.register({ name: "plugins.detail.badge", id: SLOT_ID, locale: NS, inject: inject2 }, DetailBadge));
 		}
 
 		var import_jsx_runtime2 = require("react/jsx-runtime");
-		var PAGE_VERSION = 4;
+		var PAGE_VERSION = 5;
 		var PANEL_ID = "baoyu-design.artifacts";
 		var NS2 = "baoyu-design-artifacts";
 		var VIEW_KEY = "baoyu-design.artifacts.view";
 		var HUB2 = Symbol.for("baoyu-design/dsh-artifacts-page");
+		var RETURN_WITHIN_MS = 6e4;
 		function hub2() {
 		  const g = globalThis;
 		  return g[HUB2] ??= { members: /* @__PURE__ */ new Map(), owner: null, listeners: /* @__PURE__ */ new Set() };
@@ -879,6 +1036,9 @@ window.__ModuleLoader__.load({
 		    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("path", { d: "M8.5 6V5a2 2 0 0 1 2-2h4.5a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-3.5", stroke: "currentColor", strokeWidth: "1.5" })
 		  ] });
 		}
+		function ArtifactsEntry({ size = 16, updates }) {
+		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(UpdateMark, { updates, wide: size <= 16, children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(ArtifactsIcon, { size }) });
+		}
 		function TypeIcon({ skill, size = 18 }) {
 		  const p = { stroke: "currentColor", strokeWidth: 1.5, strokeLinecap: "round", strokeLinejoin: "round" };
 		  const body = (() => {
@@ -1044,11 +1204,11 @@ window.__ModuleLoader__.load({
 		  return now;
 		}
 		var ITEMS = "[role^=menuitem]";
-		function menuKeys(event, close) {
+		function menuKeys(event, close2) {
 		  if (event.key === "Escape") {
 		    event.preventDefault();
 		    event.stopPropagation();
-		    close();
+		    close2();
 		    return;
 		  }
 		  if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
@@ -1503,7 +1663,7 @@ window.__ModuleLoader__.load({
 		          canCreate() && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", className: "bda-tool", "aria-label": t("create.new"), title: t("create.new"), "aria-haspopup": "menu", "aria-expanded": popup?.kind === "create", onClick: (e) => toggle("create", e.currentTarget), children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Icon, { d: ICON.plus, size: 18 }) })
 		        ] })
 		      ] }),
-		      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(UpdateBar, { updates }),
+		      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(UpdatePanel, { updates }),
 		      tiles.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(import_jsx_runtime2.Fragment, { children: [
 		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("h2", { className: "bda-section-title", children: t("create.heading") }),
 		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("ul", { className: "bda-tiles", children: tiles.map((skill) => /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("li", { children: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("button", { type: "button", className: "bda-tile", "data-skill": skill, style: { "--bda-tint": tintOf(skill) }, onClick: () => create(skill), children: [
@@ -1851,11 +2011,21 @@ window.__ModuleLoader__.load({
 		  disposers.push(toDisposer(ctx.slots.inject(
 		    "sidebar.panellist",
 		    () => ctx.slots.register(
-		      { name: "sidebar.panellist", id: PANEL_ID, order: 20, locale: NS2, label: () => t("panel") },
-		      ArtifactsIcon
+		      { name: "sidebar.panellist", id: PANEL_ID, order: 20, locale: NS2, label: () => t("panel"), inject: () => ({ updates }) },
+		      ArtifactsEntry
 		    )
 		  )));
+		  const layout = ctx.get("layout");
+		  const activePanel = () => layout?.panelInfo?.getSnapshot().activePanelId;
+		  const h = hub2();
+		  try {
+		    if (h.shownAt !== void 0 && Date.now() - h.shownAt < RETURN_WITHIN_MS && activePanel() === null) layout?.selectPanel(PANEL_ID);
+		  } catch (error) {
+		    console.error("baoyu-design Artifacts page: going back to it failed:", error);
+		  }
+		  delete h.shownAt;
 		  return () => {
+		    if (activePanel() === PANEL_ID) h.shownAt = Date.now();
 		    for (const dispose of disposers.splice(0).reverse()) {
 		      try {
 		        dispose();
