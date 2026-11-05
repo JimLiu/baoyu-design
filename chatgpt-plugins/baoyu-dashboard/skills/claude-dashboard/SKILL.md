@@ -37,7 +37,7 @@ does every call; below, `A` is `<this skill's folder>/scripts/artifact.mjs`.
 | `node $A share <root>` | Opens it to the local network and prints a link per role; `--disable` / `--enable` / `--reset <role>`, `--role <guest>=<role>`, `--off`. See Sharing. |
 | `node $A comments <root> [--all]` / `--wait` | The comments people left on the page / waits for one they send you. See Comments. |
 | `node $A comment-reply <root> <id> <text\|->` / `comment-resolve <root> <id>` | Answers one (`--resolve` closes it too) / closes one (`--reopen`). |
-| `node $A archive <root> [--out file.zip\|dir]` | The whole folder, history and comments too, as one zip beside it (`--out`: another file or folder), to back it up, move it to another computer or send it to someone: `{file, files, bytes, open}`. Unzipped anywhere, `open` carries on. The owner's Download folder button in the page does the same; the server's own files and the share links stay out. |
+| `node $A archive <root> [--out file.zip\|dir]` | The whole folder, history and comments too, as one zip beside it (`--out`: another file or folder), to back it up, move it to another computer or send it to someone: `{file, files, bytes, open}`. Unzipped anywhere, `open` carries on. The owner's Download folder button in the page does the same; the server's own files, the share links, `exports/` and `.git` stay out. |
 
 - **A batch** is a JSON array (or `{"writes": [...]}`) of
   `{"op": "set" | "update" | "delete", "path": "<collection>/<doc_id>", "data": {...}}`
@@ -476,10 +476,10 @@ who changed which document, and when.
 
 `open` writes `<root>/.gitignore` when the folder has none. It leaves out what only this computer's server needs:
 `.artifact-server.json`, `.artifact-server.log`, `.sharing.json` (the share links), `history/` (the versions; git
-keeps its own), save temp files and `.DS_Store`. Everything else, `project/` and `comments.json` included, is the
+keeps its own), `exports/` (saved downloads and renders), save temp files and `.DS_Store`. Everything else, `project/` and `comments.json` included, is the
 dashboard and goes in git. A `.gitignore` already there is the person's: leave it. Moving or backing up the dashboard is
 copying or cloning the folder (`archive` puts it,
-history included, in one zip); `open` there starts it again.
+history included and `.git` not, in one zip); `open` there starts it again.
 
 Commit, push or set up git only when asked. Asked to check the dashboard before each commit: write
 `.git/hooks/pre-commit` (and `chmod +x` it) in the repository that holds `<root>`, with this skill's folder as an

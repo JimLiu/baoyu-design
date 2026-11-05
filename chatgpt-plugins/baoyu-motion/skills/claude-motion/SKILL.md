@@ -75,7 +75,7 @@ below, `A` is `<this skill's folder>/scripts/artifact.mjs`.
 | `node $A serve <root> [--port n] [--lan]` / `stop <root>` | The same server in the foreground / takes this folder off the server, which ends with the last one. |
 | `node $A share <root>` | Opens it to the local network and prints a link per role; `--disable` / `--enable` / `--reset <role>`, `--role <guest>=<role>`, `--off`. See Sharing. |
 | `node $A comments <root>` / `comment-reply` / `comment-resolve` | The comments people leave in the open player, and your answers: Comments, below. |
-| `node $A archive <root> [--out file.zip\|dir]` | The whole folder, history and comments too, as one zip beside it (`--out`: another file or folder), to back it up, move it to another computer or send it to someone: `{file, files, bytes, open}`. Unzipped anywhere, `open` carries on. The owner's Download folder button in the page does the same; the server's own files and the share links stay out. |
+| `node $A archive <root> [--out file.zip\|dir]` | The whole folder, history and comments too, as one zip beside it (`--out`: another file or folder), to back it up, move it to another computer or send it to someone: `{file, files, bytes, open}`. Unzipped anywhere, `open` carries on. The owner's Download folder button in the page does the same; the server's own files, the share links, `exports/` and `.git` stay out. |
 | `node $A list [dir …]` | The design systems in the current directory (or the folders given, and those in `$CLAUDE_DESIGN_SYSTEMS`), each `{title, root, tokens}`. |
 
 - **A batch** is a JSON array (or `{"writes": [...]}`) of
@@ -670,10 +670,10 @@ changed which document, and when.
 
 `open` writes `<root>/.gitignore` when the folder has none. It leaves out what only this computer's server needs:
 `.artifact-server.json`, `.artifact-server.log`, `.sharing.json` (the share links), `history/` (the versions; git
-keeps its own), save temp files and `.DS_Store`. Everything else, `project/` and `comments.json` included, is the
+keeps its own), `exports/` (saved downloads and renders), save temp files and `.DS_Store`. Everything else, `project/` and `comments.json` included, is the
 film and goes in git. A `.gitignore` already there is the person's: leave it. Moving or backing up the film is
 copying or cloning the folder (`archive` puts it,
-history included, in one zip); `open` there starts it again.
+history included and `.git` not, in one zip); `open` there starts it again.
 
 Commit, push or set up git only when asked. Asked to check the film before each commit: write
 `.git/hooks/pre-commit` (and `chmod +x` it) in the repository that holds `<root>`, with this skill's folder as an

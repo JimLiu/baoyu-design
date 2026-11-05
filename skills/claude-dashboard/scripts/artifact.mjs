@@ -51,7 +51,7 @@ function removeState(root) {
   fs.rmSync(path.join(root, STATE_FILE), { force: true });
 }
 var GITIGNORE_FILE = ".gitignore";
-var gitignoreLines = (kind) => [STATE_FILE, LOG_FILE, ".sharing.json", ...kind === "docs" ? [] : ["history/"], ".*.tmp", ".DS_Store"];
+var gitignoreLines = (kind) => [STATE_FILE, LOG_FILE, ".sharing.json", ...kind === "docs" ? [] : ["/history/"], `/${EXPORTS_DIR}/`, "*.tmp", ".tmp-*", ".DS_Store"];
 function writeGitignore(root, kind) {
   const file = path.join(root, GITIGNORE_FILE);
   try {
@@ -104,15 +104,17 @@ function isTailnet(address) {
   const m = /^100\.(\d{1,3})\./.exec(address);
   return !!m && Number(m[1]) >= 64 && Number(m[1]) <= 127;
 }
+var isTunnel = (name) => /^(utun|tun|tap|wg|ppp|ipsec)\d/i.test(name);
 function lanAddresses() {
-  const out = [];
-  for (const list of Object.values(os.networkInterfaces())) {
+  const out = /* @__PURE__ */ new Map();
+  for (const [name, list] of Object.entries(os.networkInterfaces())) {
     for (const entry of list ?? []) {
       if (entry.family !== "IPv4" || entry.internal || entry.address.startsWith("169.254.") || isBenchmarkRange(entry.address)) continue;
-      out.push(entry.address);
+      const rank = isTailnet(entry.address) ? 2 : isTunnel(name) ? 1 : 0;
+      out.set(entry.address, Math.min(rank, out.get(entry.address) ?? rank));
     }
   }
-  return [...new Set(out)].sort((a, b) => Number(isTailnet(a)) - Number(isTailnet(b)));
+  return [...out.keys()].sort((a, b) => out.get(a) - out.get(b));
 }
 function answers(host, port) {
   return new Promise((resolve) => {
@@ -695,8 +697,9 @@ var Hub = class {
   }
   // ---- the network side ------------------------------------------------------------------------------------------
   async openLan() {
-    for (const address of lanAddresses()) {
-      if (this.lanServers.has(address)) continue;
+    const addresses = lanAddresses().filter((address) => !this.lanServers.has(address));
+    const answering = await Promise.all(addresses.map(answersAnyPort));
+    for (const address of addresses.filter((_, i) => !answering[i])) {
       const server = this.createServer();
       try {
         await listen(server, this.port, address);
@@ -1018,7 +1021,7 @@ import { promisify } from "node:util";
 import zlib from "node:zlib";
 var LOCAL_FILES = /* @__PURE__ */ new Set([STATE_FILE, LOG_FILE, SHARING_FILE]);
 var LOCAL_DIRS = /* @__PURE__ */ new Set([EXPORTS_DIR]);
-var JUNK_FILES = /* @__PURE__ */ new Set([".DS_Store", "Thumbs.db", "desktop.ini"]);
+var JUNK_FILES = /* @__PURE__ */ new Set([".DS_Store", "Thumbs.db", "desktop.ini", ".git"]);
 var isTemp = (name) => name.endsWith(".tmp") || name.startsWith(".tmp-");
 var STORED = /* @__PURE__ */ new Set([".png", ".jpg", ".jpeg", ".gif", ".webp", ".avif", ".heic", ".mp4", ".m4v", ".mov", ".webm", ".mp3", ".m4a", ".aac", ".ogg", ".opus", ".flac", ".woff", ".woff2", ".zip", ".gz", ".br", ".zst", ".7z"]);
 var MAX_ENTRIES = 65535;

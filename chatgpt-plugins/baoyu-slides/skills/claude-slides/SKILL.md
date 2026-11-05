@@ -83,7 +83,7 @@ leave alone stays as it is, and removing a slide is deleting its file. The rest 
 - `open <root>` → `{url, pid, stop, …}`: starts the editor page on this machine in the background (once; later calls reuse it, `reused: true`) and prints its address, `http://127.0.0.1:4710/slides/<id>/`. All the decks open on this computer share one server and port (4710, the next free port up when that is taken; `--port n` looks for it at n and starts from n, `--port 0` runs a server of its own on any port), each at its own path, which stays the same from one start to the next. `stop <root>` takes this one off, and the server ends with the last (`serve <root>` runs it in the foreground instead). The page saves the user's edits into the same files, and shows yours as soon as you write them. `.artifact-server.json` and `.artifact-server.log` beside `project/` are its own: leave them; so is `comments.json` (the comments, see Comments), which only the comment commands below change.
   `NETWORK_BLOCKED` from `open` means your commands run in a sandbox without local network. Run `open`, `share` and `comments <root> --wait` with local network allowed, outside the sandbox, asking for that permission if your commands need approval; in the sandbox `comments --wait` says `NO_SERVER` even while the page is open. Commands that only read and write files work in the sandbox.
 - `share <root>` (or `open <root> --lan`): opens the page to the local network and prints a link per role (Sharing, below).
-- `archive <root> [--out file.zip|dir]` → `{file, files, bytes, open}`: the whole folder, history and comments too, as one zip beside it (`--out`: another file or folder), to back it up, move it to another computer or send it to someone; unzipped anywhere, `open` carries on. The owner's Download folder button in the page (between History and Share) does the same. The server's own files and the share links stay out.
+- `archive <root> [--out file.zip|dir]` → `{file, files, bytes, open}`: the whole folder, history and comments too, as one zip beside it (`--out`: another file or folder), to back it up, move it to another computer or send it to someone; unzipped anywhere, `open` carries on. The owner's Download folder button in the page (between History and Share) does the same. The server's own files, the share links, `exports/` and `.git` stay out.
 - The Theme tab links to a read-only page of the system in use, `<editor>/__ds/<folder>/`: the copy under `project/ds/<folder>/` as this deck carries it (its tokens, its components with their `README.md` and types, its `README.md`). Anyone who can open the deck can open it, and it changes only when the copy does.
 
 ## The slide format
@@ -200,10 +200,10 @@ The server keeps the deck's versions in `<root>/history/` (leave it): who change
 
 `open` writes `<root>/.gitignore` when the folder has none. It leaves out what only this computer's server needs:
 `.artifact-server.json`, `.artifact-server.log`, `.sharing.json` (the share links), `history/` (the versions; git
-keeps its own), save temp files and `.DS_Store`. Everything else, `project/` and `comments.json` included, is the
+keeps its own), `exports/` (saved downloads and renders), save temp files and `.DS_Store`. Everything else, `project/` and `comments.json` included, is the
 deck and goes in git. A `.gitignore` already there is the person's: leave it. Moving or backing up the deck is
 copying or cloning the folder (`archive` puts it,
-history included, in one zip); `open` there starts it again.
+history included and `.git` not, in one zip); `open` there starts it again.
 
 Commit, push or set up git only when asked. Asked to check the deck before each commit: write
 `.git/hooks/pre-commit` (and `chmod +x` it) in the repository that holds `<root>`, with this skill's folder as an
