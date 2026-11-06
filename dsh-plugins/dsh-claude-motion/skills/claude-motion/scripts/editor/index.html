@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <script>
-(function(){var values={"appifact_bottom_toolbar":true,"appifact_icon_set":true,"appifact_film_layers":true,"appifact_film_plan":true,"appifact_extra_export_formats":true,"appifact_film_voice":true};function kind(v){return v===null?"null":Array.isArray(v)?"array":typeof v}function copy(v){return JSON.parse(JSON.stringify(v))}globalThis.__appifact_flags={version:"appifact-flags:v1",ready:function(){return Promise.resolve(true)},get:function(key,fallback){if(!Object.prototype.hasOwnProperty.call(values,key)||kind(values[key])!==kind(fallback))return fallback;return copy(values[key])},all:function(){return copy(values)}};})();
+(function(){var values={"appifact_bottom_toolbar":true,"appifact_icon_set":true,"appifact_film_layers":true,"appifact_film_plan":true,"appifact_extra_export_formats":true,"appifact_film_voiceover":"files"};function kind(v){return v===null?"null":Array.isArray(v)?"array":typeof v}function copy(v){return JSON.parse(JSON.stringify(v))}function get(key,fallback){if(!Object.prototype.hasOwnProperty.call(values,key))return fallback;if(fallback!==null&&kind(values[key])!==kind(fallback))return fallback;return copy(values[key])}globalThis.__appifact_flags={version:"appifact-flags:v2",ready:function(){return Promise.resolve(true)},get:get,latest:function(key,fallback){var v=get(key,fallback);return typeof v==="boolean"?v:fallback},onLatest:function(){return function(){}},askAgain:function(){},all:function(){return copy(values)}};})();
 </script>
 <title>Motion</title>
 <!--

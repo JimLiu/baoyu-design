@@ -17110,57 +17110,7 @@ Content-Type: ${value2.type || "application/octet-stream"}\r
   };
 
   // node_modules/happy-dom/lib/fetch/certificate/FetchHTTPSCertificate.js
-  var FetchHTTPSCertificate_default = {
-    cert: `-----BEGIN CERTIFICATE-----
-MIIDYzCCAkugAwIBAgIUJRKB/H66hpet1VfUlm0CiXqePA4wDQYJKoZIhvcNAQEL
-BQAwQTELMAkGA1UEBhMCU0UxDjAMBgNVBAgMBVNrYW5lMQ4wDAYDVQQHDAVNYWxt
-bzESMBAGA1UECgwJSGFwcHkgRE9NMB4XDTIyMTAxMTIyMDM0OVoXDTMyMTAwODIy
-MDM0OVowQTELMAkGA1UEBhMCU0UxDjAMBgNVBAgMBVNrYW5lMQ4wDAYDVQQHDAVN
-YWxtbzESMBAGA1UECgwJSGFwcHkgRE9NMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A
-MIIBCgKCAQEAqerQSQEg/SxVxRiwlItithr5e5EMZo1nsqt/xOxagbmpW3IEmt0j
-bpbH7iEF4DDEo7KAOwUCOwVWeFxRoag8lG2ax48wrgjlCna45XDn0Xeg1ARajL04
-gs46HZ0VrzIloVGfln0zgt/Vum5BNqs9Oc5fQoBmoP3cAn3dn4ZVcP0AKthtcyPl
-q2DuNRN0PV0D2RtMSiAy9l1Ko6N5x+sAeClDyOL+sTDLngZBVeZyOKt9Id15S8Zt
-XtA6VMgHnnF3jChn7pag77rsd/y5iANAVNZYqRl+Eg7xaDcsvbgH46UBOrBcB39Q
-tTh5Mtjoxep5e3ZDFG+kQ1HUE+iz5O5n0wIDAQABo1MwUTAdBgNVHQ4EFgQU69s9
-YSobG/m2SN4L/7zTaF7iDbwwHwYDVR0jBBgwFoAU69s9YSobG/m2SN4L/7zTaF7i
-DbwwDwYDVR0TAQH/BAUwAwEB/zANBgkqhkiG9w0BAQsFAAOCAQEAi/WUXx2oal8L
-YnPlIuKfh49n/K18wXSYG//oFYwxfVxqpYH8hUiXVm/GUcXCxS++hUkaKLqXmH9q
-MKJiCrZr3vS+2nsBKopkICu/TLdROl0sAI9lByfnEbfSAzjxe1IWJdK8NdY0y5m5
-9pEr/URVIAp/CxrneyASb4q0Jg5To3FR7vYc+2X6wZn0MundKMg6Dp9/A37jiF3l
-Tt/EJp299YZcsUzh+LnRuggRjnoOVu1aLcLFlaUiwZfy9m8mLG6B/mdW/qNzNMh9
-Oqvg1zfGdpz/4D/2UUUBn6pq1vbsoAaF3OesoA3mfDcegDf/H9woJlpT0Wql+e68
-Y3FblSokcA==
------END CERTIFICATE-----`,
-    key: `-----BEGIN PRIVATE KEY-----
-MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCp6tBJASD9LFXF
-GLCUi2K2Gvl7kQxmjWeyq3/E7FqBualbcgSa3SNulsfuIQXgMMSjsoA7BQI7BVZ4
-XFGhqDyUbZrHjzCuCOUKdrjlcOfRd6DUBFqMvTiCzjodnRWvMiWhUZ+WfTOC39W6
-bkE2qz05zl9CgGag/dwCfd2fhlVw/QAq2G1zI+WrYO41E3Q9XQPZG0xKIDL2XUqj
-o3nH6wB4KUPI4v6xMMueBkFV5nI4q30h3XlLxm1e0DpUyAeecXeMKGfulqDvuux3
-/LmIA0BU1lipGX4SDvFoNyy9uAfjpQE6sFwHf1C1OHky2OjF6nl7dkMUb6RDUdQT
-6LPk7mfTAgMBAAECggEAKkwTkTjAt4UjzK56tl+EMQTB+ep/hb/JgoaChci4Nva6
-m9LkJpDJ0yuhlTuPNOGu8XjrxsVWas7HWarRf0Zb3i7yip6wZYI9Ub+AA015x4DZ
-/i0fRU2NFbK0cM67qSL4jxG8gj+kZP3HPGNZxHwX/53JxMolwgmvjMc8NgvAlSFd
-NnV9h4xtbhUh1NGS5zmP3iU2rwnE8JrIEzwy6axLom7nekAgkdcbAr0UoBs8gcgH
-aYNhU4Gz3tGcZZ0IXAfT/bJIH1Ko8AGv4pssWc3BXcmmNdm/+kzvHIxEIV7Qegmo
-XG1ZyZCyD/0b4/3e8ySDBEDqwR+HeyTW2isWG2agAQKBgQDp44aTwr3dkIXY30xv
-FPfUOipg/B49dWnffYJ9MWc1FT9ijNPAngWSk0EIiEQIazICcUBI4Yji6/KeyqLJ
-GdLpDi1CkKqtyh73mjELinYp3EUQgEa77aQogGa2+nMOVfu+O5CtloUrv/A18jX3
-+VEyaEASK0fWmnSI0OdlxQHIAQKBgQC5+xOls2F3MlKASvWRLlnW1wHqlDTtVoYg
-5Nh8syZH4Ci2UH8tON3A5/7SWNM0t1cgV6Cw4zW8Z2spgIT/W0iYYrQ4hHL1xdCu
-+CxL1km4Gy8Uwpsd+KdFahFqF/XTmLzW0HXLxWSK0fTwmdV0SFrKF3MXfTCU2AeZ
-jJoMFb6P0wKBgQC3Odw6s0vkYAzLGhuZxfZkVvDOK5RRF0NKpttr0iEFL9EJFkPo
-2KKK8jr3QTDy229BBJGUxsJi6u6VwS8HlehpVQbV59kd7oKV/EBBx0XMg1fDlopT
-PNbmN7i/zbIG4AsoOyebJZjL7kBzMn1e9vzKHWtcEHXlw/hZGja8vjooAQKBgAeg
-xK2HLfg1mCyq5meN/yFQsENu0LzrT5UJzddPgcJw7zqLEqxIKNBAs7Ls8by3yFsL
-PQwERa/0jfCl1M6kb9XQNpQa2pw6ANUsWKTDpUJn2wZ+9N3F1RaDwzMWyH5lRVmK
-M0qoTfdjpSg5Jwgd75taWt4bxGJWeflSSv8z5R0BAoGAWL8c527AbeBvx2tOYKkD
-2TFranvANNcoMrbeviZSkkGvMNDP3p8b6juJwXOIeWNr8q4vFgCzLmq6d1/9gYm2
-3XJwwyD0LKlqzkBrrKU47qrnmMosUrIRlrAzd3HbShOptxc6Iz2apSaUDKGKXkaw
-gl5OpEjeliU7Mus0BVS858g=
------END PRIVATE KEY-----`
-  };
+  var FetchHTTPSCertificate_default = { cert: "", key: "" };
 
   // node_modules/happy-dom/lib/fetch/utilities/VirtualServerUtility.js
   var NOT_FOUND_HTML = "<html><head><title>Happy DOM Virtual Server - 404 Not Found</title></head><body><h1>Happy DOM Virtual Server - 404 Not Found</h1></body></html>";
@@ -69087,6 +69037,7 @@ this.Function = globalThis.Function;
     let templateDepths;
     let templateDollar;
     let blockComment;
+    let blockCommentJustOpened;
     let regex;
     let regexCharacterClass;
     let escapedRegex;
@@ -69101,6 +69052,7 @@ this.Function = globalThis.Function;
     let ended2;
     let pendingChain;
     let bufferOffset;
+    let stopped;
     function reset() {
       buffer2 = "";
       parenDepth = braceDepth = bracketDepth = 0;
@@ -69110,8 +69062,9 @@ this.Function = globalThis.Function;
       statementStart = 0;
       templateDepths = [];
       templateDollar = false;
-      blockComment = false;
+      blockComment = blockCommentJustOpened = false;
       regex = regexCharacterClass = escapedRegex = false;
+      stopped = false;
       pendingSlash = false;
       lastSignificantChar = "";
       arrowBodyPending = false;
@@ -69223,7 +69176,7 @@ this.Function = globalThis.Function;
           return;
         }
         if (input === "*") {
-          blockComment = true;
+          blockComment = blockCommentJustOpened = true;
           return;
         }
         if (lastSignificantChar === "" || "([{,;=!&|?:+-*%^~<>".indexOf(lastSignificantChar) >= 0 || regexAfterKeywords && REGEX_PREFIX_KEYWORDS.test(
@@ -69233,10 +69186,12 @@ this.Function = globalThis.Function;
         else lastSignificantChar = "/";
       }
       if (blockComment) {
-        if (input === "/" && buffer2[buffer2.length - 2] === "*") {
+        if (input === "/" && buffer2[buffer2.length - 2] === "*" && !blockCommentJustOpened) {
           if (blockComment = false, controlEnd >= 0 && atTopLevel())
             continuationStart = buffer2.length;
         }
+        if (blockCommentJustOpened = false, input === "`" && buffer2.endsWith("```") && buffer2.slice(buffer2.lastIndexOf("\n") + 1, -3).trim() === "")
+          stopped = true;
         return;
       }
       if (lineComment) {
@@ -69252,7 +69207,7 @@ this.Function = globalThis.Function;
       }
       if (quote !== null) {
         if (escapedString) {
-          escapedString = input === "\\";
+          escapedString = false;
           templateDollar = false;
           return;
         }
@@ -69267,6 +69222,7 @@ this.Function = globalThis.Function;
             templateDepths.push(braceDepth);
             braceDepth++;
             quote = null;
+            lastSignificantChar = "{";
             return;
           }
           templateDollar = input === "$";
@@ -69274,10 +69230,15 @@ this.Function = globalThis.Function;
         if (input === quote) {
           lastSignificantChar = input;
           quote = null;
+          stopped = input === "`" && buffer2.endsWith("```");
         }
         return;
       }
       if (regex) {
+        if (input === "\n" || input === "\r" || input === "\u2028" || input === "\u2029") {
+          stopped = true;
+          return;
+        }
         if (escapedRegex) {
           escapedRegex = false;
           return;
@@ -69307,6 +69268,7 @@ this.Function = globalThis.Function;
         case "`":
           quote = input;
           lastSignificantChar = input;
+          stopped = buffer2.endsWith("```");
           return;
         case "(":
           parenDepth++;
@@ -69384,7 +69346,7 @@ this.Function = globalThis.Function;
         return;
       }
       input = String(input);
-      for (let index = 0; index < input.length; index++) {
+      for (let index = 0; index < input.length && !stopped; index++) {
         buffer2 += input[index];
         acceptCharacter(input[index]);
       }
@@ -69392,12 +69354,17 @@ this.Function = globalThis.Function;
     }
     function describeOpenSyntax() {
       let items2 = [];
-      if (quote)
+      if (stopped && !regex)
+        items2.push("three backticks in a row, like a Markdown fence mark");
+      else if (quote)
         items2.push(
           quote === "`" ? "a template literal" : "a string (" + quote + ")"
         );
       if (blockComment) items2.push("a block comment");
-      if (regex) items2.push("a regular expression");
+      if (regex)
+        items2.push(
+          stopped ? "a regular expression that runs past its line, or a division taken for one" : "a regular expression"
+        );
       if (parenDepth) items2.push(parenDepth + " \xD7 (");
       if (bracketDepth) items2.push(bracketDepth + " \xD7 [");
       if (braceDepth) items2.push(braceDepth + " \xD7 {");
@@ -69406,7 +69373,7 @@ this.Function = globalThis.Function;
     function value2() {
       if (ended2) return;
       ended2 = true;
-      let value22 = quote !== null || blockComment || regex;
+      let value22 = stopped || quote !== null || blockComment || regex;
       if (!value22) {
         if (pendingSlash) {
           pendingSlash = false;
@@ -69450,6 +69417,10 @@ this.Function = globalThis.Function;
       end: value2,
       reset,
       tail: () => buffer2.slice(statementStart),
+      inTextOrComment: () => stopped || quote === "`" || templateDepths.length > 0 && quote === null || blockComment,
+      get stopped() {
+        return stopped;
+      },
       get count() {
         return statementCount;
       }
@@ -72435,8 +72406,8 @@ this.Function = globalThis.Function;
         return;
       }
       let value22 = stream.tail();
-      if (value22.length > limits.maxChars || value22.length > limits.maxLines && value22.split(`
-`).length > limits.maxLines) {
+      if (!stream.stopped && (value22.length > limits.maxChars || value22.length > limits.maxLines && value22.split(`
+`).length > limits.maxLines)) {
         emitStatementError(
           "a statement is over " + limits.maxLines + " lines / " + limits.maxChars + " characters; dropped",
           value22
@@ -72476,7 +72447,7 @@ this.Function = globalThis.Function;
         if (!value4) continue;
         if (consumedLineChars === 0 && !useLineSplitter) {
           let value7 = incomingLine.replace(/\r?\n$/, "");
-          if (CODE_FENCE.test(value7) && !insideTemplate()) {
+          if (CODE_FENCE.test(value7) && !insideTemplate() && !stream.inTextOrComment()) {
             if (restartStream(), insideCodeFence = insideCodeFence !== true, insideCodeFence)
               recognizedCode = true;
           } else if (insideCodeFence === false) reportSkippedProse(value7);

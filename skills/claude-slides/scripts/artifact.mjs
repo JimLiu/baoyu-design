@@ -1226,8 +1226,8 @@ import path7 from "node:path";
 var DESIGN_SYSTEM_FILE = "design-system.json";
 var BLOBS_DIR = "_blobs";
 var DESIGN_SYSTEM_LIMITS = {
-  files: 1024,
-  ownFiles: 1008,
+  files: 4096,
+  ownFiles: 4080,
   totalBytes: 256 * 1024 * 1024,
   fileBytes: 15 * 1024 * 1024,
   publishBytes: 16 * 1024 * 1024,
@@ -1273,7 +1273,9 @@ var REFUSED_TOOL_FILENAMES = /* @__PURE__ */ new Set([
   "deno.jsonc",
   "claude.md",
   "claude.local.md",
-  "agents.md"
+  "agents.md",
+  "agent.md",
+  "gemini.md"
 ]);
 var WINDOWS_SHORT_NAME_PATTERN = /~\d/;
 var IMAGE_SLOT_STATE_FILENAME = ".image-slots.state.json";

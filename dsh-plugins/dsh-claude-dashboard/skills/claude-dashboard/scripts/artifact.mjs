@@ -1513,6 +1513,7 @@ var ShareHost = class {
     const share2 = { ...this.me(viewer), noun: this.options.noun, title: this.options.title(), ...this.options.reactions ? { reactions: true } : {} };
     let js = `(function(BASE){${ROOT_SHIM}})(${script(this.page)});${SECURE_CONTEXT_SHIM}window.__baoyuShare=${script(share2)};`;
     for (const [name, value] of Object.entries(this.options.globals?.(viewer, query) ?? {})) js += `window[${script(name)}]=${script(value)};`;
+    if (this.options.agentName) js += `window.__baoyuAgentName=${script(this.options.agentName)};`;
     if (viewer.guest) js += GUEST_WATCH;
     return js;
   }
@@ -3665,6 +3666,21 @@ data: ${JSON.stringify(snap)}
       } else if (parts.length === 2 && parts[0] === "agent" && parts[1] === "wait") {
         need(viewer.canSend, "Only the owner's agent waits for comments.");
         if (reading) return await wait(request, response, url);
+      } else if (parts.length === 2 && parts[0] === "agent" && parts[1] === "send-all") {
+        if (method === "POST") {
+          request.resume();
+          need(viewer.canSend, ONLY_OWNER_SENDS);
+          const result = await updateComments(root, (doc) => {
+            const open2 = doc.threads.filter((t) => t.status === "open" && t.messages.some((m) => m.author.kind === "user"));
+            const sent = open2.filter(canSendToAgent);
+            const at = now();
+            for (const t of sent) sendToAgent(t, at);
+            return { threads: sent, sent: { count: sent.length, open: open2.length } };
+          });
+          log(`comments: ${result.sent.count} of ${result.sent.open} open thread(s) sent to the agent`);
+          sendJson2(response, 200, result);
+          return await afterChange(result.sent.count > 0);
+        }
       } else if (parts.length === 2 && parts[0] === "agent" && parts[1] === "requests") {
         need(viewer.canSend, ONLY_OWNER_SENDS);
         if (method === "POST") return await ask(request, response);
@@ -3776,7 +3792,7 @@ var EDITOR_DIR = path9.join(path9.dirname(SCRIPT), "editor");
 var LOCAL_USER_ID = "local";
 var MAX_DOC_BYTES = 256 * 1024;
 var MAX_FILE_CHARS = 262144;
-var MAX_DATA_BYTES = 8 * 1024 * 1024;
+var MAX_DATA_BYTES = 15 * 1024 * 1024;
 var MAX_BATCH_WRITES = 50;
 var MAX_BATCH_BYTES = 1024 * 1024;
 var SEGMENT = /^(?!\.\.?$)[A-Za-z0-9_\-.~:@+]{1,200}$/;
@@ -4056,7 +4072,7 @@ function upload(root, given, flags) {
   if (!stat) throw new CliError("FILE_NOT_FOUND", `No such file: ${given}`);
   if (!stat.isFile()) throw new CliError("NOT_A_FILE", `${given} is not a regular file.`);
   if (stat.size > MAX_DATA_BYTES) {
-    throw new CliError("FILE_TOO_LARGE", `${given} is ${kb(stat.size)}; a file dataset over 8 MB is refused. Keep only the columns and rows the dashboard shows, or aggregate first.`);
+    throw new CliError("FILE_TOO_LARGE", `${given} is ${kb(stat.size)}; a file over 15 MiB is refused. Keep only the columns and rows the dashboard shows, or aggregate first.`);
   }
   const name = flags.get("name") ?? path9.basename(file);
   const type = flags.get("type") ?? contentTypeOf(name);
@@ -4309,6 +4325,8 @@ var LOOK_MAX_CHARTS = 8;
 var LOOK_MAX_FONTS = 12;
 var LOOK_MAX_STACK = 200;
 var LOOK_GROUND_LUMINANCE = { light: 0.82, dark: 0.04 };
+var LOOK_DARK_LUMINANCE = 0.18;
+var LOOK_BORDER_DISTANCE = 2;
 var LOOK_CARD_LUMINANCE = { light: 0.6, dark: 0.08 };
 var LOOK_TEXT_FALLBACK = { light: "#000000", dark: "#ffffff" };
 var LOOK_TEXT_CONTRAST = 4.5;
@@ -4458,15 +4476,18 @@ function checkLookSet(value, theme, issue, warn) {
   }
   for (const key of Object.keys(value)) if (!LOOK_SET_KEYS.has(key)) warn(`${theme}.${key} isn\u2019t read (a set has ${[...LOOK_SET_KEYS].join(", ")}).`);
   const form = "a hex, or rgb(), hsl(), oklch(), oklab(), lab() or lch(): no name, var() or gradient";
-  const ground = readLookColor(value.ground);
-  if (ground === void 0) {
+  const givenGround = readLookColor(value.ground);
+  if (givenGround === void 0) {
     issue(value.ground === void 0 ? `${theme}.ground is missing: a set needs its ground, so the ${theme} set is dropped.` : `${theme}.ground ${JSON.stringify(value.ground)} isn\u2019t a color the dashboard reads (${form}; no alpha on a ground): the ${theme} set is dropped.`);
     return false;
   }
-  if (!inLuminanceBand(ground, theme, LOOK_GROUND_LUMINANCE)) {
-    issue(`${theme}.ground ${value.ground} is too ${theme === "light" ? "dark" : "light"} (a ${theme} ground is as ${theme} as ${theme === "light" ? "#eaeaea or lighter" : "#383838 or darker"}, as that gray): the whole ${theme} set is dropped and its readers see the dashboard\u2019s own colors.`);
+  if (luminance(givenGround) < LOOK_DARK_LUMINANCE !== (theme === "dark")) {
+    issue(`${theme}.ground ${value.ground} is on the wrong side for a ${theme} set (${theme === "light" ? "#767676 or lighter" : "#757575 or darker"}): the whole ${theme} set is dropped and its readers see the dashboard\u2019s own colors.`);
     return false;
   }
+  const pole = theme === "light" ? "#ffffff" : "#000000";
+  const ground = inLuminanceBand(givenGround, theme, LOOK_GROUND_LUMINANCE) ? givenGround : [0, 0.2, 0.4, 0.6, 0.8].map((t) => mixHex(givenGround, pole, t)).find((c) => inLuminanceBand(c, theme, LOOK_GROUND_LUMINANCE)) ?? pole;
+  if (ground !== givenGround) warn(`${theme}.ground ${value.ground} is too ${theme === "light" ? "dark" : "light"} for the dashboard\u2019s toolbar (a ${theme} ground is as ${theme} as ${theme === "light" ? "#eaeaea or lighter" : "#383838 or darker"}, as that gray): it is taken toward ${theme === "light" ? "white" : "black"} (${ground}) and the other colors are checked against that. Give one of the system\u2019s neutrals that fits.`);
   const unread = (key) => value[key] !== void 0 && readLookColor(value[key], ground) === void 0;
   for (const key of ["card", "text", "muted", "border", ...LOOK_STATUSES]) if (unread(key)) issue(`${theme}.${key} ${JSON.stringify(value[key])} isn\u2019t a color the dashboard reads (${form}); it is dropped.`);
   const cardColor = readLookColor(value.card, ground);
@@ -4477,6 +4498,8 @@ function checkLookSet(value, theme, issue, warn) {
   const given = color("text");
   const text = [given, LOOK_TEXT_FALLBACK[theme]].find((c) => reads(c, LOOK_TEXT_CONTRAST)) ?? LOOK_TEXT_FALLBACK[theme];
   if (given !== void 0 && given !== text) warn(`${theme}.text ${value.text} is under 4.5:1 on the ground or the card; ${theme === "light" ? "black" : "white"} stands in.`);
+  const borderGiven = color("border");
+  if (borderGiven !== void 0 && ground !== givenGround && Math.min(colorDistance(borderGiven, ground), colorDistance(borderGiven, card)) < LOOK_BORDER_DISTANCE) warn(`${theme}.border ${value.border} is too close to the adjusted ground or the card; one is mixed from text and ground instead.`);
   const muted = color("muted");
   if (muted !== void 0 && !reads(muted, LOOK_MUTED_CONTRAST)) warn(`${theme}.muted ${value.muted} is under 3:1 on the ground or the card; one is mixed from text and ground instead.`);
   for (const key of LOOK_STATUSES) {
@@ -4535,6 +4558,13 @@ function checkLook(look, issue, warn) {
     }
   }
 }
+function editStampProblem(edit) {
+  if (!isObject2(edit)) return 'edit must be {via: "claude", at: <UTC ISO>} (the page ignores anything else).';
+  const time = (t) => typeof t === "number" ? Number.isFinite(t) : typeof t === "string" && !Number.isNaN(Date.parse(t));
+  const writer = typeof edit.via === "string" && time(edit.at);
+  const person = typeof edit.by === "string" && time(edit.byAt);
+  return writer || person ? null : 'edit must be {via: "claude", at: <UTC ISO>} (the page ignores anything else).';
+}
 function check(root) {
   const issues = [];
   const warnings = [];
@@ -4581,6 +4611,10 @@ function check(root) {
     if (typeof data.title !== "string" || !data.title.trim()) issue(p, "needs a title: a short name that stands alone in a list of sources.");
     else if (data.title.length > 40) warn(p, `title is ${data.title.length} characters; about 30 reads best in Sources (the detail goes in description).`);
     if (data.description !== void 0 && typeof data.description !== "string") issue(p, "description must be text.");
+    if (data.edit !== void 0) {
+      const problem = editStampProblem(data.edit);
+      if (problem) warn(p, problem);
+    }
     const source = isObject2(data.source) ? data.source : null;
     if (!source) {
       issue(p, 'needs source: {kind: "file", url, name, format?}.');
@@ -4588,8 +4622,8 @@ function check(root) {
     }
     const kind = typeof source.kind === "string" ? source.kind : typeof source.tool === "string" ? "query" : typeof source.url === "string" ? "file" : Array.isArray(source.rows) ? "rows" : null;
     info.kind = kind;
-    if (kind === "query") {
-      issue(p, "is a live query: there are no connectors in the local page, so it never loads. Run the query yourself, attach its rows as a file (upload), and set the dataset with a file source.");
+    if (kind === "query" || kind === "call") {
+      issue(p, `is a live query (kind "${kind}"): there are no connectors in the local page, so it never loads. Run the query yourself, attach its rows as a file (upload), and set the dataset with a file source.`);
       continue;
     }
     if (kind === "rows") {
@@ -4615,7 +4649,7 @@ function check(root) {
       continue;
     }
     if (stat.size > MAX_DATA_BYTES) {
-      issue(p, `its file is ${kb(stat.size)}; the page refuses a file over 8 MB.`);
+      issue(p, `its file is ${kb(stat.size)}; a file over 15 MiB is refused.`);
       continue;
     }
     if (typeof source.name !== "string" || !source.name.trim()) issue(p, "source.name: the file\u2019s own name (it sets the format when format is left out).");
@@ -4643,6 +4677,10 @@ function check(root) {
     else if (typeof data.text !== "string") issue(p, "needs {text}: the whole file.");
     else if (data.text.length > MAX_FILE_CHARS) issue(p, `is ${data.text.length} characters; a page file over 262,144 is refused.`);
     else files.set(m[1], data.text);
+    if (data.edit !== void 0) {
+      const problem = editStampProblem(data.edit);
+      if (problem) warn(p, problem);
+    }
   }
   const index = files.get("index.html");
   if (index === void 0 && !issues.some((x) => x.doc === "files/index.html")) issue("files/index.html", "is missing: the page is files/index.html {text}.");
@@ -4996,7 +5034,7 @@ async function serve(root, flags) {
   print({ url: state.url, root, pid: state.pid, ...state.lan?.length ? { lan: state.lan } : {} }, true);
   return !(state.joined && background);
 }
-function mountSite(root, { log, network, agentHook }) {
+function mountSite(root, { log, network, agentHook, local, agentName }) {
   const dbDir = path9.join(root, "db");
   fs10.mkdirSync(dbDir, { recursive: true });
   const known = /* @__PURE__ */ new Map();
@@ -5084,6 +5122,8 @@ data: ${JSON.stringify(data)}
     title: () => dashboardTitle(root),
     log,
     uiFile: path9.join(EDITOR_DIR, "share-ui.js"),
+    ...local ? { local } : {},
+    ...agentName ? { agentName } : {},
     globals: (viewer, query) => ({ __baoyuHistory: history.bootGlobal(viewer, query) })
   });
   const comments = createCommentsService({
@@ -5254,7 +5294,7 @@ data: ${JSON.stringify(data)}
           bytes = await readBody(req, MAX_DATA_BYTES);
         } catch (error) {
           const tooLarge = error instanceof TooLarge;
-          return json(res, tooLarge ? 413 : 400, { code: "invalid_argument", message: tooLarge ? "The file is over 8 MB." : error.message });
+          return json(res, tooLarge ? 413 : 400, { code: tooLarge ? "too_large" : "invalid_argument", message: tooLarge ? "The file is over 15 MiB." : error.message });
         }
         let name = "upload";
         try {
@@ -5574,7 +5614,7 @@ ${USAGE}
       return 2;
   }
 }
-main().then(
+if (typeof __BAOBOT_LIB__ === "undefined") main().then(
   (code) => {
     if (code >= 0) process.exitCode = code;
   },
@@ -5584,3 +5624,10 @@ main().then(
     process.exitCode = 2;
   }
 );
+export {
+  applyWrites,
+  check,
+  mountSite,
+  readDb,
+  upload
+};

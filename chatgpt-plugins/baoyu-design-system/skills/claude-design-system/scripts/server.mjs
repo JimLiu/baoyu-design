@@ -700,6 +700,21 @@ data: ${JSON.stringify(snap)}
       } else if (parts.length === 2 && parts[0] === "agent" && parts[1] === "wait") {
         need(viewer.canSend, "Only the owner's agent waits for comments.");
         if (reading) return await wait(request, response, url);
+      } else if (parts.length === 2 && parts[0] === "agent" && parts[1] === "send-all") {
+        if (method === "POST") {
+          request.resume();
+          need(viewer.canSend, ONLY_OWNER_SENDS);
+          const result = await updateComments(root, (doc) => {
+            const open = doc.threads.filter((t) => t.status === "open" && t.messages.some((m) => m.author.kind === "user"));
+            const sent = open.filter(canSendToAgent);
+            const at = now();
+            for (const t of sent) sendToAgent(t, at);
+            return { threads: sent, sent: { count: sent.length, open: open.length } };
+          });
+          log(`comments: ${result.sent.count} of ${result.sent.open} open thread(s) sent to the agent`);
+          sendJson(response, 200, result);
+          return await afterChange(result.sent.count > 0);
+        }
       } else if (parts.length === 2 && parts[0] === "agent" && parts[1] === "requests") {
         need(viewer.canSend, ONLY_OWNER_SENDS);
         if (method === "POST") return await ask(request, response);
@@ -3371,6 +3386,7 @@ var ShareHost = class {
     const share = { ...this.me(viewer), noun: this.options.noun, title: this.options.title(), ...this.options.reactions ? { reactions: true } : {} };
     let js = `(function(BASE){${ROOT_SHIM}})(${script(this.page)});${SECURE_CONTEXT_SHIM}window.__baoyuShare=${script(share)};`;
     for (const [name, value] of Object.entries(this.options.globals?.(viewer, query) ?? {})) js += `window[${script(name)}]=${script(value)};`;
+    if (this.options.agentName) js += `window.__baoyuAgentName=${script(this.options.agentName)};`;
     if (viewer.guest) js += GUEST_WATCH;
     return js;
   }
@@ -4556,7 +4572,7 @@ function watchArtifact(store, onChange, onError) {
   };
 }
 var publishError = (response, status, code, message) => sendJson2(response, status, { code, message });
-async function mountSite(root, { log: stamp2, network, agentHook, local }) {
+async function mountSite(root, { log: stamp2, network, agentHook, local, agentName }) {
   const project = path12.join(root, "project");
   const editorPath = pagePathOf(KIND, root);
   const projectDir = await fsp4.realpath(project);
@@ -4574,6 +4590,7 @@ async function mountSite(root, { log: stamp2, network, agentHook, local }) {
     log: stamp2,
     uiFile: path12.join(EDITOR_DIR, "share-ui.js"),
     ...local ? { local } : {},
+    ...agentName ? { agentName } : {},
     // The History panel's address and what this person may do there; on a version's page (?at=n), which version.
     globals: (viewer, query) => {
       const at = Number(query.get("at") ?? "");
@@ -5151,7 +5168,9 @@ var REFUSED_TOOL_FILENAMES = /* @__PURE__ */ new Set([
   "deno.jsonc",
   "claude.md",
   "claude.local.md",
-  "agents.md"
+  "agents.md",
+  "agent.md",
+  "gemini.md"
 ]);
 var WINDOWS_SHORT_NAME = /~\d/;
 var IMAGE_SLOT_STATE_FILENAME = ".image-slots.state.json";
@@ -5215,8 +5234,8 @@ var LAYOUT2 = {
   roots: [{ rel: "", descend: true }],
   descendInto,
   watches: (rel) => isArtifactFile(rel) || descendInto(rel),
-  /** The format's limits: 1,024 files, 15 MiB a file, 16 MiB a save; an upload 20 MiB, an SVG 2 MiB. */
-  maxFiles: 1024,
+  /** The format's limits: 4,096 files (4,080 of them the system's own; 1,024 before 2026-11-05), 15 MiB a file, 16 MiB a save; an upload 20 MiB, an SVG 2 MiB. */
+  maxFiles: 4096,
   maxPublishBytes: 16 * 1024 * 1024,
   maxFileBytes: 15 * 1024 * 1024,
   maxBlobBytes: (contentType) => ((contentType.split(";")[0] ?? "").trim().toLowerCase() === "image/svg+xml" ? 2 : 20) * 1024 * 1024,
