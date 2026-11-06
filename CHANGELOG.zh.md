@@ -4,6 +4,21 @@
 
 本文档记录 `baoyu-design` 的重要变更。
 
+## 2.12.0 - 2026-11-06
+
+### 新功能
+- **所有编辑器的评论层更接近 claude.ai 的评论层。** 图钉不在窗口里的评论，不再画图钉，改成在那一侧边缘贴一个带数量的 **More comments** 标签，点一下就打开离得最近的一条。同一个位置的图钉并排排开。**All comments** 面板里有 **Send all to Agent**，一次把所有评论串发给 Agent（`comments --wait` 一起返回）。改过的消息会标 **edited**，已解决的评论串显示 **Reply to reopen…**，面板有了空状态；筛选把评论全藏起来时，显示 **Show N resolved**。
+- **`claude-slides`、`claude-design`、`claude-design-system`、`claude-dashboard` 和 `claude-motion` 跟上了 claude.ai 2026-11-05 的更新。** 五个编辑器都有：按钮在操作进行时显示忙的状态，对话框关闭后把焦点还给原来的位置，提示条可以用键盘切过去，标签页多了下划线样式，图标多了 34 个。幻灯片、设计稿和仪表盘的编辑模式里可以复制、粘贴属性。
+- `claude-slides`：演讲者备注可以在 Canvas 视图里直接编辑，演示时多了跳转键（Home、End）。
+- `claude-design`：网格的单元格可以拖动，也可以用键盘移动；很高的画板导出 PDF 时拆成多页。
+- `claude-design-system`：一个设计系统每个版本最多 4,096 个文件，其中自己的 4,080 个（以前是 1,024）；`agent.md` 和 `gemini.md` 和 `claude.md`、`agents.md` 一样，不能用作文件名。
+- `claude-dashboard`：附件最大 15 MiB；Agent 写的文档带 `edit` 戳，页面会读它；`check` 认识 `dash/look` 的新规则。
+- `claude-motion`：`check` 对名字以 `scene-` 或 `layer-` 开头的模块给出警告，这两类是播放器自己的名字。
+
+### 文档
+- 每个编辑器的 `SKILL.md` 和 reference 都跟着这次更新。`claude-slides` 和 `claude-design` 按需求和主题选字体，中性的就用 Inter 搭 Space Grotesk。`claude-dashboard` 新增了 looks 和 questions 两页，数据来源、功能、设计系统和朗读几页重写了。
+- `claude-motion` 重写：新片先问再做，做到一半的影片下一轮会接着做，不重来；指定了设计系统，先读它再画第一场；还有几类片子不做（支持或反对某个政党、公职候选人或公投议案；赌博、加密币、代币或交易所的宣传片；打斗或战斗场面）。各有新的 reference 页。
+
 ## 2.11.1 - 2026-11-05
 
 ### 新功能

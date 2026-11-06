@@ -4,6 +4,21 @@ English | [中文](./CHANGELOG.zh.md)
 
 All notable changes to `baoyu-design` are tracked in this file.
 
+## 2.12.0 - 2026-11-06
+
+### Features
+- **Comments, in every editor, follow claude.ai's comment layer more closely.** A thread whose pin is out of the window gets a **More comments** tab with its count at that edge instead of a pin, and a click opens the nearest one. Pins on the same spot sit side by side. The **All comments** panel has **Send all to Agent**, which gives the agent every thread at once (`comments --wait` returns them together). An edited message says **edited**, a resolved thread says **Reply to reopen…**, and the panel has an empty state and, when the filter hides everything, **Show N resolved**.
+- **`claude-slides`, `claude-design`, `claude-design-system`, `claude-dashboard` and `claude-motion` follow claude.ai's 2026-11-05 update.** In all five: a button shows that it is working while its action runs, a dialog gives focus back to where it was, toasts can be reached from the keyboard, tabs have an underline style, and the icon set has 34 more icons. Properties can be copied and pasted in slides, design and the dashboard's edit mode.
+- `claude-slides`: speaker notes can be edited in the Canvas view, and the presentation has jump keys (Home, End).
+- `claude-design`: grid cells can be dragged and moved with the keyboard, and a tall artboard's PDF export is split across pages.
+- `claude-design-system`: a system holds up to 4,096 files a version, 4,080 of them its own (1,024 before), and `agent.md` and `gemini.md` are refused as file names, like `claude.md` and `agents.md`.
+- `claude-dashboard`: an attached file can be up to 15 MiB, a document written by the agent carries an `edit` stamp the page reads, and `check` knows the new rules for `dash/look`.
+- `claude-motion`: `check` warns about a module named `scene-…` or `layer-…`, which are the player's own names.
+
+### Documentation
+- Every editor's `SKILL.md` and reference follow the same update. `claude-slides` and `claude-design` choose typefaces from the brief and the subject, Inter with Space Grotesk when it is neutral. `claude-dashboard` has new looks and questions pages and reworked pages on data sources, features, design systems and reading aloud.
+- `claude-motion` is reworked: a new film is asked about before anything is made, a film left half-way is taken up again on a later turn instead of started over, a named design system is read before the first scene, and a few kinds of film are refused (for or against a political party, candidate or ballot measure; a promo for gambling or a crypto coin, token or exchange; a fight or combat scene). New reference pages cover each.
+
 ## 2.11.1 - 2026-11-05
 
 ### Features
