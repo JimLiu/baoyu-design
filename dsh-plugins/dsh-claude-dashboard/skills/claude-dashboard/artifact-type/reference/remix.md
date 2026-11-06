@@ -27,33 +27,39 @@ no draft to write to: it is a change like any other, so say first that it
 replaces the page for everyone. A later request from the page is a new draft
 under a new id: remix the dashboard itself again, not the earlier draft.
 
-1. `read_db` collection `drafts`, doc `<id>`. The page wrote it when Remix was
-   pressed and deletes it on Save or Cancel, or once a later remix takes its
-   place. If it isn't there, the draft was cancelled, replaced or never started:
-   write nothing, say so, and say they can press Remix again. Anyone who can
+1. `read_db` collection `drafts`, doc `<id>`. The page wrote it when a format
+   was picked and deletes it on Save or Cancel, once a later remix takes its
+   place, or when the person who asked next opens the dashboard, if it is over
+   24 hours old with no page. If it isn't there, the draft was cancelled, replaced or never started:
+   write nothing, say so, and say they can pick a format under Design again. Anyone who can
    edit may cancel at any time, so read it again before each later round of
    writes.
-2. Write the new page under it, laid out as the dashboard is: collection
-   `drafts/<id>/files`, doc `index.html` (written last of all: step 3), with
-   any `.css` or `.js` it names beside it. These files are the whole new page. None of the old page's files
+2. Explore the data before you plan the page, with queries of your own where
+   they help (`SKILL.md`'s rule on personal fields holds), and let what you
+   learn inform the design. Whether the page needs a source the dashboard lacks
+   is your judgement: step 3 says where it goes. Then write the new page under
+   the draft, laid out as the dashboard is: collection
+   `drafts/<id>/files`, doc `index.html`, with any `.css` or `.js` it names
+   beside it. These files are the whole new page. None of the old page's files
    load with it, so what you reuse of them (a `dash.calc`, a `dash.loader`, a
    helper) is copied in.
 3. Sources stay where they are: the draft's page reads the dashboard's datasets
    by their ids. Only a source that is new, or whose call changes, goes in the
-   draft, as a whole document at `drafts/<id>/datasets/<dataset id>`. Changed
-   filter defaults go to `drafts/<id>/dash`, doc `params`, also whole. A draft
-   holds nothing else. Write `index.html` after every other document of the
-   draft (its `.css` and `.js`, datasets, `params`): as soon as the draft has
-   one it is shown and checked, and takes the place of the person's earlier
-   draft.
+   draft, as a whole document at `drafts/<id>/datasets/<dataset id>`. After Save,
+   a new or changed query on a connector someone shares shows readers "Shared
+   results are updating" until the connector is shared again, so say so at
+   hand-over. Changed filter defaults go to `drafts/<id>/dash`, doc `params`, also whole. A draft
+   holds nothing else.
 4. Leave `files/`, `datasets/` and `dash/` themselves alone, deletes included:
    a write there shows at once to everyone. Save copies the draft over them and
    takes away the old page's files.
 5. Check as after any write (`SKILL.md`, step 3). The person's page shows the
-   draft as soon as it has an `index.html`, so from then on `data/users/me` doc
-   `check` and doc `runs` describe the draft, not the dashboard. (The draft waits
-   while they are in the middle of an edit of their own, in comment mode or in
-   History; until it shows, both still describe the dashboard.)
+   draft as soon as it has an `index.html`, which also replaces their earlier
+   draft, and each write after that draws it again. From then on
+   `data/users/me` doc `check` and doc `runs` describe the draft, not the
+   dashboard. (The draft waits while they are in the middle of an edit of their
+   own, in comment mode or in History; until it shows, both still describe the
+   dashboard.)
 
 While the `context` of a message's view-context block holds `draft`, the person
 is looking at that draft, so a change they ask for goes to its documents. "The

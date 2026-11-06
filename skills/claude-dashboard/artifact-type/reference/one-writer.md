@@ -9,6 +9,12 @@ reference says otherwise, their samples included. It changes who writes where,
 not what the page may be: a scroll story, an animated chart or any control is
 written to this rule, not ruled out.
 
+A page whose `.vs-controls` holds a `data-read-play` button is a Visual short
+with a retired player. Whenever you change it and it stays a Visual short, read
+`artifact-type/reference/visual-short.md` and the two files it names, and swap
+in their controls, CSS and engine, keeping the page's chapters, captions, calcs,
+`fmt`, drawings and `scenes`.
+
 ## Text in the HTML is the page's
 
 Text you know as you write (headings, sentences, notes, the labels of tiles,
@@ -35,6 +41,8 @@ Keep a drawing as small as what changes, a word and not its sentence:
 <p>Sales met the <b data-draw="goal">—</b> goal in <b data-draw="met" data-source="weeks" data-field="met">—</b> weeks.</p>
 ```
 
+Put a tooltip inside its chart's drawing, never in a drawing of its own.
+
 A fixed reference the user chose, a goal or a limit, is one constant in a
 script, unmarked, drawn wherever it shows, never typed. That holds where a note
 or a definition names it ("over 4 hours"), so the words can't drift from the
@@ -55,7 +63,7 @@ throws.
 A control whose choices are data is a drawing:
 
 ```
-<select data-draw="region" aria-label="Region" data-source="regions"></select>
+<select class="dash-select" data-draw="region" aria-label="Region" data-source="regions"></select>
 <script>
   dash.draw('region', (sel) => {
     const g = dash.data('regions');
@@ -101,4 +109,7 @@ becomes a drawing.
 ## Later changes
 
 `read_db` the file again before every change: a person may have saved edits
-since you read it.
+since you read it. If the page has a `data-read` element, the `lang` on it says
+what language its words are in: add it if it is missing, and change it if your
+change changes that language. A paragraph in another language has a `lang` of
+its own. A page without that element stays without it.

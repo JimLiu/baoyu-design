@@ -10,8 +10,41 @@ keeping the class names the script looks for. What is left to write is the piece
 itself: the chapters and captions, the calcs, a `dash.draw` per chart, one
 function in `scenes` per chapter, `fmt`, and the look of the drawings.
 
+## One reply has a limit
+
+One reply of yours can only be so long, thinking included, and a call that the
+limit cuts short is never run: all of it is lost. Thinking is often the larger
+part of a long reply. Calls sent together are still one reply; your next reply
+starts once they have been answered. A Visual short planned and written in one
+reply can come near the limit, so it need not be the one batch of `SKILL.md`'s
+step 3. Whether to split the writes, and how, is yours to judge.
+
+The code is three files: `files/vs.css`, the CSS below and the look of your
+drawings; `files/vs.js`, the script; and `files/index.html`, the HTML below,
+which names them. A remix writes them under its draft, as
+`artifact-type/reference/remix.md` says.
+
+However you write the piece:
+
+- **The script is best left as one file.** A page's scripts each run in a scope
+  of their own and this script's parts share names, so two files would need all
+  of those on `window`.
+- **Each file written draws an open page again, and the page is checked as it
+  then stands.** Stored before its script, `index.html` shows the person an
+  unfinished page and can fail the check. On a new dashboard, once a file lands
+  more than a few seconds after `index.html`, the check stops listing errors
+  left uncaught in a timer, a listener or a promise. Until the last file is in,
+  the check says nothing of the finished page, so read it after that write. A
+  new dashboard with no `index.html` says it is missing once your turn ends.
+- **A later change that touches several files goes as one batch**, so that
+  nobody sees half of it. In one too long for a reply, each write shows at once
+  to everyone looking at that page, and a file `index.html` names that isn't
+  there yet is left out, with no note on the page. Read its check only after the
+  last write.
+
 ```html
 <meta name="dash-one-writer">
+<link rel="stylesheet" href="vs.css">
 <div class="vs">
   <section class="vs-stage" data-read-stage><div class="vs-in">
     <div class="vs-chapters">
@@ -24,24 +57,25 @@ function in `scenes` per chapter, `fmt`, and the look of the drawings.
       </article>
       <!-- one .vs-ch per chapter; only the first, the title, has "Runs about … seconds." -->
     </div>
-    <div class="vs-caps" data-read>
+    <div class="vs-caps" data-read lang="en"><!-- lang: the language the captions are written in -->
       <p class="vs-cap" data-read-step><span class="vs-s">An email order cost about <span data-draw="fig" data-source="said" data-field="cost" data-where="channel=Email">—</span>.</span> <span class="vs-s">The next sentence.</span></p>
       <!-- one .vs-cap per chapter, in the same order; one .vs-s per sentence; nothing else in here: whatever is, is read aloud too -->
     </div>
     <div class="vs-line">
       <button class="vs-mk" data-read-move aria-label="Part of the story"><i></i></button>
-      <!-- one .vs-mk per chapter, named for its label -->
+      <!-- one .vs-mk per chapter, in the same order, named for its label; the script names it again, in case the label has been edited since -->
     </div>
     <div class="vs-controls">
       <button class="vs-toggle" data-read-pause aria-label="Play"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6.44 3.682L11.59 6.765C12.022 7.024 12.286 7.497 12.286 8C12.286 8.503 12.022 8.976 11.59 9.235L6.44 12.318C6.241 12.437 6.014 12.5 5.782 12.5C5.074 12.5 4.5 11.926 4.5 11.218L4.5 4.782C4.5 4.074 5.074 3.5 5.782 3.5C6.014 3.5 6.241 3.563 6.44 3.682Z"/></svg><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="3.5" y="3.5" width="3" height="9" rx=".75"/><rect x="9.5" y="3.5" width="3" height="9" rx=".75"/></svg></button>
       <button class="vs-back" data-read-move aria-label="Back"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3.5L5.5 8L10 12.5"/></svg></button><button class="vs-next" data-read-move aria-label="Next"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3.5L10.5 8L6 12.5"/></svg></button>
-      <button data-read-sound aria-label="Read aloud" aria-pressed="false"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M12.9 5.5C13.284 6.25 13.5 7.1 13.5 8C13.5 8.9 13.284 9.75 12.9 10.5M10.599 6.5C10.854 6.941 11 7.454 11 8C11 8.546 10.854 9.059 10.599 9.5M8.5 12.899C8.5 13.328 8 13.558 7.671 13.275L4.783 10.748C4.6 10.588 4.367 10.5 4.124 10.5L3.5 10.5C2.948 10.5 2.5 10.053 2.5 9.5L2.5 6.75M5.768 4.391L7.671 2.726C8 2.443 8.5 2.672 8.5 3.102L8.5 7.25M2.5 4L11 12.5"/></svg><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M12.9 5.5C13.284 6.25 13.5 7.1 13.5 8C13.5 8.9 13.284 9.75 12.9 10.5M10.599 6.5C10.854 6.941 11 7.454 11 8C11 8.546 10.854 9.059 10.599 9.5M3.5 5.5L4.124 5.5C4.366 5.5 4.6 5.412 4.783 5.253L7.671 2.726C8 2.443 8.5 2.672 8.5 3.102L8.5 12.899C8.5 13.328 8 13.558 7.671 13.275L4.783 10.748C4.6 10.588 4.367 10.5 4.124 10.5L3.5 10.5C2.948 10.5 2.5 10.053 2.5 9.5L2.5 6.5C2.5 5.948 2.948 5.5 3.5 5.5Z"/></svg></button><!-- struck out while the piece plays silently. The dashboard keeps aria-pressed, and hides the button where there is no voice -->
+      <button data-read-sound aria-label="Read aloud" aria-pressed="true"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M12.9 5.5C13.284 6.25 13.5 7.1 13.5 8C13.5 8.9 13.284 9.75 12.9 10.5M10.599 6.5C10.854 6.941 11 7.454 11 8C11 8.546 10.854 9.059 10.599 9.5M8.5 12.899C8.5 13.328 8 13.558 7.671 13.275L4.783 10.748C4.6 10.588 4.367 10.5 4.124 10.5L3.5 10.5C2.948 10.5 2.5 10.053 2.5 9.5L2.5 6.75M5.768 4.391L7.671 2.726C8 2.443 8.5 2.672 8.5 3.102L8.5 7.25M2.5 4L11 12.5"/></svg><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M12.9 5.5C13.284 6.25 13.5 7.1 13.5 8C13.5 8.9 13.284 9.75 12.9 10.5M10.599 6.5C10.854 6.941 11 7.454 11 8C11 8.546 10.854 9.059 10.599 9.5M3.5 5.5L4.124 5.5C4.366 5.5 4.6 5.412 4.783 5.253L7.671 2.726C8 2.443 8.5 2.672 8.5 3.102L8.5 12.899C8.5 13.328 8 13.558 7.671 13.275L4.783 10.748C4.6 10.588 4.367 10.5 4.124 10.5L3.5 10.5C2.948 10.5 2.5 10.053 2.5 9.5L2.5 6.5C2.5 5.948 2.948 5.5 3.5 5.5Z"/></svg></button><!-- on at first, struck out once the voice is off. The dashboard keeps aria-pressed, and hides the button where there is no voice -->
       <button class="vs-cc" aria-label="CC, captions" aria-pressed="true">CC</button>
     </div>
     <p class="vs-now" aria-live="polite" data-draw="now"></p>
   </div></section>
   <i data-draw="settle"></i><!-- keep it last: drawings run in order, and this one needs the others filled -->
 </div>
+<script src="vs.js"></script>
 ```
 
 ```css

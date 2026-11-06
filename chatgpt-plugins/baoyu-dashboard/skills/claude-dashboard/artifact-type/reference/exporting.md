@@ -12,7 +12,7 @@ comes first.
   `{{name}}` where a filter's value goes. An attached file has a `url` and
   `name` instead; one with a `request` holds the saved rows of that query.
   `title` and `description` say what each is.
-- `dash/params`: each filter's default. A filter not listed is NULL until the
+- `dash/params`: each filter's default. A filter not listed is unset until the
   page sets it, and the page's code can set one as it loads.
 - `files/<name>`: the page. Its scripts hold the controls, how the page is
   arranged, and every `dash.calc` and `dash.loader`, stored nowhere else.

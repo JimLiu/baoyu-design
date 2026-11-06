@@ -120,7 +120,9 @@ PNGs (ImageMagick: `montage t_*.png -tile 4x -geometry 480x270+4+24 sheet.png`).
   frames made here and the viewer's screen can differ.
 - A Google family named in `fonts` is not fetched here: a still shows its `or` (words that the ten
   shipped faces, rough-cut.md, can't spell: the machine's face). Say so with any
-  still you hand over (finalize.md's "Of fonts", F), and judge no spacing by it, only that each
+  still you hand over (later.md's "What to say about fonts", F), and judge no spacing by it, only that each
   line fits.
 - claude.ai chat may be unable to `read` an artifact's type files; there, ask
   for the skill's zip or work from Claude Code / Cowork.
+
+The film folder and the scripts that work on it are in film-folder.md.

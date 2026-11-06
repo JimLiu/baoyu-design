@@ -34,6 +34,10 @@ the brand's REAL sources (codebase, attached files, decks, guidelines).
   screenshots are lossy guidance; previews recreate, never reinvent. If
   reads fail partway, say what you did and didn't read — never invent
   names, structure or values.
+- **Read a big system by path.** A `read` with no `path` can be refused for a
+  big system: read each file you need by `path`. That copies just that file,
+  so your folder holds only what you have read. Where the index has a
+  `source.map`, that file lists the system's files as they were moved.
 - **One source for every value.** In a clean-up, a value that goes into
   `tokens.json` is REMOVED from the stylesheets the previews load, so a
   value changed on the page wins; what the page will not declare under

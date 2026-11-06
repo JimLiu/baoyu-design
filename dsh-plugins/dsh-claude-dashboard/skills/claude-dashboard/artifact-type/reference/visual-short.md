@@ -12,7 +12,8 @@ for.
 
 Read `artifact-type/reference/visual-short-skeleton.md` (HTML and CSS) and
 `artifact-type/reference/visual-short-script.md` next and start from them: they
-already do what has to hold, so the work is the piece itself.
+already do what has to hold, so the work is the piece itself. The first says why
+one reply may not be enough, and what holds if you write the piece in several.
 
 ## What has to hold
 
@@ -54,10 +55,12 @@ already do what has to hold, so the work is the piece itself.
   skeleton's `settle` last, which redraws the chapter showing at its current `t`
   and leaves `t` alone.
 - **The reader starts it.** It opens on its title, whole and at rest, which is
-  also what a thumbnail shows, and plays only when they press Play, pick a
-  chapter or, where there is a voice, press the speaker: motion nobody asked
-  for distracts. Its controls are `<button>`s in the HTML, each with a name (its words
-  or an `aria-label`), so a keyboard and a screen reader can work them.
+  also what a thumbnail shows, and plays only when they press Play or pick a
+  chapter: motion nobody asked for distracts. Its controls are `<button>`s in
+  the HTML, each with a name (its words or an `aria-label`; the script sets a
+  chapter mark's again from its chapter's label, so that a hand edit reaches it,
+  and on a page whose script doesn't, keep the two in step), so a keyboard and a
+  screen reader can work them.
 - **It fits the room it is given.** A stage that runs off the view loses its
   foot. The room changes with the window and with the dashboard's own bars,
   above the page and under it, so measure it in the box the page scrolls in, and
@@ -74,11 +77,13 @@ already do what has to hold, so the work is the piece itself.
 - **The voice is an extra.** Some readers have Listen
   (`artifact-type/reference/read-aloud.md`); many don't, so the piece plays whole
   without it. Mark it to be read, as the skeleton does: the captions' holder
-  `data-read`, with nothing in it but the captions, each caption
+  `data-read`, with `lang` for the language they are written in and nothing in
+  it but the captions, each caption
   `data-read-step`, and the stage around them `data-read-stage`. Without that last
   one the dashboard tints the words and scrolls each caption to the middle. Keep
   the captions as the same elements throughout: the dashboard stamps the ones that
-  were there when the reading started.
+  were there when the reading started, and can find a replaced one only by its
+  `id`, which the skeleton's captions don't have.
 - **While a reading is open, the dashboard keeps time.** `#dash-root` then has
   `data-dash-read-phase`, and the caption being read, or read last, has
   `data-dash-read-now`. When that stamp lands on another caption, or the phase
@@ -86,16 +91,17 @@ already do what has to hold, so the work is the piece itself.
   chapter from `t` = 0. `t` runs only while the phase is `playing`: test for that,
   since nothing is heard during `starting` or `paused` or after `ended`. The page
   moves to no chapter by itself: one that finishes early waits, whole, for the
-  next stamp. At `ended`, once the last caption is read, show the chapter whole
-  and stay on it. When the phase goes the voice is off, by a press or because it
-  failed: carry on without it from the same place, playing if it was playing.
+  next stamp. At `ended`, once the last caption is read or as a reader edits by
+  hand, show the chapter whole and stay on it. When the phase goes the voice is
+  off, by a press or because it failed: carry on without it from the same place,
+  playing if it was starting or playing.
 - **One set of controls, with the voice or without, and one clock at a time.**
   The page keeps its own controls through a reading, and the dashboard draws
   none; `read-aloud.md` has the rules. The speaker is `data-read-sound`, stored
-  `aria-pressed="false"`: a press brings the voice in at the top of the chapter
-  that is up, a second press takes it away, and the dashboard keeps
-  `aria-pressed`, by which CSS shows a speaker or a struck-out one. Play and Pause
-  is `data-read-pause`; Back, Next and each chapter mark are `data-read-move`.
+  `aria-pressed="true"`: the voice is on at first and comes with Play. The
+  dashboard keeps `aria-pressed`, by which CSS shows a speaker or a struck-out
+  one. Play and Pause is `data-read-pause`; Back, Next and each chapter mark are
+  `data-read-move`.
   While a reading is open their `onclick`s still show the chapter, but start and
   stop no clock of the page's: the two would run against each other.
 - **Every number in a caption is marked and filled from the data,** as a
@@ -218,7 +224,9 @@ presses on the stage, or the keyboard moves focus into it. At rest, paused and
 at the end they stay up, so Play can always be found; where the main pointer
 can't hover, as on a phone, they never fade. They fade by `opacity`, so a
 keyboard and a screen reader still reach them. With the voice on they fade and
-come back the same way.
+come back the same way. The dashboard pauses the piece when a reader opens
+Sources, picks a figure there or comments, and has each chapter stand whole
+while they edit by hand (`read-aloud.md`).
 
 ## Handing over
 

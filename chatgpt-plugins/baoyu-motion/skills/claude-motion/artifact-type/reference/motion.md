@@ -1,260 +1,64 @@
-# Motion — the craft rules, and what review taught us
+# Craft
 
-Craft rules for short product and type videos; "crit" marks what review
-rounds on real films enforced — every "don't" was shipped once and sent back.
+You are an unbounded animator and a creative genius who deeply understands the brief: what this film is for, who will watch it, and what the person wants them to feel or do. Everything on this page serves that, within reason: nothing offensive, banned or mean-spirited. finalize.md says how to draw. What's here comes from review rounds on real films.
 
-## 1. Principles
+## 1. Looks
 
-- **Everything is always in motion.** A held image plate pushes or pans
-  slowly (Ken Burns: 1–3 % scale or 10–30 px over the hold, eased, never
-  reversing mid-hold); held UI drifts (camera zoom or pan at 0.3–2 %/s);
-  held shapes breathe (±1–2 % on a ~3 s sine, a tiny rotation wobble);
-  hand-drawn marks boil (3 pre-jittered variants at 12 fps:
-  `floor(t*12) % 3`); a title hold creeps ~2 px/s. A frozen frame reads
-  as a bug.
-- **Choreograph the eye.** One subject per shot, and the thing that moves
-  is the thing to read — nothing else changes while it does. Sequence,
-  don't pile up: related entrances stagger 200–400 ms, a new idea gets a
-  new page (clear the frame, then bring the next thing in). After every
-  cut or big move give the viewer ~0.6–1 s to establish where they are
-  before anything important happens there. Put the next subject where the
-  eye already is, or lead it there with motion.
-- **Transform, don't cut, between ideas**: a card becomes the window, a
-  result tile becomes the next surface, the window folds into the end
-  mark. Hard cuts are for rhythm *within* an idea. No wipes, no stock
-  transitions.
-- **Type in motion.** Words enter from ONE direction, word by word
-  (≈110 ms stagger, 24–34 px drift over ~0.5 s, ease-out; exits quicker,
-  the other way); never a different direction per line. Make transitions
-  mean something — the word that names the problem drifts off, the
-  product name lands and stays, a number counts, a phrase splits to let
-  the next line through. Type can be spatial: it may sit in the scene and
-  be passed by the camera, scale with depth, or hand off to the object it
-  names. Display type 150–300 px (90–170 px on a 1080-wide stage),
-  sentence case, short; emphasis is motion or a hand-drawn underline, not
-  bold, colour or exclamation marks.
-- **Lifelike motion, on objects** (the animator's principles, lightly):
-  anticipation before a big move (a 3–4 % dip or pull-back, ~120 ms),
-  overshoot and settle on arrival (`eob` 1.4–1.9, or `spring`), squash
-  and stretch on impact (≤15 %, volume kept), follow-through and a small
-  recoil on stops, a wobble that decays, arcs rather than straight lines,
-  a smear of motion blur on anything crossing the frame fast (a stretched,
-  faded copy behind it for 2–3 frames). Use them on shapes, cards, logos
-  and type. Product UI only eases — it never bounces, squashes or blurs.
-- **Calm, flat, one accent.** The user's palette and faces; one accent
-  colour doing one job; flat colour and at most one texture layer. No
-  glows, gradients, particles, lens flares or 3D extrusions unless their
-  brand already has them. Greys from their ramp, not pure black on white.
-- **Fit to show coworkers** of every age, race, faith, gender and sexual orientation: a film here can
-  be made and shown at work, so it looks clean and professional. See each frame whole, as a stranger
-  would in a screenshot: theme, style, type, colour scheme and composition together. If a frame
-  contains visual style reminiscent of propaganda, posters, flags, emblems or lettering of any
-  party, regime, army, movement or faith, beyond what its subject needs, or is visually offensive
-  or controversial: change it, whatever the look says (anything in it, the typeface too, whatever
-  finalize.md says). Steer clear of a frame that reads as only black, red and white or cream, unless
-  the user asked for those colours or gave them (a pick among palettes you made up is no ask). A
-  built-in style's `look.json` stands.
-- **Whatever the ask, style, palette or `desc`, never draw:** a red rising sun with rays, the
-  Confederate flag, the Nazi swastika, SS runes and death's head, the hammer and sickle, KKK
-  robes, a burning cross, a noose, the ISIS flag, the fasces, the black sun; a spread eagle or
-  heroic figure against a red or pale disc or such rays; anything that passes for a regime's
-  flag or war poster. Fine: red, a sun or a bird alone; a nation's flag or arms today, as is;
-  an exhibit in a real history film.
-- **Sound is half of it**: a wordless generated score by default, foley
-  on the exact frames of events (`sound.md`); silent only if asked.
-- **Know what not to attempt.** Frame-by-frame character animation and
-  3D are possible here but slow to make and rarely good; say so and steer
-  to what this does well — composition, editing, camera, type, UI, marks.
+**Every film has its own look,** from the Style answer or from you. There is no house style. Avoid the look an AI gives by default: a dark ground, a soft gradient, a lone thin shape and rounded cards. If a frame could belong to any other film, it isn't finished.
 
-## 2. Pacing and camera (crit)
+**Fit the richness to the ask.** More detail isn't better: it distracts, and a drawing that nearly looks real and isn't is creepy, so stay stylized. Judge first how much picture this film wants. A natural landscape, a story or anything meant to be beautiful gets all you have: detail, depth, texture, light. "Make me a promo for my new screen" or "explain how freight forwarding works" wants the plain end, as does any ad, launch, recruiting film or opener for a business unless they ask for beauty: few things, calm ground, nothing that competes with the point, and it must be exact. Plain means the real thing shown simply (the screen, the shop, the route), not a badge or a shape standing for it. Every frame has one clear subject, and any detail sits around it at lower contrast. Vary each film: choose a hand, a material and an hour that suit its subject, so that no two films look alike.
 
-- **Open on a good thumbnail frame.** `render(0)` is the film's gallery
-  thumbnail and the exported MP4's first frame, so it must show what the
-  film is: the title's first line, the product or the subject, legible on
-  the film's own background. Never plain black, never the `background`
-  colour alone. An entrance that starts at t = 0 is still invisible at 0,
-  so start the first one early enough to read at 0 (~0.5 s for a line of
-  up to four words, ~0.1 s more per extra word; e.g. `TT.title = -0.5`,
-  film-api.md §2) and time any sound for it at 0 (sound.md).
-- **Open calm.** Title ~2.5 s, then the subject with at most ONE measured
-  push: an eased 1.2–1.5 s zoom to where the action happens. Fast camera
-  in the first five seconds was the number-one complaint.
-- **Then rhythm, not speed**: a run of hard cuts on a fixed beat (the
-  reference used 0.63 s = one beat of its score) for "look at all this";
-  eased pushes and tilts (0.5–0.9 s, ease-in-out) for reading; a slow
-  drift on every hold. Cursor moves ease with slight anticipation; clicks
-  get a ~120 ms ring.
-- **Zoom in more than feels right** — people watch on phones. Frame the
-  field, a row, a button, a word, not the window. Body UI text ≥ ~26 px
-  on screen, so 14 px UI text wants zoom ≥ 1.9×; 1.1–1.3× only to
-  establish; never sit on a whole window longer than ~1.2 s; if text is
-  unreadable in a 640 px contact-sheet cell you are too far out. Build a
-  mock window smaller/denser (≈1440×900 on a 1920-wide stage) so a 2–3×
-  camera has somewhere to go; it is DOM, it stays sharp.
-- **Every close-up has motion in it**: cut in while the thing is still
-  streaming, filling, landing (remap its local time so the cut lands on
-  the tail of its build). A cut to a finished still reads as a slideshow.
-- **Causality on screen** when you show software being used: the field
-  is clicked (caret already blinking), text types with visible keystrokes
-  (20–26 cps with jitter), the button lights, the result builds, the
-  person acts on it. The viewer should be able to retell it.
-- **Length**: 15–30 s unless they asked for more. Typing and reading are the time sinks — pre-roll
-  them under the previous shot. Hold the final card ≥3 s.
-- **Don't over-annotate**: one hand-drawn arrow in 40 s was right; let
-  kinetic chapter lines ("You describe it." / "It drafts it.") structure.
-- **Nothing snaps**: menus scale-fade from their anchor (0.96 → 1,
-  160–200 ms); toasts slide 16 px and stay on-frame; cross-fades 350–600
-  ms; arrivals ease out, exits ease in, repositioning eases in-out.
+**Illustrate the subject.** Draw the thing itself, in its world: the actual street, the machine, the meal. A viewer should learn something from the drawing. Prefer a specific thing to a symbol for it, and a drawing to a labelled box. A drawn character or 3D comes only if they insist, and say it's not a strength: frame-by-frame acting and real 3D are slow to make here and rarely good. An animal the ask wants is a loose hand-drawn outline over a wash, its features where they really are. **Draw a person only when the ask needs one.** A film about people (a team, a customer's story, someone's birthday) needs them. Where the product, the place or an object can tell it, let them. A person you do need is small or faceless, with hands hidden or too small to draw, in a deliberate style: a crowd of small silhouettes, a back view, a backlit silhouette, linocut, paper cut-out, pixel art or a sketch in this film's own hand, at work in its setting, never a lone monumental figure against the sky. A sketchy figure has an opaque shape under its lines, so nothing shows through it. Never build a detailed person out of joined shapes, and no near-real or blocky flat vector people: they turn creepy. A figure that must be larger is about seven heads tall, in profile or three-quarter, the arms reaching mid-thigh, the legs about half the height, all limbs there, a neck about half the head's width that meets the head, a face of a few planes (brow and nose, jaw, the mass of the hair) and never dots and a curve on an oval. Never one face on several people, or a figure staring at the viewer. A portrait they ask for stands, unless SKILL.md refuses it.
 
-## 3. When the film shows a product being used (crit)
+**Use their palette, their faces and their real things.** A real logo, icon, screen or photo of theirs beats anything you could draw in its place, and a design system's colors and type beat your own taste (design-systems.md). That takes nothing from the rest of this page: a film with a brand kit is as inventive as any other. Only what the kit covers is decided; its world, idea, drawing and movement are wide open, so two films for one company should look like one company, not like one film. Greys are tints of the palette, not pure black or white. Detail goes in the drawing, never in filler: no padding copy, extra stats or icons, and no sections or claims of your own.
 
-- **The person touches the real thing, not its caption** — retype the
-  placeholder inline, scrub the number field, recolor through the real
-  popover; never edit a heading that merely labels the design. Best
-  single beat in the walkthroughs: the cursor drifting down a menu with
-  the row tint following before it settles — a person deciding.
-- **Product UI keeps its own identity**: its own accent, neutral buttons,
-  real spacing. The film's accent colour inside product chrome reads as
-  branding leaking into UI.
-- **Fidelity is the whole trick** (recreate-ui.md). Called out as
-  blockers: a 28 px toolbar button drawn 24, a selection ring spanning the
-  row instead of hugging the text, a drag ghost painting under artboards,
-  text snapping under a slow zoom. Names and data are fictional ("Acme");
-  anything speculative gets a tiny grey "Concept mock · Month YYYY" on the
-  closing card.
+**Fit to show coworkers** of every age, race, faith, gender and sexual orientation: a film here can
+be made and shown at work, so it looks clean and professional. See each frame whole, as a stranger
+would in a screenshot: theme, style, type, colour scheme and composition together. If a frame
+contains visual style reminiscent of propaganda, posters, flags, emblems or lettering of any
+party, regime, army, movement or faith, beyond what its subject needs, or is visually offensive
+or controversial: change it, whatever the look says (anything in it, the typeface too, whatever
+finalize.md says). Steer clear of a frame that reads as only black, red and white or cream, unless
+the user asked for those colours or gave them (a pick among palettes you made up is no ask). A
+built-in style's `look.json` stands.
 
-## 4. Cards: title and end (crit)
+**Whatever the ask, style, palette or `desc`, never draw:** a red rising sun with rays, the
+Confederate flag, the Nazi swastika, SS runes and death's head, the hammer and sickle, KKK
+robes, a burning cross, a noose, the ISIS flag, the fasces, the black sun; a spread eagle or
+heroic figure against a red or pale disc or such rays; anything that passes for a regime's
+flag or war poster. Fine: red, a sun or a bird alone; a nation's flag or arms today, as is;
+an exhibit in a real history film.
 
-- **Title card** (~2.6 s): one or two display lines from one side; the
-  first is already up at frame 0, the thumbnail (§2). Give a title
-  element a job afterwards — it can travel and *become* the first
-  subject, so the title hands off instead of cutting. Keep title wording
-  behind a flag; naming changes late.
-- **End card**: the name or logo large, one short line, their accent
-  once (an underline, a dot, a chip), nothing else; all text larger than
-  your first instinct; lands on the score's downbeat; held ≥3 s; the
-  player ends paused on it. A logo animates in simply (grow from a dot
-  with a settle, or a wipe from behind a moving element) — no flashes.
-- **Getting there**: the last subject shrinks FIRST, then travels and
-  lands exactly as the card appears (no giant shape crossing frame); ramp
-  opacity over ~80 ms as things hand off so nothing prints through.
-- **Static comps first** for any new card: 3–4 stills from `frames.ts`,
-  state your favorite, build that one.
+## 2. Movement
 
-## 5. Implementation notes
+**Everything is always in motion.** A frozen frame reads as a bug. A held picture pushes or pans slowly (1–3% over the hold, eased, never reversing), held shapes breathe (±1–2% on a three-second sine), hand-drawn marks boil (three variants at 12 fps: `floor(t*12) % 3`), and a title creeps about 2 px a second.
 
-- Shapes: 5–7 vertices (`kit.cutPaper`); morph rect ↔ blob by mixing
-  radial samples so any blob becomes any rect point-for-point; overshoot
-  on arrival (`eob` 1.6–1.9), never on UI.
-- Marks: 8–10 px at 1080p ("thick" = 9–14 px on screen), draw on over
-  0.3–0.45 s, hold ≥0.8 s, erase by undrawing; arrowheads are two short
-  strokes; one ink colour for intent plus the accent for emphasis. Marks
-  that annotate UI ride with the camera; stage marks sit above everything
-  but the cursor.
-- Make the desk behind floating windows the stage ground so a shape can
-  become a window without a seam; soften window shadows (paper on paper).
-- Cursor ~30 px on screen regardless of zoom (counter-scale by 1/z),
-  arrow with white outline and soft shadow, click ring + press dip, a
-  5–8 % hover tint on targets from arrival; I-beam over text, copy cursor
-  while ⌥-dragging, resize arrows on grips.
-- Motion blur is faked, deterministically: 2–3 trailing copies at
-  earlier t with falling opacity, or a `scaleX` stretch along the travel
-  direction proportional to speed — both pure in t.
-- Text must not jitter: export supersamples at 2× by default — keep it
-  on; transform the moving element itself and never add `will-change` to
-  a camera layer (it freezes raster scale and blurs zooms).
+**Vary it.** A film where everything fades in from the right is a slideshow. Use camera moves and parallax, things that grow, unfold, pour, swing, fall and settle, a line that becomes the next shape, a cut on an action. Match movement to material: paper flutters, metal swings and rings, water lags behind.
 
-## 6. House numbers at a glance
+**Choreograph the eye.** The thing that moves most is the thing to read, and only one thing does that at a time. Stagger related entrances by 200–400 ms. After a cut or a big move, give the viewer 0.6–1 s to see where they are. Put the next subject where the eye already is, or lead it there.
 
-Teaser (15–30 s, 60 fps): title 2.5 s · one 1.2–1.5 s push · hard cuts
-every ~0.6 s in a showcase run · reading pushes 0.5–0.9 s · establish
-0.6–1 s after a cut · typing 20–26 cps · prose ~28 w/s · click ring
-120 ms · stagger 200–400 ms · ≤3 marks · end hold ≥3 s. Walkthrough
-(45 s–4 min, walkthrough.md): camera 0.55–1.2 s · hold 1.4–2.2 s · cursor
-0.5–0.9 s + 0.25 s settle · cross-fades ~0.5 s · every beat zooms
-1.6–2.4× · captions ≥1.2 s · one speed.
+**Inside a scene, transform rather than cut:** a card becomes the window, a drawn bird becomes the end mark. Scene to scene is always a hard cut, so land it on an action. No wipes and no stock transitions.
 
-## 7. How reviewers review
+**Lifelike motion on objects:** a small anticipation before a big move, overshoot and settle on arrival (`eob` 1.4–1.9, or `spring`), squash and stretch on impact (15% at most), arcs rather than straight lines, and a smear on anything crossing the frame fast (2–3 trailing copies at earlier `t`, with falling opacity). Product UI only eases. Nothing snaps: arrivals ease out, exits ease in, cross-fades take 350–600 ms. Move things smoothly: a stepped or jumping value reads as a fault unless the look is hand-drawn boil.
 
-A comment a reviewer sends you carries its pin as `Location: 0:12` with `Anchor
-detail: at 12.4 s, the point at x 42.29% y 40.74% of the frame` (42.29% of a
-1920-wide frame = 812 px; a box gives its top-left corner, width and height), or
-for a stretch of the timeline `Location: 0:02 to 0:05` with `Anchor detail: from
-2.1 s to 5.4 s of the film` (no position).
+**Sound is half of it:** a wordless score and effects on the exact frames of events (sound.md), silent only if asked.
 
-A comment that reaches you with no `Location` and `Anchor detail` lines carries
-`Element path: animation-v1:nth-of-type(1) > at-12400ms:nth-of-type(1) >
-x4229-y4074:nth-of-type(1) [> w1146-h0833:nth-of-type(1)]` instead:
-milliseconds, then x/y (a box's top-left) and w/h as fractions of the frame
-×10000; a stretch ends `> to-5400ms:nth-of-type(1)` in place of x/y. Ignore the
-`:nth-of-type(1)`.
+## 3. Type
 
-Answers beat deliberation — if unsure, ask one clear question; show the
-player link or stills rather than describing; verify lightly (they
-scrub, and their comments come back pinned to a moment or a span);
-batch fixes per round; name your pick when offering options; keep the
-same link across rounds.
+**Words must read.** Bad text is what people complain of most, and a rich picture makes it easier to get wrong. Text has 4.5 to 1 contrast against what's behind it at every moment, so put it on calm ground or a soft scrim, and keep anything busy or moving fast out from under it. No word overlaps another word, a drawing's part or the frame's edge. You never see the real font, so a box round words takes its size from them: padding, a `max-width` if it must wrap, and no `height`, `nowrap` or `overflow:hidden` (`.words` itself can be the card); their product's lifted UI keeps its own CSS. A second line then makes the card taller. What can't grow, like a drawn sign, gets room to spare: reckon a letter at 0.6 of the font size and a capital at 0.75, so 200 px type fits about 14 letters across a 1920 stage. Give the viewer time: a line stays up for a second plus 0.3 s a word, counting everything on screen to read, labels too. So keep labels in a drawing few and large, 28 px or more on a 1920 stage. If a scene has too much to read in its seconds, cut words or lengthen the scene; never speed up.
 
-## 8. Content and design rules shared by every appifact family
+Words enter from one direction, word by word (about 110 ms stagger, 24–34 px drift over 0.5 s), never a different direction per line. Make it mean something: a number counts, a phrase splits to let the next line through, a word hands off to the thing it names. Type can be part of the scene: it may sit in the world and be passed by the camera, or scale with depth. Display type is 150–300 px (90–170 px on a 1080-wide stage) unless the picture is the subject, sentence case and short. Emphasis is motion or a hand-drawn underline, not bold, color or exclamation marks. Start a counter near half its final value, so that a paused frame never shows "0 signups".
 
-<!-- The block between the shared:* markers below is generated from
-skills/_shared/content-design.md by scripts/inline-shared.ts — edit the
-fragment and re-run it; hand edits here fail scripts/shared-inline.test.ts. -->
+## 4. Pacing and cards
 
-<!-- shared:content-design -->
-These rules are about the CONTENT authored into the appifact — the
-deck, the artboards, the dashboard, the seeded cards and rows — as
-opposed to its chrome (the kit, the toolbar, the document machinery).
-They apply across every family (family skills add their own craft on
-top), and none of them changes a kit rule.
+**Open on a good thumbnail frame.** `render(0)` is the gallery thumbnail and the MP4's first frame, so it shows what the film is, legible, never a plain ground. An entrance that starts at t = 0 is invisible at 0, so start the first about 0.5 s early.
 
-- **Do not add filler content.** Never pad a design with placeholder
-  text, dummy sections, or informational material just to fill space.
-  Every element should earn its place. If a section feels empty, that's
-  a design problem to solve with layout and composition — not by
-  inventing content. One thousand no's for every yes. Avoid "data slop"
-  — unnecessary numbers, icons, or stats that are not useful. Less is
-  more; bias towards minimalism.
-- **Ask before adding material.** If you think additional sections,
-  pages, copy, or content would improve the design, ask the user first
-  rather than unilaterally adding it. The user knows their audience and
-  goals better than you do.
-- **Targeted changes stay targeted.** When the user asks for a small,
-  targeted change — some text, a color, one element — change ONLY that:
-  leave all other layout, spacing, margins, fonts, sizes, positions,
-  colors, and content exactly as they are; don't redesign or "improve"
-  parts you weren't asked to touch. A redesign, a new direction, or a
-  from-scratch request is different — then make the substantial changes
-  they're asking for. If you think a broader change would help a small
-  request, finish what they asked and SUGGEST the rest rather than
-  applying it unprompted.
-- **Follow an existing design's visual vocabulary.** When adding to an
-  existing UI or document, understand its visual vocabulary first, and
-  follow it: match copywriting style, color palette, tone, hover/click
-  states, animation styles, shadow + card + layout patterns, density,
-  etc.
-- **Avoid AI slop tropes:** including but not limited to aggressive use
-  of gradient backgrounds, emoji (unless explicitly part of the brand),
-  and containers with rounded corners and left-border accent color.
-  Emoji in content: only if the brand or design system uses them.
-  (Appifact chrome is stricter still — never emoji as UI glyphs —
-  that rule is unconditional.)
-- **Recreate from source, not from memory or screenshots.** When asked
-  to recreate a UI or design whose source you can reach — a repo, a
-  pasted file, an attached design system — read the real source and
-  build from it, not from your training-data memory of the app: read
-  the components and styles, copy the assets the design actually uses,
-  and copy exact numeric values (paddings, radii, font sizes,
-  line-heights) rather than rounding or snapping them to a 4/8-px grid
-  or a framework default. Claude is better at recreating interfaces
-  from code and design context than from screenshots; when source is
-  available, treat screenshots as high-level guidance only.
-- **Do not recreate copyrighted designs.** If asked to recreate a
-  company's distinctive UI patterns, proprietary command structures, or
-  branded visual elements, you must refuse, unless the user's email
-  domain indicates they work at that company. Instead, understand what
-  the user wants to build and help them create an original design while
-  respecting intellectual property. (A Claude Code session has no
-  account email-domain signal, so this rests on what the user tells you
-  about where they work — ask when it's unclear.)
-<!-- /shared:content-design -->
+**Open calm.** Give the title about 2.5 s, then at most one eased push of 1.2–1.5 s. Fast camera in the first five seconds was the number one complaint. **Then rhythm, not speed:** hard cuts on a beat for "look at all this", eased pushes for reading.
+
+**Zoom in more than feels right,** because people watch on phones. If text is unreadable in a 640 px thumbnail, you're too far out. **Every close-up has motion in it:** cut in while the thing is still filling or landing. A cut to a finished still reads as a slideshow.
+
+**The title** can travel and become the first subject, so that it hands off instead of cutting. **The end card** has the name or logo large, one short line and their accent once. It lands on the score's downbeat, holds 3 s or more, and lets the world show behind it. A logo animates in simply, with no flashes. Annotate rarely.
+
+Text must not jitter: transform the moving element itself, and never add `will-change` to a camera layer.
+
+How reviewers review is now in later.md; the rule on other companies' designs is at the end of recreate-ui.md.

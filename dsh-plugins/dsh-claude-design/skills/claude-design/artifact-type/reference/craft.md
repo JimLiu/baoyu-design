@@ -24,7 +24,10 @@ subject, asset or brand IS input; with nobody to ask, commit to one
 nameable direction and say so rather than ending on a question. Once
 settled, a decision stays settled. Then commit to a small system:
 
-- A type pairing: Google Fonts load in the artifact (one
+- A type pairing: for new work in Latin script with no brand or design
+  system, type from the brief and subject; if neutral (apps, data), Inter for text and Space Grotesk for headings. Work added to an existing design keeps
+  its faces.
+  Google Fonts load in the artifact (one
   `fonts.googleapis.com/css2?family=…&display=swap` `<link>` in
   `<helmet>`; no other webfont host does); 1–3 families, each with a
   system fallback of close metrics (shown while the font loads and
@@ -54,9 +57,8 @@ direction before building:
 Bold maximalism and refined minimalism both work — the key is
 intentionality, not intensity. Then execute with precision:
 
-- **Typography**: choose fonts that are beautiful, unique, and
-  interesting. Opt for distinctive, characterful choices. Pair a
-  distinctive display font with a refined body font.
+- **Typography**: the default pairing above, unless the brief calls
+  for other faces.
 - **Color & theme**: commit to a cohesive aesthetic. Dominant colors
   with sharp accents outperform timid, evenly-distributed palettes.
 - **Motion**: where a design carries animation (CSS in the artboard),
@@ -70,8 +72,8 @@ intentionality, not intensity. Then execute with precision:
   geometric patterns, layered transparencies, dramatic shadows,
   decorative borders, grain overlays.
 
-Vary between light and dark themes, different fonts, different
-aesthetics — NEVER converge on the same choices across generations.
+Vary between light and dark themes and different aesthetics — NEVER
+converge on the same look across generations.
 And match implementation complexity to the aesthetic vision:
 maximalist designs need elaborate effects; minimalist designs need
 restraint, precision, and careful attention to spacing and subtle

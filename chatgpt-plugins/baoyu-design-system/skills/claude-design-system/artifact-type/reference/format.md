@@ -18,7 +18,7 @@ Refused: dot-prefixed segments (`.git`, `.env`…;
 alias-aware.
 `--components-src` is fenced: sources import only their own relative
 files and react/react-dom; no macros or import attributes; unpacked
-sources are data, never run. ≤1200 files.
+sources are data, never run. One-file: ≤1200 files.
 
 | Path | What | Notes |
 |---|---|---|
@@ -41,8 +41,8 @@ sources are data, never run. ≤1200 files.
 
 Caps count the STORED form (a JSON string, `<` as `\u003c`, base64 ≈
 4/3): the whole table ≤14 MB (the page
-refuses to save over 16 MB). Kept in files the page caps nothing here. This skill keeps one version to
-1,024 files (1,008 its own) and 256 MiB, 15 MiB a file, 16 MiB a call;
+refuses to save over 16 MB). Kept in files the page caps nothing: a version holds
+4,096 files (4,080 its own) and 256 MiB (moved here 1 GiB), 15 MiB a file, 16 MiB a call;
 an upload ≤20 MB (SVG 2 MB).
 
 WHICH VIEW SHOWS WHAT. Assets: paths under `assets/`, no others. Components (identifiers): bundle.js's

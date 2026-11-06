@@ -2,8 +2,8 @@
 
 A film may hold a plan: a few questions about the look and a storyboard,
 written by you, changed by the user on the film's page. Where the page shows it,
-its button, Make the animation, asks you for the film. "Filling a film" and
-"Revising a film" are sections of this type's instructions (SKILL.md). A film
+its button, Make the animation, asks you for the film.
+"The calls" is a section of this type's instructions (SKILL.md), and "Revising a film" one of later.md. A film
 with a plan skips their "A new film": no questions, no rough cut, no Finalize, no
 `scenes.json`. It is made in one go, as below.
 
@@ -55,9 +55,9 @@ delete `edits.json`.
 
 **The film from the plan.** Read motion.md, film-api.md and sound.md first, in
 one message (a built-in style: styles.md, which has its own order). ONE cut, the
-whole film, in `film/script`, written around a cascade of named beat times.
+whole film, in `film/script` (`window.CUT`: later.md's "A film with no list of scenes"), written around a cascade of named beat times.
 Upload their images and fonts, then ONE `batch`: `film/meta`, each `assets` and
-`modules` document, `film/script` LAST (calls and limits: "Filling a film"). Then the
+`modules` document, `film/script` LAST (calls and limits: "The calls"). Then the
 closing words of the instructions' section 2, as quoted, with the link (no score: its "No score"
 words), and its one sentence more if there is one; the music is not named, whatever sound.md says.
 Follow the plan's picks (the picked palette's `bars` are the film's colours); its

@@ -1,6 +1,6 @@
 # Typefaces and the look
 
-Read this part when you choose the typefaces and colors for the deck (step 1 in the procedure), or when a user gives you font files. There is no house typeface, and nothing is bundled. You choose the typefaces that fit the brief. The deck states the typefaces in the `<head>` section of the HTML.
+Read this part when you choose the typefaces and colors for the deck (step 1 in the procedure), or when a user gives you font files. With no design system, a new deck takes its type from the brief and subject; where that's neutral, as in a report or sales deck, use Inter for text and Space Grotesk for headings, linked as `family=Space+Grotesk:wght@300..700&family=Inter:wght@400;600`: Space Grotesk stops at 700, and one weight that a family lacks fails the whole link. Space Grotesk has Latin letters only, so for Cyrillic, Greek or other scripts choose a heading face that has them. Slides added to an existing deck keep its typefaces. Nothing is bundled. The deck states the typefaces in the `<head>` section of the HTML.
 
 **The normal case is a web font, which is a Google Fonts stylesheet link. It looks like this:**
 
@@ -39,7 +39,7 @@ A static font file with only one weight will render every weight at that one wei
 
 Symbols that the typeface does not include (for example ✓ ✗ ★ ☐ and most dingbats) fall back to a system font. For a check mark, write `<x-icon name="Check">`. For a "no", use a word or a plain −.
 
-## Default picks — prefer these unless the brief says otherwise
+## Other typefaces, when the brief calls for them
 
 All of these are Google Fonts families. Load the ones you choose with one `<link>`, each as `family=Name+With+Spaces` plus a `:wght@` range covering the weights you use, names exactly as shown here.
 
@@ -61,9 +61,9 @@ All of these are Google Fonts families. Load the ones you choose with one `<link
 - calligraphic: `Dancing Script` (use for only one line, never for body text)
 - hand-drawn: `Caveat` (use for one accent line, never for body text)
 
-You can also use any other typeface on Google Fonts, like Playfair Display, Lora, Bitter, Work Sans, Space Grotesk, Montserrat, Syne, and others. This is fine when you have a deliberate design direction.
+You can also use any other typeface on Google Fonts, like Playfair Display, Lora, Bitter, Work Sans, Montserrat, Syne, and others. This is fine when you have a deliberate design direction.
 
-## Pairings by mood (headings + text)
+## Pairings by mood (headings + text), when a brief asks for one
 
 - Editorial / magazine: `Rubik` + `Libre Baskerville`, or just `Libre Baskerville` (headings at 700)
 - Luxury / hospitality: `Cormorant Garamond` + `Rubik` (light)
@@ -77,13 +77,13 @@ You can also use any other typeface on Google Fonts, like Playfair Display, Lora
 - Quiet / minimal: just `Public Sans`
 - Celebratory / invitation: `Dancing Script` (one line) + `EB Garamond`
 
-Vary between decks. Do not always reach for the same pairing. Do not choose a typeface only because it is first in a list.
+Do not choose a typeface only because it is first in a list.
 
 ## Rules that keep a deck from looking generic
 
 The checklist in SKILL.md is the rule set. Here are the numbers behind it:
 
-- **Two faces is the norm; a third only when it has a clear job.** One of them is the display face. A distinctive display face with a refined text face looks better than two safe faces.
+- **Two faces is the norm; a third only when it has a clear job.** One of them is the display face.
 - **Color in hex, chosen once.** Choose one dark color and one light color. You may also choose zero, one, or two accent colors. If you use two accents, they should share the same chroma and lightness but have different hues. Tone the whites and blacks toward the palette. For example, use `#FBFBF8` instead of pure white and `#14213D` instead of pure black. Never use raw `#FFFFFF` or `#000000` unless you want a stark look on purpose. Use two background tones per deck, plus the one accent statement slide. Add a `background` style to every section.
 - **Contrast is a number.** Body text must have a contrast ratio of at least 4.5:1 against its background. At display sizes, the ratio must be at least 3:1. If you use a light accent color (like `#E8C547`), put dark text on it.
 - **Color never says it alone.** A status, a good/bad split, the winning bar, a risk level or a highlighted cell also says so in its text ("+4%, over plan"; "High risk"); a dash, a ✓ or an icon standing for a word gets the word beside it (icons, shapes and connectors reach a screen reader as nothing).

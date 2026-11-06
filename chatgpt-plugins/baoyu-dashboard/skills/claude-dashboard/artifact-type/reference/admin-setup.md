@@ -4,15 +4,17 @@ For answering an admin, or a member who asks why the Certify query switch is off
 asked, from the part that applies; don't recite this page. Nothing here is for a dashboard's code.
 
 A certified query is one connector call (SQL or any other tool call) that a person in the organization vouched for,
-with a title and what it answers. They live as `*.toolcall.json` files under `skills/certified-queries/references/`
+with a title and what it answers. They live as `*.query.json` files (older ones `*.toolcall.json`, still read) under `skills/certified-queries/references/`
 in one plugin the organization chose. Claude reads that plugin's skill wherever the plugin is installed, and the
 Dashboard reads and writes it through the Claude Data connector as the person at the keyboard: the connector holds
 no access of its own, so who may read or save is always the plugin library's decision.
 
 Until a plugin is chosen, nothing is certified and the editor shows a "Certified queries" box in place of the switch:
-"Not turned on for your organization yet" for a member, Enable for someone who can turn them on. Where a query's
-editor shows neither that box nor a Certify query switch, certified queries aren't available to that organization
-and none of the routes below applies.
+"Not configured for your organization yet" for a member, Enable for someone who can set them up. Where a query's
+editor shows neither that box nor a Certify query switch, certified queries are off for the organization or not
+available to it: where Admin settings › Artifacts › Dashboards offers a Certified queries switch, an admin turns
+them on there, and until then none of the routes below applies; where it offers none, they aren't available to
+that organization. Where the switch is on, Claude Data may be kept from this member: reload, then ask the admin.
 
 ## Three ways to turn it on
 
@@ -25,21 +27,26 @@ sees whom to ask instead. If the library already has a plugin named `claude-data
 choose that one in admin settings (route 2) rather than make a second.
 
 **2. Admin settings › Artifacts › Dashboards.** The same page lets an admin pick any plugin the organization
-already has, in its own library or in a marketplace it added, as the home of certified queries, and clear the
-choice again. Use this to point certified queries at an existing plugin (for example one a data team already
+already has, in its own library or in a marketplace it added (one synced from a repository only where route 3 is
+open), as the home of certified queries, or make the
+Claude Data plugin from there (the Plugin dropdown's “Claude Data” choice, then Save). Use this to point certified queries at an existing plugin (for example one a data team already
 curates), or after Enable was refused because a `claude-data` plugin exists. The plugin needs nothing special
 inside it: the first certification adds the `certified-queries` skill and its `references/` folder.
 
-**3. A plugin kept in a repository.** An organization that wants review on every certified query keeps the
-plugin in Git and syncs it into a marketplace (Admin settings › Plugins › Add marketplace › from a repository),
-then chooses that plugin as in route 2. The Dashboard then shows every certified query but holds the switch off
-with "kept in a repository": queries are added and removed by pull request, never from a dashboard, because a sync
-would overwrite anything saved outside the repository. The repository holds:
+**3. A plugin kept in a repository (open to some organizations only, for now).** An organization that wants
+review on every certified query keeps the plugin in Git and syncs it into a marketplace (Admin settings ›
+Plugins › Add marketplace › from a repository),
+then chooses that plugin as in route 2. Where this route isn't open, route 2's Marketplace dropdown leaves synced
+marketplaces out (apart from one chosen earlier), and no admin setting opens the route. Once a synced
+plugin is chosen, the Dashboard shows every certified query but holds the switch
+with "kept in a repository", and a certified query's arguments are read-only in its editor: queries are added, changed
+and removed by pull request, never from a dashboard, because a sync would overwrite anything saved outside the
+repository. The repository holds:
 
 ```
 .claude-plugin/plugin.json          {"name": "finance-metrics", "description": "…"}
-skills/certified-queries/SKILL.md   copy it from a plugin Enable made, or ask Claude for the current text
-skills/certified-queries/references/weekly-signups.toolcall.json
+skills/certified-queries/SKILL.md   copy it from a plugin Enable made; a copy that names only *.toolcall.json needs *.query.json added beside it
+skills/certified-queries/references/weekly-signups.query.json
 ```
 
 and one query file:
@@ -55,7 +62,7 @@ and one query file:
 }
 ```
 
-`id` is lower-case letters, digits, `-` and `_` (64 at most) and is the file's name; `call` is exactly
+`id` is lower-case letters, digits, `-` and `_` (64 at most) and is the file's name. A record with no `kind`, as this one, is the older form, whose `{{start}}` Claude Data fills as a quoted literal; one certified from a `kind: "call"` query carries `kind` and its `rules`. `call` is exactly
 `connector`, `tool` and `args`, with each value a reader supplies left as `{{name}}` and described under `filters`
 (`type` is `text`, `number`, `boolean` or `date`; `many: true` takes a list; `allowed` lists the only values it
 takes). `hints` are short sentences Claude follows when it uses the query, 20 at most.
@@ -66,9 +73,10 @@ takes). `hints` are short sentences Claude follows when it uses the query, 20 at
 | --- | --- |
 | Just want it on; trust editors to certify from dashboards | 1 (Enable) |
 | A team already curates a plugin, or Enable found a `claude-data` plugin | 2 |
-| Every certified query must go through code review | 3 |
+| Every certified query must go through code review | 3, where open |
 
-Routes 1 and 2 can later move to 3: export the plugin, commit it, sync it as a marketplace, re-point the setting.
+Where route 3 is open, routes 1 and 2 can later move to it: export the plugin, commit it, sync it as a marketplace,
+re-point the setting.
 
 ## Questions people ask
 
@@ -100,7 +108,14 @@ plugin or its files; dashboards simply stop showing its checks.
 **Why is the switch off for me?** While nothing is set up there is no switch, only the box above (routes above).
 Otherwise the tooltip says which of these it is: kept in a repository (route 3: edit the repo), no permission (ask
 for one of the roles above), or can't be reached right now (the connector or the library is down; try again, or open
-the dashboard inside Claude rather than on its own).
+the dashboard inside Claude rather than on its own). Where the lookup itself failed there is no tooltip: the sentence
+under the switch says why, and the query's page in Sources ends "Couldn’t check certification" with the same reason behind
+its info mark. A Retry comes with it only for a passing fault; none comes where their organization's or their own connector
+settings don't allow it, or where it is turned off for this dashboard. Where Claude Data isn't listed for them, nothing of certified queries
+shows at all: the platform lists it where the organization allows Live sharing or Certified queries, and an admin's connector settings
+can also keep it from a member.
 
-**How do we turn it off?** Clear the choice in Admin settings › Artifacts › Dashboards. Existing dashboards keep
-working; their checks disappear and nothing more can be certified until a plugin is chosen again.
+**How do we turn it off?** Where Admin settings › Artifacts › Dashboards offers a Certified queries switch, turn
+it off: dashboards then show nothing of certification and nothing can be certified, and turning it back on brings
+everything back, the chosen plugin included. Before an organization has that switch, the page has no off: the
+plugin choice can be changed to another plugin there, but not cleared.

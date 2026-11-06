@@ -24,6 +24,13 @@ Suggestions for what the person left unsaid. The documents, the rules and the
   in the same order.
 - It helps to define a metric in plain words where it first appears. A method
   that takes more than a sentence can have a page of its own.
+- Beyond that, most pages need no notes on how to read them. Where the person
+  asks for notes, such as definitions, a short method or what's left out, a
+  closed `<details>` at the foot of the page keeps them tidy: a `<summary>`
+  saying what's inside, then short terms and meanings, with what's left out in a
+  group of its own. A figure there is marked and filled from the data like any
+  other. A caveat that changes how a headline number reads is hard to miss
+  beside that number or in the takeaway.
 - Where a connector offers governed or semantic definitions and one covers
   the metric, a query through it gives the number people get when they ask
   elsewhere. Where the SQL is your own, it helps to say so beside the
@@ -32,11 +39,11 @@ Suggestions for what the person left unsaid. The documents, the rules and the
   team or by who did it.
 - Labelling a line at its end with its name and latest value can replace a
   legend.
-- Each live query runs again for every reader, so where a smaller or
-  already aggregated table has the answer it is the better source. The
-  connector's answer often says how much data a query scanned.
-- When something was left out, it helps to say so on the page, with why (a
-  table too large to query on every load).
+- Each live query runs again for every reader, who may wait for it, so it
+  helps to ask only for the rows and fields the page uses, from a smaller or
+  already aggregated table if there is one. The connector's answer often says
+  how much data a query scanned.
+- When a source was left out, the page can say so, and why.
 
 Shapes to mix or ignore; where a shape says otherwise, the shape wins:
 
@@ -65,15 +72,15 @@ Shapes to mix or ignore; where a shape says otherwise, the shape wins:
   it shows; one accent series, the rest muted.
 - **Scroll story** — a finding told as the reader scrolls, also asked for as a
   story, a narrative, a scroll-driven story, a scrollyteller or scrollytelling:
-  short chapters of text (each `data-read-step`) in one column (`data-read`)
-  beside one chart that stays in view (`position: sticky`) and changes as each
-  chapter reaches the middle (an `IntersectionObserver` with `root: document`,
-  without which this page ignores its `rootMargin`); one idea a chapter, its
-  numbers marked like any other; when narrow, the chart stays on top and the
-  text scrolls under it.
+  short chapters of text in one column beside one chart that stays in view
+  (`position: sticky`) and changes as each chapter reaches the middle (an
+  `IntersectionObserver` with `root: document`, without which this page ignores
+  its `rootMargin`); one idea a chapter, its numbers marked like any other; when
+  narrow, the chart stays on top and the text scrolls under it.
 - **Letter** — an update written as a letter to its readers (members,
   investors, a team): a greeting, a few short paragraphs in one narrow centered
-  column (`data-read`), each number inside its sentence and marked like any
+  column (`data-read`, and `lang` for the language it is written in: a letter
+  can be read aloud), each number inside its sentence and marked like any
   other, with a word that follows it (up, down) filled from the data too; at
   most one small chart, a sign-off, and `[brackets]` for what only the person
   can say; no tiles, headline figure, section headings or filters.
@@ -90,11 +97,8 @@ If `context` holds `designSystem`, first read
 `artifact-type/reference/design-system.md` if a design system is named, or the key
 isn't `none` and they ask about color or type.
 
-### Read aloud
-
-A progressive enhancement: the dashboard reads a `data-read` element aloud for
-some readers. Before a page or your reply speaks of listening, read
-`artifact-type/reference/read-aloud.md`.
+When the person asks to listen, or before a page or your reply speaks of
+listening or audio, read `artifact-type/reference/read-aloud.md`.
 
 ### Look
 
@@ -188,6 +192,12 @@ The type stamps what the data is doing as attributes the page can style
 
 ### Filters
 
+- `<select class="dash-select">` gives a dropdown the dashboard's look and
+  an arrow set in from the edge. A class of the page's own beside it can
+  change the size, color or corners. Use `background-color` for the fill,
+  since `background` removes the arrow, and set no padding, since the right
+  padding is the arrow's room. A page with its own look for dropdowns can
+  leave the class off.
 - A page can work out a filter's default in its own code, such as a date
   relative to today, and set it with `dash.setParams` at the top of its
   script: the queries first run with it. The page's Reset calls that code

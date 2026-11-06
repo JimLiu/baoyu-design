@@ -47,15 +47,15 @@ doesn't move the story goes. Chapters become `window.CUT.chapters`
   stagger, 34 px drift), a 40 px subhead; 2.4–3.2 s. Then the quad **morphs into
   the UI window** (1.1–1.2 s) while the screen fades up inside it — no
   hard cuts from slides into UI.
-- **Personas** (multi-flow only): a 220 px flat smiley in ONE secondary
-  color (never touching the accent) whose eyes and smile are ink marks
-  that draw on and boil; name 40 px semibold, role 30 px, their need as a
+- **Personas** (multi-flow only): a 220 px flat profile, head and shoulders, in
+  ONE secondary color (never touching the accent), whose outline is an
+  ink mark that draws on and boils; name 40 px semibold, role 30 px, their need as a
   44 px display line from the right; ~3.5 s;
   then it flies down to a 72 px badge bottom-left and rides there
   through that flow's beats.
 - **No speech bubbles over UI.** When the person has something to say
   mid-flow, use an interstitial text card: the UI eases to scale 0.96 /
-  opacity 0.25, one 72 px display line (and the small smiley) scales
+  opacity 0.25, one 72 px display line (and the small profile) scales
   0.92 → 1 over 1.4 s, holds 1.6 s, the UI eases back.
 - **Closing card**: a 72 px display line from the right, one accent
   recap chip per flow tumbling in (2.5D is allowed for shapes), a tiny grey

@@ -4,7 +4,7 @@ SKILL.md has the checklist. This page explains the reasons behind it. Read this 
 
 ## Writing a good deck
 
-There is no house look. The fonts are the ones you put in `<head>` (see fonts.md). The palette is the hex color codes you choose for the brief.
+There is no house look, beyond the default typefaces. The fonts are the ones you put in `<head>` (see fonts.md). The palette is the hex color codes you choose for the brief.
 
 - **One idea per slide.** One big statement slide is better than three bullet-point-ish slides. It is better to have several short slides than one crowded slide.
 - **128px edge margins** are the standard. Use `padding:128px` on the section. Pinned elements start 128px from an edge, unless you have a reason to do something else.

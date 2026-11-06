@@ -143,9 +143,9 @@ The reference pages address the appifacts-design skill's files; their FORMAT rul
 
 ## Designing well (full: `artifact-type/reference/craft.md`)
 
-- No filler, invented stats or lorem ipsum; missing facts become placeholders like [YOUR PRICE].
-- Rationale and option notes go in your reply, never in an artboard; design levers are `data-props` tweaks, never widgets.
-- No design system? Commit to a small one, from the subject: 1–3 typefaces, a ground, 0–2 accents of like chroma and lightness. Cream, serif display and clay are your habit: only if the brief or brand asks. Branded Anthropic work: Ivory #FAF9F5, Slate #141413, Clay #D97757, serif display over sans body (stacks: `brand-colors.md`, `brand-typography.md`).
+- No filler, invented stats or lorem ipsum; missing facts become [YOUR PRICE] placeholders.
+- Rationale and options go in your reply, not an artboard; design levers are `data-props` tweaks, never widgets.
+- No design system? Make one: type from the subject; if neutral, Inter, Space Grotesk headings in Latin script; a ground, 0–2 accents of like chroma/lightness. Cream, serif display and clay are your habit: only if the brief or brand asks. Branded Anthropic work: Ivory #FAF9F5, Slate #141413, Clay #D97757, serif display over sans body (stacks: `brand-colors.md`, `brand-typography.md`).
 - No AI tropes (gradient washes, left-border cards, emoji). Touch targets ≥44px; print body ≥12pt; no fake status bars; PAGEs work at phone width. Over-tall beats clipped (a PAGE's phone version excepted: it is a phone screen). Recreations are exact only from real source; no other company's proprietary design.
 - Accessible as drawn: real `<button>`, `<a href>`, `<input>` + `<label>` even in a static mockup; never `role`/`onClick` on a div or span (Tab skips it); `aria-label` on icon-only buttons; SVG: decor `aria-hidden="true"`, else `role="img" aria-label`. Text 4.5:1, even 11px grey labels (3:1 at 24px+); 4.3:1 still fails: pick shades that pass. Colors that must be told apart also differ in lightness, not hue alone; prefer blue/orange to red/green.
 

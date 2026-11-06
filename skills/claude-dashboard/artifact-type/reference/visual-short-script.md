@@ -1,6 +1,7 @@
 # A Visual short's skeleton: the script
 
-Goes with the HTML and CSS in `artifact-type/reference/visual-short-skeleton.md`.
+Goes with the HTML and CSS in `artifact-type/reference/visual-short-skeleton.md`,
+as `files/vs.js`.
 Yours to write: the calcs, `fmt`, a `dash.draw` per chart and `scenes`. The rest
 is the engine, which already does what has to hold: copy it as it stands, unless
 the person asks for something it doesn't do.
@@ -16,10 +17,11 @@ const still = matchMedia('(prefers-reduced-motion: reduce)');
 const words = (el) => el.textContent.replace(/\s+/g, ' ').trim();
 const write = (el, s) => { if (el && el.textContent !== s) el.textContent = s; }; // text only when it changes
 const says = (i) => [...(caps[i]?.querySelectorAll('.vs-s:not([hidden])') ?? [])]; // a chapter's sentences, less any the data ruled out
+const called = (i) => ['.vs-label', 'h1, h2, h3'].map((q) => chs[i]?.querySelector(q)).map((el) => (el ? words(el) : '')).find(Boolean) ?? String(i + 1);
 // How a figure is written, by source and field; any other as it comes.
 const fmt = {'orders.cost': d3.format('$,.2f'), 'said.cost': d3.format('$,~f')};
 let said = [], durs = [], cur = 0, t = Infinity, playing = false, begun = false, raf = 0, last = 0, heard = null, was = null, pace = 1;
-const phase = () => root.getAttribute('data-dash-read-phase'); // there while the voice is on
+const phase = () => root.getAttribute('data-dash-read-phase'); // there while a reading is open, and for a moment as a reader edits by hand
 
 // While a reading is open every time is scaled by `pace`: how long the voice took over the last caption it read through, against 15 characters a second.
 const paced = (at) => (phase() ? at * pace : at);
@@ -53,14 +55,15 @@ function fig(el) { // the one place marked text is written: fills one mark, its 
 }
 dash.draw('fig', fig); // every marked figure in the HTML is data-draw="fig"
 for (const name of ['runs', 'now', 'copy']) dash.draw(name, () => {}); // drawings the engine writes in at its own times
+const due = new Map(); // the second each sentence starts at, by its span; not a property of the span, since Safari has a span.cue of its own
 function timing() { // after the figures: filling moves where the words fall
   said = chs.map((_, i) => says(i).map(words).join(' ')); durs = said.map((s) => s.length / 15 + 1);
-  chs.forEach((_, i) => { let at = 0; for (const s of says(i)) { const w = words(s), j = said[i].indexOf(w, at); s.cue = (j < 0 ? at : j) / 15; if (j >= 0) at = j + w.length; } });
+  chs.forEach((_, i) => { let at = 0; for (const s of says(i)) { const w = words(s), j = said[i].indexOf(w, at); due.set(s, (j < 0 ? at : j) / 15); if (j >= 0) at = j + w.length; } });
   write(vs.querySelector('.vs-runs'), String(Math.round(d3.sum(durs) / 5) * 5));
 }
 function draw(i, t) {
   scenes[i]?.(still.matches || t >= paced(durs[i]) ? Infinity : t); // under reduced motion the drawing is whole, and the sentences still take their turns
-  const ss = says(i), k = begun ? ss.findLastIndex((s) => t >= paced(s.cue)) : 0; // the sentence being said; before the first Play, the first
+  const ss = says(i), k = begun ? ss.findLastIndex((s) => t >= paced(due.get(s))) : 0; // the sentence being said; before the first Play, the first
   ss.forEach((s, j) => s.classList.toggle('vs-on', j === Math.max(0, k)));
 }
 function frame() {
@@ -68,11 +71,12 @@ function frame() {
   mks.forEach((m, j) => { for (const bar of m.children) bar.style.width = (j < cur ? 1 : j > cur ? 0 : t === Infinity ? +begun : Math.min(1, t / paced(durs[cur]))) * 100 + '%'; }); // whole: full, but for the title before the first Play
 }
 function show(i, from) {
-  if (i !== cur) { draw(cur, Infinity); if (!phase()) write(vs.querySelector('.vs-now'), mks[i]?.getAttribute('aria-label') ?? ''); } // what leaves is left whole: its marks are still checked
+  if (i !== cur) { draw(cur, Infinity); if (!phase()) write(vs.querySelector('.vs-now'), called(i)); } // what leaves is left whole: its marks are still checked
   [cur, t] = [i, from];
   for (const set of [chs, caps]) set.forEach((el, j) => el.classList.toggle('vs-on', j === i));
   chs.forEach((ch, j) => ch.setAttribute('aria-hidden', String(j !== i))); // not the captions: Listen skips what is aria-hidden
   for (const set of [mks, caps]) set.forEach((el, j) => (j === i ? el.setAttribute('aria-current', 'true') : el.removeAttribute('aria-current')));
+  mks.forEach((m, j) => m.getAttribute('aria-label') === called(j) || m.setAttribute('aria-label', called(j))); // so that a hand edit of the label reaches the chapter mark
   frame();
 }
 function tick(now) {
@@ -85,11 +89,11 @@ function tick(now) {
   raf = requestAnimationFrame(tick);
 }
 const kick = () => { if (!raf) { last = 0; raf = requestAnimationFrame(tick); } };
-function look() { const on = phase() ? /starting|playing/.test(phase()) : playing; vs.classList.toggle('vs-playing', on); vs.querySelector('.vs-toggle')?.setAttribute('aria-label', on ? 'Pause' : 'Play'); } // Play or Pause by the voice's phase, or by the page's own clock when there is no voice
+function look() { const on = phase() ? /starting|playing/.test(phase()) : playing; vs.classList.toggle('vs-playing', on); vs.querySelector('.vs-controls .vs-toggle')?.setAttribute('aria-label', on ? 'Pause' : 'Play'); } // Play or Pause by the voice's phase, or by the page's own clock when there is no voice; the dashboard reads vs-playing too
 function play(on) { playing = on; begun ||= on; look(); frame(); if (on) kick(); }
-// While the voice is on, the dashboard hears the same presses (data-read-pause, data-read-move) and the voice keeps time: a press here shows its chapter, and starts and stops no clock.
+// While a reading is open, the dashboard hears the same presses (data-read-pause, data-read-move) and the voice keeps time: a press here shows its chapter, and starts and stops no clock.
 const from = (i) => (show(Math.max(0, Math.min(chs.length - 1, i)), 0), phase() || play(true));
-const on = (q, f) => { const b = vs.querySelector(q); if (b) b.onclick = f; }; // a piece may leave a control out
+const on = (q, f) => { const b = vs.querySelector('.vs-controls ' + q); if (b) b.onclick = f; }; // a piece may leave a control out
 on('.vs-toggle', () => phase() || (playing ? play(false) : t < durs[cur] ? play(true) : from(cur === chs.length - 1 ? 0 : cur)));
 on('.vs-back', () => from(cur - 1));
 on('.vs-next', () => from(cur + 1));
@@ -118,7 +122,7 @@ const mo = new MutationObserver(() => {
     const i = caps.indexOf((heard = now));
     if (i >= 0) show(i, 0); // a stamp on anything but a caption moves nothing
   }
-  if (p === 'ended') show(cur, Infinity); // read to its end: whole
+  if (p === 'ended') show(cur, Infinity); // read to its end, or a reader edits by hand: whole
   kick();
 });
 mo.observe(root, {subtree: true, attributes: true, attributeFilter: ['data-dash-read-phase', 'data-dash-read-now']});
